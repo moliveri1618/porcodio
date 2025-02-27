@@ -61,7 +61,7 @@ jobs:
 
       # Step 9: Upload API Zip Artifact
       - name: Upload API Zip
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: api
           path: api.zip
