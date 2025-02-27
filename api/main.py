@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from mangum import Mangum
+from api.routers import items  
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -15,6 +16,8 @@ app.add_middleware(
 )
 
 
+# Items Routers
+app.include_router(items.router, prefix="/items", tags=["Items"])
 
 @app.get("/")
 async def root():
