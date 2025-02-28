@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, Depends
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel, create_engine, Session, select
+from sqlmodel import SQLModel, Field, create_engine, Session, select
 from contextlib import asynccontextmanager
 from typing import List
 
@@ -11,16 +11,53 @@ if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__))
 from routers import items  
 from models.items import Item
 
+# Define the Hero model
+class Hero(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    superpower: str
+
 # Create the PostgreSQL database and engine
 rds_postgresql_url = "postgresql://rootuser:password@fastapi-aws-database.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
 engine = create_engine(rds_postgresql_url, echo=True)
 
-from sqlmodel import Session
+# Define the Hero model
+class Hero(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    superpower: str
 
-# Database Session Dependency
-def get_db():
+# Create the PostgreSQL database and engine
+rds_postgresql_url = ""
+engine = create_engine(rds_postgresql_url, echo=True)
+
+# Initialize the database
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+    
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
+# Endpoint to create a hero
+@app.post("/heroes/", response_model=Hero)
+def create_hero(hero: Hero):
     with Session(engine) as session:
-        yield session
+        session.add(hero)
+        session.commit()
+        session.refresh(hero)
+        return hero
+
+# Endpoint to get all heroes
+@app.get("/heroes/", response_model=List[Hero])
+def read_heroes():
+    with Session(engine) as session:
+        heroes = session.exec(select(Hero)).all()
+        return heroes
 
 
 # Initialize the database
