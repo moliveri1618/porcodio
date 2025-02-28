@@ -3,8 +3,9 @@ import os
 from fastapi import FastAPI, Depends
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, create_engine, Session, select
 from contextlib import asynccontextmanager
+from typing import List
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
@@ -13,6 +14,14 @@ from models.items import Item
 # Create the PostgreSQL database and engine
 rds_postgresql_url = "postgresql://rootuser:password@fastapi-aws-database.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
 engine = create_engine(rds_postgresql_url, echo=True)
+
+from sqlmodel import Session
+
+# Database Session Dependency
+def get_db():
+    with Session(engine) as session:
+        yield session
+
 
 # Initialize the database
 def create_db_and_tables():
