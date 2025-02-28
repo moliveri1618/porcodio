@@ -44,14 +44,14 @@ def create_db_and_tables():
 app = FastAPI(lifespan=lifespan)
 handler = Mangum(app=app)
 
-# CORS 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# # CORS 
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"], 
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
