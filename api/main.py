@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from mangum import Mangum
+import sys
 import os
-if "GITHUB_ACTIONS" in os.environ:
-    from api.routers import items  # ✅ Works in GitHub Actions
-else:
-    from routers import items  # ✅ Works in AWS Lambda
+# Dynamically adjust the import path
+if os.getenv("GITHUB_ACTIONS"):
+    sys.path.append(os.path.dirname(__file__))  # Ensure current dir is in path
+
+from routers import items  # Works both locally and in GitHub Actions
 
 from fastapi.middleware.cors import CORSMiddleware
 
