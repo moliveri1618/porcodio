@@ -5,4 +5,4 @@ router = APIRouter()
 
 @router.get("/diocane")
 def get_items():
-    return {"bgggg": "Hello, world! Items"}
+    return {"bgggg": "Hello, world! Itemsdd"}
