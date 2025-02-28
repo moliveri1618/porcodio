@@ -1,11 +1,11 @@
-from fastapi import FastAPI
-from mangum import Mangum
 import sys
 import os
+from fastapi import FastAPI
+from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
-
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
-from routers import items  # Works both locally and in GitHub Actions
+from routers import items  
+
 
 
 app = FastAPI()
@@ -20,9 +20,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # Items Routers
-app.include_router(items.router, prefix="/items", tags=["Items"])
+app.include_router(
+    items.router, 
+    prefix="/items", 
+    tags=["Items"]
+)
 
 @app.get("/")
 async def root():
