@@ -72,14 +72,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 handler = Mangum(app=app)
 
-# CORS 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# # CORS 
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"], 
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 # Items Routers
 app.include_router(
@@ -92,16 +92,16 @@ app.include_router(
 async def root():
     return {"message": "Hello asdasd"}
 
-# Endpoint to create an item
-@app.post("/items/", response_model=Item)
-def create_item(item: Item, db: Session = Depends(get_db)):
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
+# # Endpoint to create an item
+# @app.post("/items/", response_model=Item)
+# def create_item(item: Item, db: Session = Depends(get_db)):
+#     db.add(item)
+#     db.commit()
+#     db.refresh(item)
+#     return item
 
-# Endpoint to get all items
-@app.get("/items/", response_model=List[Item])
-def read_items(db: Session = Depends(get_db)):
-    items = db.exec(select(Item)).all()
-    return items
+# # Endpoint to get all items
+# @app.get("/items/", response_model=List[Item])
+# def read_items(db: Session = Depends(get_db)):
+#     items = db.exec(select(Item)).all()
+#     return items
