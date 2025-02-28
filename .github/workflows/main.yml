@@ -56,7 +56,7 @@ jobs:
       # Step 8: Add API files to Zip file
       - name: Add API files to Zip file
         run: |
-          mkdir -p temp/ap
+          mkdir -p temp/api
           cp -r ./api/* temp/api/
           cd temp
           zip -r ../api.zip .
