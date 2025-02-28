@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from mangum import Mangum
-from dependecies import setup_imports
+import os
+if "GITHUB_ACTIONS" in os.environ:
+    from api.routers import items  # ✅ Works in GitHub Actions
+else:
+    from routers import items  # ✅ Works in AWS Lambda
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -15,9 +20,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import routers dynamically based on environment
-routers = setup_imports()
-items = routers.get("items")
+
+# Items Routers
+app.include_router(items.router, prefix="/items", tags=["Items"])
 
 @app.get("/")
 async def root():
