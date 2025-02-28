@@ -3,9 +3,26 @@ import os
 from fastapi import FastAPI
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import create_engine
+from sqlalchemy.exc import OperationalError
+
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
 
+# Create the PostgreSQL database and engine
+rds_postgresql_url = "postgresql://rootuser:password@fastapi-aws-database.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
+engine = create_engine(rds_postgresql_url, echo=True)
+
+def test_db_connection():
+    try:
+        with engine.connect() as connection:
+            connection.execute("SELECT 1")  # Simple query to check connection
+        print("✅ Database connection successful!")
+    except OperationalError as e:
+        print("❌ Database connection failed:", str(e))
+
+# Run this before initializing tables
+test_db_connection()
 
 
 app = FastAPI()
