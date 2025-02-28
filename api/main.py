@@ -1,6 +1,6 @@
 import sys
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel, create_engine, Session
