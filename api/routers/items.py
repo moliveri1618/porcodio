@@ -3,6 +3,6 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-@router.get("/")
+@router.get("/diocane")
 def get_items():
     return {"bgggg": "Hello, world! Items"}
