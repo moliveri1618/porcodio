@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 from contextlib import asynccontextmanager
 from typing import List
+import logging
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
@@ -80,11 +81,11 @@ def create_hero(hero: Hero):
 # Endpoint to get all heroes
 @app.get("/heroes/", response_model=List[Hero])
 def read_heroes():
-    print("Attempting to connect to DB...")
+    logging.info("Attempting to connect to DB...")
     with Session(engine) as session:
-        print('UYUYUUY')
+        logging.info('here')
         heroes = session.exec(select(Hero)).all()
-        print('wqweeweew')
+        logging.info(f"Retrieved {len(heroes)} heroes from DB")
         return heroes
 
 # # Endpoint to create an item
