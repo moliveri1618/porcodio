@@ -56,8 +56,15 @@ jobs:
       # Step 8: Add API files to Zip file
       - name: Add API files to Zip file
         run: |
-          cd ./api
-          zip -g ../api.zip -r .
+          mkdir -p temp/ap
+          cp -r ./api/* temp/api/
+          cd temp
+          zip -r ../api.zip .
+          cd ..
+          rm -rf temp
+
+
+
 
       # Step 9: Upload API Zip Artifact
       - name: Upload API Zip
