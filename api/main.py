@@ -80,8 +80,11 @@ def create_hero(hero: Hero):
 # Endpoint to get all heroes
 @app.get("/heroes/", response_model=List[Hero])
 def read_heroes():
+    print("Attempting to connect to DB...")
     with Session(engine) as session:
+        print('UYUYUUY')
         heroes = session.exec(select(Hero)).all()
+        print('wqweeweew')
         return heroes
 
 # # Endpoint to create an item
