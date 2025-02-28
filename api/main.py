@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from mangum import Mangum
-from routers import items  
-# import os
-# if "GITHUB_ACTIONS" in os.environ:
-#     from api.routers import items  # ✅ Works in GitHub Actions
-# else:
-#     from routers import items  # ✅ Works in AWS Lambda
+#from routers import items  
+import os
+if "GITHUB_ACTIONS" in os.environ:
+    from api.routers import items  # ✅ Works in GitHub Actions
+else:
+    from routers import items  # ✅ Works in AWS Lambda
 
 from fastapi.middleware.cors import CORSMiddleware
 
