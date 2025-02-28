@@ -1,6 +1,6 @@
 file org info:
 
-├── app                     # Contains the main application files
+├── api                     # Contains the main application files
 │   ├── __init__.py         # This file makes "app" a Python package
 │   ├── main.py             # Initializes the FastAPI application
 │   ├── dependencies.py     # Defines dependencies used by the routers
