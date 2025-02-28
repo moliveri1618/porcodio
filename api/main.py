@@ -21,4 +21,4 @@ app.include_router(items.router, prefix="/items", tags=["Items"])
 
 @app.get("/")
 async def root():
-    return {"message": "Hello Worlddfdfdf"}
+    return {"message": "Hello asdasd"}
