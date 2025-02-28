@@ -5,6 +5,7 @@ from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import create_engine
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import text
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
@@ -16,7 +17,7 @@ engine = create_engine(rds_postgresql_url, echo=True)
 def test_db_connection():
     try:
         with engine.connect() as connection:
-            connection.execute("SELECT 1")  # Simple query to check connection
+            connection.execute(text("SELECT 1"))  # ✅ Use `text()`
         print("✅ Database connection successful!")
     except OperationalError as e:
         print("❌ Database connection failed:", str(e))
