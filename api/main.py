@@ -21,16 +21,6 @@ class Hero(SQLModel, table=True):
 rds_postgresql_url = "postgresql://rootuser:diocane1234@fastapi-aws-database.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
 engine = create_engine(rds_postgresql_url, echo=True)
 
-# Define the Hero model
-class Hero(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    name: str
-    superpower: str
-
-# Create the PostgreSQL database and engine
-rds_postgresql_url = ""
-engine = create_engine(rds_postgresql_url, echo=True)
-
 # Initialize the database
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -41,7 +31,42 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
 
+
+# Initialize the database
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
 app = FastAPI(lifespan=lifespan)
+handler = Mangum(app=app)
+
+# # CORS 
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"], 
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()  # ✅ Runs only when the app starts
+    yield
+
+# Items Routers
+app.include_router(
+    items.router, 
+    prefix="/items", 
+    tags=["Items"]
+)
+
+
+
+@app.get("/")
+async def root():
+    return {"message": "Hello asdasd"}
+
 
 # Endpoint to create a hero
 @app.post("/heroes/", response_model=Hero)
@@ -58,39 +83,6 @@ def read_heroes():
     with Session(engine) as session:
         heroes = session.exec(select(Hero)).all()
         return heroes
-
-
-# Initialize the database
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
-    
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()  # ✅ Runs only when the app starts
-    yield
-
-app = FastAPI(lifespan=lifespan)
-handler = Mangum(app=app)
-
-# # CORS 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"], 
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-# Items Routers
-app.include_router(
-    items.router, 
-    prefix="/items", 
-    tags=["Items"]
-)
-
-@app.get("/")
-async def root():
-    return {"message": "Hello asdasd"}
 
 # # Endpoint to create an item
 # @app.post("/items/", response_model=Item)
