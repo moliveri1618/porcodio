@@ -12,6 +12,9 @@ if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__))
 from routers import items  
 from models.items import Item
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 # Define the Hero model
 class Hero(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -77,15 +80,25 @@ def create_hero(hero: Hero):
         session.commit()
         session.refresh(hero)
         return hero
+    
+@app.get("/test-db-connection")
+def test_db():
+    try:
+        with Session(engine) as session:
+            session.exec("SELECT 1")  # Simple test query
+            return {"message": "Database connection successful"}
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}", exc_info=True)
+        return {"error": str(e)}
 
 # Endpoint to get all heroes
 @app.get("/heroes/", response_model=List[Hero])
 def read_heroes():
-    logging.info("Attempting to connect to DB...")
+    logger.info("Attempting to connect to DB...")
     with Session(engine) as session:
-        logging.info('here')
+        logger.info('here')
         heroes = session.exec(select(Hero)).all()
-        logging.info(f"Retrieved {len(heroes)} heroes from DB")
+        logger.info(f"Retrieved {len(heroes)} heroes from DB")
         return heroes
 
 # # Endpoint to create an item
