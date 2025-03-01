@@ -75,7 +75,7 @@ async def root():
 
 
 # Endpoint to create a hero
-@app.post("/heroes/", response_model=Hero)
+@app.post("/heroes", response_model=Hero)
 def create_hero(hero: Hero):
     with Session(engine) as session:
         session.add(hero)
