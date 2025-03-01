@@ -21,7 +21,10 @@ COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{C
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def get_cognito_public_keys():
+    logger.info(f"Fetching Cognito public keys from {COGNITO_PUBLIC_KEY_URL}")
     response = requests.get(COGNITO_PUBLIC_KEY_URL)
+    logger.info(f"Response status code: {response.status_code}")
+
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Failed to fetch Cognito public keys")
     return response.json()
