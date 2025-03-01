@@ -4,8 +4,8 @@ import os
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 
 # Create the PostgreSQL database and engine
-#rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
-rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"
+rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
+#rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"
 
 # Create the database engine
 engine = create_engine(rds_postgresql_url, echo=True)
