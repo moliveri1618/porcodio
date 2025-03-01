@@ -8,6 +8,10 @@ import requests
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.api_jwk import PyJWK
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 # Load Cognito settings from environment variables
 COGNITO_REGION = os.getenv("COGNITO_REGION", "eu-north-1")
@@ -24,8 +28,10 @@ def get_cognito_public_keys():
 
 # ✅ Function to verify JWT token
 def verify_cognito_token(token: str = Depends(oauth2_scheme)):
+    logger.info("Starting token verification")
     
     try:
+        logger.info("Decoding JWT header")
         # Decode JWT header to get key ID (kid)
         headers = jwt.get_unverified_header(token)
         kid = headers["kid"]
