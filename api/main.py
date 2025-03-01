@@ -22,7 +22,7 @@ class Hero(SQLModel, table=True):
     superpower: str
 
 # Create the PostgreSQL database and engine
-rds_postgresql_url = "postgresql://rootuser:diocane1234@fastapi-aws-database.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
+rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
 engine = create_engine(rds_postgresql_url, echo=True)
 
 # Initialize the database
