@@ -21,17 +21,39 @@ COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.eu-north-1.amazonaws.com/eu-north
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def get_cognito_public_keys():
-    hostname = "cognito-idp.eu-north-1.amazonaws.com"
-    ip = socket.gethostbyname(hostname)
-
-    print(f"Resolved {hostname} to {ip}")
     logger.info(f"Fetching Cognito public keys from {COGNITO_PUBLIC_KEY_URL}")
-    response = requests.get(COGNITO_PUBLIC_KEY_URL)
-    logger.info(f"Response status code: {response.status_code}")
+    
+    try:
+        response = requests.get(COGNITO_PUBLIC_KEY_URL, timeout=5)  # Set a timeout
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Failed to fetch Cognito public keys")
-    return response.json()
+        logger.info("Successfully sent request to Cognito")
+        logger.info(f"Response status code: {response.status_code}")
+
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch Cognito public keys: {response.status_code} - {response.text}")
+            raise HTTPException(status_code=500, detail="Failed to fetch Cognito public keys")
+
+        return response.json()
+
+    except requests.exceptions.Timeout:
+        logger.error("Timeout occurred while fetching Cognito public keys")
+        raise HTTPException(status_code=500, detail="Timeout while fetching Cognito public keys")
+
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection error while fetching Cognito public keys: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unable to connect to Cognito")
+
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error while fetching Cognito public keys: {str(e)}")
+        raise HTTPException(status_code=500, detail="HTTP error while fetching Cognito public keys")
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"General RequestException while fetching Cognito public keys: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching Cognito public keys")
+
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching Cognito public keys: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unexpected error fetching Cognito public keys")
 
 # ✅ Function to verify JWT token
 def verify_cognito_token(token: str = Depends(oauth2_scheme)):
