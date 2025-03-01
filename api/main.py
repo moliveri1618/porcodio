@@ -24,11 +24,6 @@ class Hero(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     superpower: str
-
-# Create the PostgreSQL database and engine
-rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
-# rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"
-# engine = create_engine(rds_postgresql_url, echo=True)
     
 
 @asynccontextmanager
