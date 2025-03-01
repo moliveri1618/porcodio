@@ -12,7 +12,9 @@ from sqlalchemy import text  # Import SQLAlchemy's text() function
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
 from models.items import Item
-from sqlalchemy import text  # Import SQLAlchemy's text() function
+from sqlalchemy import text  
+from dependecies import get_db, create_db_and_tables
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -24,23 +26,15 @@ class Hero(SQLModel, table=True):
     superpower: str
 
 # Create the PostgreSQL database and engine
-rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
-engine = create_engine(rds_postgresql_url, echo=True)
-
-# Initialize the database
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+#rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
+# rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"
+# engine = create_engine(rds_postgresql_url, echo=True)
     
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
-
-
-# Initialize the database
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -103,16 +97,16 @@ def read_heroes():
         logger.info(f"Retrieved {len(heroes)} heroes from DB")
         return heroes
 
-# # Endpoint to create an item
-# @app.post("/items/", response_model=Item)
-# def create_item(item: Item, db: Session = Depends(get_db)):
-#     db.add(item)
-#     db.commit()
-#     db.refresh(item)
-#     return item
+# Endpoint to create an item
+@app.post("/items/", response_model=Item)
+def create_item(item: Item, db: Session = Depends(get_db)):
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
 
-# # Endpoint to get all items
-# @app.get("/items/", response_model=List[Item])
-# def read_items(db: Session = Depends(get_db)):
-#     items = db.exec(select(Item)).all()
-#     return items
+# Endpoint to get all items
+@app.get("/items/", response_model=List[Item])
+def read_items(db: Session = Depends(get_db)):
+    items = db.exec(select(Item)).all()
+    return items
