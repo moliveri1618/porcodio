@@ -30,10 +30,10 @@ handler = Mangum(app=app)
 # CORS 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (adjust as needed)
+    allow_origins=["*"], 
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly define allowed methods
-    allow_headers=["Content-Type", "Authorization"],  # Define allowed headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
+    allow_headers=["Content-Type", "Authorization"], 
 )
 
 
