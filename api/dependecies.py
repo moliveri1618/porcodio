@@ -36,6 +36,8 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
         headers = jwt.get_unverified_header(token)
         kid = headers["kid"]
         logger.info(f"Extracted kid: {kid}")
+        logger.info("324234")
+        logger.info(f"Received token: {token[:20]}... (truncated)")
 
 
         # Fetch Cognito public keys
