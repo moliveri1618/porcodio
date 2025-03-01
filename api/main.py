@@ -7,10 +7,12 @@ from sqlmodel import SQLModel, Field, create_engine, Session, select
 from contextlib import asynccontextmanager
 from typing import List
 import logging
+from sqlalchemy import text  # Import SQLAlchemy's text() function
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
 from models.items import Item
+from sqlalchemy import text  # Import SQLAlchemy's text() function
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -44,14 +46,14 @@ def create_db_and_tables():
 app = FastAPI(lifespan=lifespan)
 handler = Mangum(app=app)
 
-# # CORS 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"], 
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+# CORS 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -85,7 +87,7 @@ def create_hero(hero: Hero):
 def test_db():
     try:
         with Session(engine) as session:
-            session.exec("SELECT 1")  # Simple test query
+            session.exec(text("SELECT 1"))  # ✅ Fix: Wrap query in text()
             return {"message": "Database connection successful"}
     except Exception as e:
         logger.error(f"Database connection failed: {e}", exc_info=True)
