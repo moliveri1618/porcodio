@@ -1,19 +1,14 @@
 import sys
 import os
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel, Field, create_engine, Session, select
 from contextlib import asynccontextmanager
-from typing import List
 import logging
-from sqlalchemy import text  # Import SQLAlchemy's text() function
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
-from models.items import Item
-from sqlalchemy import text  
-from dependecies import get_db, create_db_and_tables, engine
+from dependecies import create_db_and_tables
 
 
 logger = logging.getLogger()
@@ -47,7 +42,7 @@ app.include_router(
 
 @app.get("/")
 async def root():
-    return {"message": "Hello asdasd"}
+    return {"message": "Hello"}
 
 
 
@@ -77,4 +72,6 @@ async def root():
 #         logger.info(f"Retrieved {len(heroes)} heroes from DB")
 #         return heroes
 
-    
+# Create the PostgreSQL database and engine
+#rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
+#rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"

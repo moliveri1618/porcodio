@@ -5,10 +5,6 @@ from dotenv import load_dotenv
 from sqlmodel import SQLModel, create_engine, Session
 
 
-# Create the PostgreSQL database and engine
-#rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
-#rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"
-
 #Load env values
 RUNNING_IN_AWS = os.getenv("AWS_EXECUTION_ENV") is not None
 
