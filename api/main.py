@@ -44,10 +44,6 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],  # Define allowed headers
 )
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()  # ✅ Runs only when the app starts
-    yield
 
 # Items Routers
 app.include_router(
@@ -55,7 +51,6 @@ app.include_router(
     prefix="/items", 
     tags=["Items"]
 )
-
 
 
 @app.get("/")
@@ -72,15 +67,6 @@ def create_hero(hero: Hero):
         session.refresh(hero)
         return hero
     
-@app.get("/test-db-connection")
-def test_db():
-    try:
-        with Session(engine) as session:
-            session.exec(text("SELECT 1"))  # ✅ Fix: Wrap query in text()
-            return {"message": "Database connection successful"}
-    except Exception as e:
-        logger.error(f"Database connection failed: {e}", exc_info=True)
-        return {"error": str(e)}
 
 # Endpoint to get all heroes
 @app.get("/heroes", response_model=List[Hero])
@@ -105,3 +91,20 @@ def create_item(item: Item, db: Session = Depends(get_db)):
 def read_items(db: Session = Depends(get_db)):
     items = db.exec(select(Item)).all()
     return items
+
+
+#@app.get("/test-db-connection")
+# def test_db():
+#     try:
+#         with Session(engine) as session:
+#             session.exec(text("SELECT 1"))  # ✅ Fix: Wrap query in text()
+#             return {"message": "Database connection successful"}
+#     except Exception as e:
+#         logger.error(f"Database connection failed: {e}", exc_info=True)
+#         return {"error": str(e)}
+
+
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     create_db_and_tables()  # ✅ Runs only when the app starts
+#     yield
