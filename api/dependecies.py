@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.api_jwk import PyJWK
 import logging
-
+import socket 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -21,6 +21,10 @@ COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.eu-north-1.amazonaws.com/eu-north
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def get_cognito_public_keys():
+    hostname = "cognito-idp.eu-north-1.amazonaws.com"
+    ip = socket.gethostbyname(hostname)
+
+    print(f"Resolved {hostname} to {ip}")
     logger.info(f"Fetching Cognito public keys from {COGNITO_PUBLIC_KEY_URL}")
     response = requests.get(COGNITO_PUBLIC_KEY_URL)
     logger.info(f"Response status code: {response.status_code}")
