@@ -79,7 +79,7 @@ def read_heroes():
         return heroes
 
 # Endpoint to create an item
-@app.post("/items/", response_model=Item)
+@app.post("/items", response_model=Item)
 def create_item(item: Item, db: Session = Depends(get_db)):
     db.add(item)
     db.commit()
@@ -87,7 +87,7 @@ def create_item(item: Item, db: Session = Depends(get_db)):
     return item
 
 # Endpoint to get all items
-@app.get("/items/", response_model=List[Item])
+@app.get("/items", response_model=List[Item])
 def read_items(db: Session = Depends(get_db)):
     items = db.exec(select(Item)).all()
     return items
