@@ -24,6 +24,12 @@ def get_cognito_public_keys():
 
 # ✅ Function to verify JWT token
 def verify_cognito_token(token: str = Depends(oauth2_scheme)):
+    
+    # Check if TESTING mode is enabled
+    if os.getenv("TESTING") == "true":
+        return {"sub": "test_user", "username": "test_user"}
+    
+    
     try:
         # Decode JWT header to get key ID (kid)
         headers = jwt.get_unverified_header(token)
@@ -56,6 +62,8 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    
+    
 #Load env values
 RUNNING_IN_AWS = os.getenv("AWS_EXECUTION_ENV") is not None
 
