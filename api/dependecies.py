@@ -7,6 +7,7 @@ from fastapi import HTTPException, Depends
 import requests
 from fastapi.security import OAuth2PasswordBearer
 import jwt
+from jwt.api_jwk import PyJWK
 
 # Load Cognito settings from environment variables
 COGNITO_REGION = os.getenv("COGNITO_REGION", "eu-north-1")
@@ -36,8 +37,9 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
         if not key:
             raise HTTPException(status_code=401, detail="Invalid token: Key not found")
 
-        # Construct the public key
-        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+        # Construct the public key using PyJWK
+        # Use PyJWK.from_dict for a dictionary instead of from_json
+        public_key = PyJWK.from_dict(key).key
 
         # Decode and verify the token
         payload = jwt.decode(
@@ -48,14 +50,12 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
             issuer=f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
         )
 
-        return payload  # ✅ Returns the user info from the token
+        return payload  # Returns the user info from the token
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
-
-
 #Load env values
 RUNNING_IN_AWS = os.getenv("AWS_EXECUTION_ENV") is not None
 

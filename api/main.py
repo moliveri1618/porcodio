@@ -1,6 +1,6 @@
 import sys
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -8,7 +8,7 @@ import logging
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import items  
-from dependecies import create_db_and_tables
+from dependecies import create_db_and_tables, verify_cognito_token
 
 
 logger = logging.getLogger()
@@ -41,7 +41,7 @@ app.include_router(
 
 
 @app.get("/")
-async def root():
+async def root(current_user: dict = Depends(verify_cognito_token)):
     return {"message": "Hello"}
 
 
