@@ -32,12 +32,16 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
     
     try:
         logger.info("Decoding JWT header")
+        logger.info(f"Received token: {token[:20]}... (truncated)")
         # Decode JWT header to get key ID (kid)
         headers = jwt.get_unverified_header(token)
         kid = headers["kid"]
+        logger.info(f"Extracted kid: {kid}")
+
 
         # Fetch Cognito public keys
         jwks = get_cognito_public_keys()
+        logger.info(f"JWKS Keys: {jwks}")
 
         # Find the correct key
         key = next((key for key in jwks["keys"] if key["kid"] == kid), None)
