@@ -10,9 +10,13 @@ from sqlmodel import SQLModel, create_engine, Session
 #rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"
 
 #Load env values
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-load_dotenv(env_path)
-DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
+RUNNING_IN_AWS = os.getenv("AWS_EXECUTION_ENV") is not None
+
+if not RUNNING_IN_AWS:
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    load_dotenv(env_path)
+    
+DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is missing in .env file!")
 
