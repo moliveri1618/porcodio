@@ -93,15 +93,7 @@ def test_db():
         logger.error(f"Database connection failed: {e}", exc_info=True)
         return {"error": str(e)}
 
-# Endpoint to get all heroes
-@app.get("/heroes/", response_model=List[Hero])
-def read_heroes():
-    logger.info("Attempting to connect to DB...")
-    with Session(engine) as session:
-        logger.info('here')
-        heroes = session.exec(select(Hero)).all()
-        logger.info(f"Retrieved {len(heroes)} heroes from DB")
-        return heroes
+
 
 # # Endpoint to create an item
 # @app.post("/items/", response_model=Item)
