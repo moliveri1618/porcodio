@@ -3,6 +3,57 @@ from sqlmodel import Session, create_engine
 import os
 from dotenv import load_dotenv
 from sqlmodel import SQLModel, create_engine, Session
+from fastapi import HTTPException, Depends
+import requests
+from fastapi.security import OAuth2PasswordBearer
+import jwt
+
+# Load Cognito settings from environment variables
+COGNITO_REGION = os.getenv("COGNITO_REGION", "eu-north-1")
+COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID", "eu-north-1_v3F3Ahwnw")
+COGNITO_APP_CLIENT_ID = os.getenv("COGNITO_APP_CLIENT_ID", "obemnph8vgsfrcip0s3bg4flm")
+COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}/.well-known/jwks.json"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def get_cognito_public_keys():
+    response = requests.get(COGNITO_PUBLIC_KEY_URL)
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to fetch Cognito public keys")
+    return response.json()
+
+# ✅ Function to verify JWT token
+def verify_cognito_token(token: str = Depends(oauth2_scheme)):
+    try:
+        # Decode JWT header to get key ID (kid)
+        headers = jwt.get_unverified_header(token)
+        kid = headers["kid"]
+
+        # Fetch Cognito public keys
+        jwks = get_cognito_public_keys()
+
+        # Find the correct key
+        key = next((key for key in jwks["keys"] if key["kid"] == kid), None)
+        if not key:
+            raise HTTPException(status_code=401, detail="Invalid token: Key not found")
+
+        # Construct the public key
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+
+        # Decode and verify the token
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            audience=COGNITO_APP_CLIENT_ID,  # Validate token is for your app
+            issuer=f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+        )
+
+        return payload  # ✅ Returns the user info from the token
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 #Load env values
