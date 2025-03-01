@@ -71,7 +71,7 @@ def create_hero(hero: Hero):
 # Endpoint to get all heroes
 @app.get("/heroes", response_model=List[Hero])
 def read_heroes():
-    logger.info("Attempting to connect to DB...")
+    logger.info("Attemptingdd to connect to DB...")
     with Session(engine) as session:
         logger.info('here')
         heroes = session.exec(select(Hero)).all()
