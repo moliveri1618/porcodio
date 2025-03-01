@@ -19,18 +19,10 @@ from dependecies import get_db, create_db_and_tables, engine
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Define the Hero model
-class Hero(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    name: str
-    superpower: str
-    
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
-
 
 app = FastAPI(lifespan=lifespan)
 handler = Mangum(app=app)
@@ -58,53 +50,31 @@ async def root():
     return {"message": "Hello asdasd"}
 
 
+
+# # Define the Hero model
+# class Hero(SQLModel, table=True):
+#     id: int | None = Field(default=None, primary_key=True)
+#     name: str
+#     superpower: str
+
 # Endpoint to create a hero
-@app.post("/heroes", response_model=Hero)
-def create_hero(hero: Hero):
-    with Session(engine) as session:
-        session.add(hero)
-        session.commit()
-        session.refresh(hero)
-        return hero
+# @app.post("/heroes", response_model=Hero)
+# def create_hero(hero: Hero):
+#     with Session(engine) as session:
+#         session.add(hero)
+#         session.commit()
+#         session.refresh(hero)
+#         return hero
     
 
-# Endpoint to get all heroes
-@app.get("/heroes", response_model=List[Hero])
-def read_heroes():
-    logger.info("Attemptingdd to connect to DB...")
-    with Session(engine) as session:
-        logger.info('here')
-        heroes = session.exec(select(Hero)).all()
-        logger.info(f"Retrieved {len(heroes)} heroes from DB")
-        return heroes
+# # Endpoint to get all heroes
+# @app.get("/heroes", response_model=List[Hero])
+# def read_heroes():
+#     logger.info("Attemptingdd to connect to DB...")
+#     with Session(engine) as session:
+#         logger.info('here')
+#         heroes = session.exec(select(Hero)).all()
+#         logger.info(f"Retrieved {len(heroes)} heroes from DB")
+#         return heroes
 
-# Endpoint to create an item
-@app.post("/items", response_model=Item)
-def create_item(item: Item, db: Session = Depends(get_db)):
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
-
-# Endpoint to get all items
-@app.get("/items", response_model=List[Item])
-def read_items(db: Session = Depends(get_db)):
-    items = db.exec(select(Item)).all()
-    return items
-
-
-#@app.get("/test-db-connection")
-# def test_db():
-#     try:
-#         with Session(engine) as session:
-#             session.exec(text("SELECT 1"))  # ✅ Fix: Wrap query in text()
-#             return {"message": "Database connection successful"}
-#     except Exception as e:
-#         logger.error(f"Database connection failed: {e}", exc_info=True)
-#         return {"error": str(e)}
-
-
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     create_db_and_tables()  # ✅ Runs only when the app starts
-#     yield
+    
