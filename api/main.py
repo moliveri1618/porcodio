@@ -13,7 +13,7 @@ if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__))
 from routers import items  
 from models.items import Item
 from sqlalchemy import text  
-from dependecies import get_db, create_db_and_tables
+from dependecies import get_db, create_db_and_tables, engine
 
 
 logger = logging.getLogger()
