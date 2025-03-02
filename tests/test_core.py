@@ -7,7 +7,7 @@ test_app = FastAPI()
 # Define a simple endpoint for testing
 @test_app.get("/")
 async def test_root():
-    return {"message": "Hello"}
+    return {"message": "Hellosdfsdf"}
 
 # Create the test client
 client = TestClient(test_app)

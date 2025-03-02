@@ -2,7 +2,8 @@
 
 A **FastAPI-based application** with AWS Lambda deployment, RDS database integration, and GitHub Actions for CI/CD.
 
----
+<br>
+<br>
 
 ## 📂 Project Structure
 
@@ -45,7 +46,8 @@ A **FastAPI-based application** with AWS Lambda deployment, RDS database integra
 └── README.md                # Project documentation
 ```
 
----
+<br>
+<br>
 
 ## 🛠️ GitHub Actions (CI/CD Pipeline)
 
@@ -56,7 +58,8 @@ A **FastAPI-based application** with AWS Lambda deployment, RDS database integra
 4️⃣ 🔄 **Run Integration Tests on the deployed URL**<br>
 5️⃣ 🚨 **If integration tests fail → Rollback deployment**<br>
 
----
+<br>
+<br>
 
 ## 📌 How to Run the Project
 
@@ -83,8 +86,8 @@ uvicorn api.main:app --reload
 Check the secrets in **main.yaml** to be copied in your github repository for this project, to do that generate new access keys from **Main** here: 🔗 [Generate Access Keys] (https://us-east-1.console.aws.amazon.com/iam/home?region=eu-north-1#/users/details/Main?section=security_credentials)
 
 
-
----
+<br>
+<br>
 
 ## 📦 Dependency Management
 
@@ -97,14 +100,16 @@ Then **update `requirements.txt`** to install them during the deployment to AWS 
 pip freeze > requirements.txt
 ```
 
----
+<br>
+<br>
 
 ## 📊 Database Setup
 
 Follow this tutorial to set up the database:  
 🔗 [Database Setup Guide](https://www.youtube.com/watch?v=wqVyN2LAFDY)
 
----
+<br>
+<br>
 
 ## 🚀 Deploying to AWS Lambda
 
@@ -116,11 +121,13 @@ For AWS Lambda deployment, follow this guide:
 2. Configure **RDS database connection** 
 3. Set up a **subnet for internet access** (if required)  
 
----
+<br>
+<br>
 
 ## 🔑 How to Generate an Authentication Token for API Testing
 
-Use **AWS Cognito** to generate a token for API testing:  
+To test authenticated API requests, you need an **AWS Cognito ID Token**. Use the following command to use **AWS Cognito** to generate a token for API testing:
+
 ```bash
 aws cognito-idp initiate-auth \
     --client-id obemnph8vgsfrcip0s3bg4flm \
@@ -130,3 +137,14 @@ aws cognito-idp initiate-auth \
     --output json > token_response.json
 ```
 
+### ⚠️ **Important:**
+- Use the **`IdToken`** from `token_response.json` when making API requests in **Postman** or any other API testing tool.
+- Ensure that your Cognito pool is configured to accept this authentication method.
+
+<br>
+<br>
+
+
+## 🔬 Testing with Postman
+
+🔗 [Postman Collection](https://web.postman.co/workspace/My-Workspace~e4916e62-c107-4dd5-8724-e2f204dc267d/request/38129126-5750757c-3e17-45c0-8bbf-f03d6e6e748f)
