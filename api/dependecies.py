@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 # COGNITO_REGION = os.getenv("COGNITO_REGION", "eu-north-1")
 # COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID", "eu-north-1_v3F3Ahwnw")
 # COGNITO_APP_CLIENT_ID = os.getenv("COGNITO_APP_CLIENT_ID", "obemnph8vgsfrcip0s3bg4flm")
-COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_v3F3Ahwnw/.well-known/jwks.json"
+COGNITO_PUBLIC_KEY_URL = f"https://google.com"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def get_cognito_public_keys():
