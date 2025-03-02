@@ -42,21 +42,21 @@ def get_cognito_public_keys():
 
         return response.json()
 
-    except requests.exceptions.Timeout:
-        logger.error("Timeout occurred while fetching Cognito public keys")
-        raise HTTPException(status_code=500, detail="Timeout while fetching Cognito public keys")
+    # except requests.exceptions.Timeout:
+    #     logger.error("Timeout occurred while fetching Cognito public keys")
+    #     raise HTTPException(status_code=500, detail="Timeout while fetching Cognito public keys")
 
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"Connection error while fetching Cognito public keys: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unable to connect to Cognito")
+    # except requests.exceptions.ConnectionError as e:
+    #     logger.error(f"Connection error while fetching Cognito public keys: {str(e)}")
+    #     raise HTTPException(status_code=500, detail="Unable to connect to Cognito")
 
-    except requests.exceptions.HTTPError as e:
-        logger.error(f"HTTP error while fetching Cognito public keys: {str(e)}")
-        raise HTTPException(status_code=500, detail="HTTP error while fetching Cognito public keys")
+    # except requests.exceptions.HTTPError as e:
+    #     logger.error(f"HTTP error while fetching Cognito public keys: {str(e)}")
+    #     raise HTTPException(status_code=500, detail="HTTP error while fetching Cognito public keys")
 
-    except requests.exceptions.RequestException as e:
-        logger.error(f"General RequestException while fetching Cognito public keys: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error fetching Cognito public keys")
+    # except requests.exceptions.RequestException as e:
+    #     logger.error(f"General RequestException while fetching Cognito public keys: {str(e)}")
+    #     raise HTTPException(status_code=500, detail="Error fetching Cognito public keys")
 
     except Exception as e:
         logger.exception(f"Unexpected error while fetching Cognito public keys: {str(e)}")
