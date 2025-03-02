@@ -41,13 +41,29 @@ https://medium.com/@amirm.lavasani/how-to-structure-your-fastapi-projects-0219a6
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
+TODO
+
 GitHub Actions:
 
 Pipeline Flow   
 🛠 Run unit tests (pytest) 
-✅ If unit tests pass → Build & package the Lambda function 
-🚀 Deploy to AWS Lambda 
+✅ If unit tests pass → Build & package the Lambda function done
+🚀 Deploy to AWS Lambda                                     done
 🔄 Run integration tests on the deployed URL 
 🚨 If integration tests fail → Rollback deployment
 
-sss
+----------------------------------------------------------------------------------------------------------------------
+CREATE DB
+
+https://www.youtube.com/watch?v=wqVyN2LAFDY
+
+
+
+CREATE LAMBDA AWS
+
+https://www.youtube.com/watch?v=UauMQGqaxGo&t=823s
+
+add:
+    - env variables
+    - rds db connection
+    - subnet for itenret connection !?
