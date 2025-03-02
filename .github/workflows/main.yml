@@ -85,7 +85,7 @@ jobs:
           path: .
 
       - name: Upload to S3
-        run: aws s3 cp api.zip s3://fastapi1234213123/api.zip
+        run: aws s3 cp api.zip s3://${{ secrets.AWS_S3_BUCKET }}/api.zip  
 
       - name: Deploy new Lambda
-        run: aws lambda update-function-code --function-name fastapiCICD --s3-bucket fastapi1234213123 --s3-key api.zip
+        run: aws lambda update-function-code --function-name ${{ secrets.AWS_LAMBDA }} --s3-bucket ${{ secrets.AWS_S3_BUCKET }} --s3-key api.zip
