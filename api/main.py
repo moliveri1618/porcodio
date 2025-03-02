@@ -51,35 +51,3 @@ async def root():
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}
     return {"message": "Hello"}
-
-
-
-# # Define the Hero model
-# class Hero(SQLModel, table=True):
-#     id: int | None = Field(default=None, primary_key=True)
-#     name: str
-#     superpower: str
-
-# Endpoint to create a hero
-# @app.post("/heroes", response_model=Hero)
-# def create_hero(hero: Hero):
-#     with Session(engine) as session:
-#         session.add(hero)
-#         session.commit()
-#         session.refresh(hero)
-#         return hero
-    
-
-# # Endpoint to get all heroes
-# @app.get("/heroes", response_model=List[Hero])
-# def read_heroes():
-#     logger.info("Attemptingdd to connect to DB...")
-#     with Session(engine) as session:
-#         logger.info('here')
-#         heroes = session.exec(select(Hero)).all()
-#         logger.info(f"Retrieved {len(heroes)} heroes from DB")
-#         return heroes
-
-# Create the PostgreSQL database and engine
-#rds_postgresql_url = "postgresql://rootuser:diocane1234@database-fastapi-aws.cjo4ss2ailsb.eu-north-1.rds.amazonaws.com:5432/postgres"
-#rds_postgresql_url = "postgresql://postgres:password@localhost:5432/PCS_micro"

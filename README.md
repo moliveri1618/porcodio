@@ -80,7 +80,8 @@ uvicorn api.main:app --reload
 ```
 
 ### 4️⃣ Copy Github Secrets
-Check the secrets in **main.yaml** to be copied in your github repository for this project
+Check the secrets in **main.yaml** to be copied in your github repository for this project, to do that generate new access keys from **Main** here: 🔗 [Generate Access Keys] (https://us-east-1.console.aws.amazon.com/iam/home?region=eu-north-1#/users/details/Main?section=security_credentials)
+
 
 
 ---
