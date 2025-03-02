@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.api_jwk import PyJWK
 import logging
-import socket 
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 

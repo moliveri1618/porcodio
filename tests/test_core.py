@@ -1,18 +1,17 @@
-from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
+from unittest.mock import patch
+from api.main import app  
 
-# Create a test-specific app
-test_app = FastAPI()
+client = TestClient(app)  # Use the actual app
 
-# Define a simple endpoint for testing
-@test_app.get("/")
-async def test_root():
-    return {"message": "Hellosdfsdfdd"}
+# Mock Cognito authentication
+@patch("main.verify_cognito_token", return_value={"username": "testuser"})
+def test_root(mock_auth):
+    headers = {"Authorization": "Bearer faketoken123"}  # Mock token
+    response = client.get("/", headers=headers)  # Make request
 
-# Create the test client
-client = TestClient(test_app)
+    assert response.status_code == 200
+    assert response.json() == {"message": "Hello"}  # Must match actual API
 
-# def test_root():
-#     response = client.get("/")
-#     assert response.status_code == 200
-#     assert response.json() == {"message": "Hello"}
+    # Ensure authentication was called
+    mock_auth.assert_called_once()
