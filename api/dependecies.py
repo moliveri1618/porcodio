@@ -26,9 +26,9 @@ def get_cognito_public_keys():
     try:
         host = socket.gethostbyname("cognito-idp.eu-north-1.amazonaws.com")  # Resolve hostname
         socket.create_connection((host, 80), timeout=5)  # Try connecting
-        return True
+        return {"statusCode": 200, "body": "Connected"}
     except (socket.gaierror, socket.timeout, ConnectionError):
-        return False
+        return {"statusCode": 500, "body": "No internet"}
     
     # try:
     #     response = requests.get(COGNITO_PUBLIC_KEY_URL, timeout=5)  # Set a timeout
