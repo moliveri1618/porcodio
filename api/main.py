@@ -14,12 +14,12 @@ from dependecies import create_db_and_tables, verify_cognito_token
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()
-    yield
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     create_db_and_tables()
+#     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 handler = Mangum(app=app)
 
 # CORS 
