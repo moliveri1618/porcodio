@@ -53,6 +53,19 @@ Pipeline Flow
 🚨 If integration tests fail → Rollback deployment
 
 ----------------------------------------------------------------------------------------------------------------------
+HOW TO RUN 
+
+venv\Scripts\activate
+cd api venv\Scripts\activate
+
+----------------------------------------------------------------------------------------------------------------------
+everytime a new dependecy is installed:
+
+pip install INSIDE VENV
+add dependency to requirements for AWS Lambda
+
+----------------------------------------------------------------------------------------------------------------------
+
 CREATE DB
 
 https://www.youtube.com/watch?v=wqVyN2LAFDY
@@ -67,3 +80,9 @@ add:
     - env variables
     - rds db connection
     - subnet for itenret connection !?
+
+----------------------------------------------------------------------------------------------------------------------
+
+HOW TO GENERATE A NEW TOKEN TO TEST APIs
+
+aws cognito-idp initiate-auth --client-id obemnph8vgsfrcip0s3bg4flm --auth-flow USER_PASSWORD_AUTH --auth-parameters USERNAME="70bcc95c-b0f1-70e3-5c17-ee40967d4051",PASSWORD="NewSecurePass123!" --region eu-north-1 --output json > token_response.json
