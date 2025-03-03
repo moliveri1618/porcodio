@@ -22,6 +22,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 def get_cognito_public_keys():
     logger.info(f"Fetching Cognito public keys from {COGNITO_PUBLIC_KEY_URL}")
     
+    # response = requests.get("https://www.google.com", timeout=5)
+    # logger.info(response.text[:200])
+    
     try:
         response = requests.get(COGNITO_PUBLIC_KEY_URL, timeout=5)  # Set a timeout
 
@@ -76,10 +79,12 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
         key = next((key for key in jwks["keys"] if key["kid"] == kid), None)
         if not key:
             raise HTTPException(status_code=401, detail="Invalid token: Key not found")
+        logger.info(f"Key: {key}")
 
         # Construct the public key using PyJWK
         # Use PyJWK.from_dict for a dictionary instead of from_json
         public_key = PyJWK.from_dict(key).key
+        logger.info(f"Key: {public_key}")
 
         # Decode and verify the token
         payload = jwt.decode(
@@ -89,6 +94,7 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
             audience=COGNITO_APP_CLIENT_ID,  # Validate token is for your app
             issuer=f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
         )
+        logger.info(f"Key: {payload}")
 
         return payload  # Returns the user info from the token
 
