@@ -1,10 +1,9 @@
-# define schemas for items
+# schemas/items.py
 from pydantic import BaseModel
 
-
-class HeroCreate(BaseModel):
+class ItemCreate(BaseModel):
     type: str
     owner: str
 
-class HeroRead(HeroCreate):
-    id: int 
+class ItemRead(ItemCreate):
+    id: int
