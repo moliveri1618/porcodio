@@ -133,7 +133,7 @@ aws cognito-idp initiate-auth --client-id obemnph8vgsfrcip0s3bg4flm --auth-flow 
 ```
 
 ### ⚠️ **Important:**
-- Use the **`IdToken`** from `token_response.json` when making API requests in **Postman** or any other API testing tool.
+- Use the **`AccessToken`** from `token_response.json` when making API requests in **Postman** or any other API testing tool.
 - Ensure that your Cognito pool is configured to accept this authentication method.
 
 <br>
