@@ -9,6 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.api_jwk import PyJWK
 import logging
+import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -18,95 +19,119 @@ COGNITO_USER_POOL_ID = "eu-north-1_v3F3Ahwnw"
 COGNITO_APP_CLIENT_ID = "obemnph8vgsfrcip0s3bg4flm"
 COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_v3F3Ahwnw/.well-known/jwks.json"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+cognito_client = boto3.client("cognito-idp", region_name=COGNITO_REGION)
 
-def get_cognito_public_keys():
-    logger.info(f"Fetching Cognito public keys from {COGNITO_PUBLIC_KEY_URL}")
-    
-    # response = requests.get("https://www.google.com", timeout=5)
-    # logger.info(response.text[:200])
-    
+def verify_cognito_token(token: str = Depends(oauth2_scheme)):
+    """Verify AWS Cognito JWT using Boto3 instead of manual JWT decoding."""
+    logger.info("Starting token verification using Boto3")
+
     try:
-        response = requests.get(COGNITO_PUBLIC_KEY_URL, timeout=5)  # Set a timeout
+        # Call AWS Cognito API to validate the token
+        response = cognito_client.get_user(AccessToken=token)
+        logger.info(f"Token successfully validated. User: {response}")
 
-        logger.info("Successfully sent request to Cognito")
-        logger.info(f"Response status code: {response.status_code}")
+        return response  # Returns authenticated user details
 
-        if response.status_code != 200:
-            logger.error(f"Failed to fetch Cognito public keys: {response.status_code} - {response.text}")
-            raise HTTPException(status_code=500, detail="Failed to fetch Cognito public keys")
+    except cognito_client.exceptions.NotAuthorizedException:
+        logger.error("Invalid or expired token")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-        return response.json()
-
-    except requests.exceptions.Timeout:
-        logger.error("Timeout occurred while fetching Cognito public keys")
-        raise HTTPException(status_code=500, detail="Timeout while fetching Cognito public keys")
-
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"Connection error while fetching Cognito public keys: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unable to connect to Cognito")
-
-    except requests.exceptions.HTTPError as e:
-        logger.error(f"HTTP error while fetching Cognito public keys: {str(e)}")
-        raise HTTPException(status_code=500, detail="HTTP error while fetching Cognito public keys")
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"General RequestException while fetching Cognito public keys: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error fetching Cognito public keys")
+    except cognito_client.exceptions.UserNotFoundException:
+        logger.error("User not found")
+        raise HTTPException(status_code=404, detail="User not found")
 
     except Exception as e:
-        logger.exception(f"Unexpected error while fetching Cognito public keys: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unexpected error fetching Cognito public keys")
+        logger.exception(f"Unexpected error while verifying token: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unexpected error during token validation")
 
-# ✅ Function to verify JWT token
-def verify_cognito_token(token: str = Depends(oauth2_scheme)):
-    logger.info("Starting token verification")
+# def get_cognito_public_keys():
+#     logger.info(f"Fetching Cognito public keys from {COGNITO_PUBLIC_KEY_URL}")
     
-    try:
-        logger.info("Decoding JWT header")
-        # Decode JWT header to get key ID (kid)
-        headers = jwt.get_unverified_header(token)
-        kid = headers["kid"]
-        logger.info(f"Extracted kid: {kid}")
-        logger.info("324234")
-        logger.info(f"Received token: {token[:20]}... (truncated)")
+#     # response = requests.get("https://www.google.com", timeout=5)
+#     # logger.info(response.text[:200])
+    
+#     try:
+#         response = requests.get(COGNITO_PUBLIC_KEY_URL, timeout=5)  # Set a timeout
+
+#         logger.info("Successfully sent request to Cognito")
+#         logger.info(f"Response status code: {response.status_code}")
+
+#         if response.status_code != 200:
+#             logger.error(f"Failed to fetch Cognito public keys: {response.status_code} - {response.text}")
+#             raise HTTPException(status_code=500, detail="Failed to fetch Cognito public keys")
+
+#         return response.json()
+
+#     except requests.exceptions.Timeout:
+#         logger.error("Timeout occurred while fetching Cognito public keys")
+#         raise HTTPException(status_code=500, detail="Timeout while fetching Cognito public keys")
+
+#     except requests.exceptions.ConnectionError as e:
+#         logger.error(f"Connection error while fetching Cognito public keys: {str(e)}")
+#         raise HTTPException(status_code=500, detail="Unable to connect to Cognito")
+
+#     except requests.exceptions.HTTPError as e:
+#         logger.error(f"HTTP error while fetching Cognito public keys: {str(e)}")
+#         raise HTTPException(status_code=500, detail="HTTP error while fetching Cognito public keys")
+
+#     except requests.exceptions.RequestException as e:
+#         logger.error(f"General RequestException while fetching Cognito public keys: {str(e)}")
+#         raise HTTPException(status_code=500, detail="Error fetching Cognito public keys")
+
+#     except Exception as e:
+#         logger.exception(f"Unexpected error while fetching Cognito public keys: {str(e)}")
+#         raise HTTPException(status_code=500, detail="Unexpected error fetching Cognito public keys")
+
+# # ✅ Function to verify JWT token
+# def verify_cognito_token(token: str = Depends(oauth2_scheme)):
+#     logger.info("Starting token verification")
+    
+#     try:
+#         logger.info("Decoding JWT header")
+#         # Decode JWT header to get key ID (kid)
+#         headers = jwt.get_unverified_header(token)
+#         kid = headers["kid"]
+#         logger.info(f"Extracted kid: {kid}")
+#         logger.info("324234")
+#         logger.info(f"Received token: {token[:20]}... (truncated)")
 
 
-        # Fetch Cognito public keys
-        jwks = get_cognito_public_keys()
-        logger.info(f"JWKS Keys: {jwks}")
+#         # Fetch Cognito public keys
+#         jwks = get_cognito_public_keys()
+#         logger.info(f"JWKS Keys: {jwks}")
 
-        # Find the correct key
-        key = next((key for key in jwks["keys"] if key["kid"] == kid), None)
-        if not key:
-            raise HTTPException(status_code=401, detail="Invalid token: Key not found")
-        logger.info(f"Key key: {key}")
+#         # Find the correct key
+#         key = next((key for key in jwks["keys"] if key["kid"] == kid), None)
+#         if not key:
+#             raise HTTPException(status_code=401, detail="Invalid token: Key not found")
+#         logger.info(f"Key key: {key}")
 
-        # Construct the public key using PyJWK
-        # Use PyJWK.from_dict for a dictionary instead of from_json
-        try:
-            # Construct the public key using PyJWK
-            public_key = PyJWK.from_dict(key).key
-        except Exception as e:
-            logger.error(f"Error while constructing public key: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error processing Cognito public key")
+#         # Construct the public key using PyJWK
+#         # Use PyJWK.from_dict for a dictionary instead of from_json
+#         try:
+#             # Construct the public key using PyJWK
+#             public_key = PyJWK.from_dict(key).key
+#         except Exception as e:
+#             logger.error(f"Error while constructing public key: {str(e)}")
+#             raise HTTPException(status_code=500, detail="Error processing Cognito public key")
 
 
-        # Decode and verify the token
-        payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=["RS256"],
-            audience=COGNITO_APP_CLIENT_ID,  # Validate token is for your app
-            issuer=f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
-        )
-        logger.info(f"Key: {payload}")
+#         # Decode and verify the token
+#         payload = jwt.decode(
+#             token,
+#             public_key,
+#             algorithms=["RS256"],
+#             audience=COGNITO_APP_CLIENT_ID,  # Validate token is for your app
+#             issuer=f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+#         )
+#         logger.info(f"Key: {payload}")
 
-        return payload  # Returns the user info from the token
+#         return payload  # Returns the user info from the token
 
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+#     except jwt.ExpiredSignatureError:
+#         raise HTTPException(status_code=401, detail="Token has expired")
+#     except jwt.InvalidTokenError:
+#         raise HTTPException(status_code=401, detail="Invalid token")
     
     
 #Load env values
