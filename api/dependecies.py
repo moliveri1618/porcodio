@@ -79,12 +79,17 @@ def verify_cognito_token(token: str = Depends(oauth2_scheme)):
         key = next((key for key in jwks["keys"] if key["kid"] == kid), None)
         if not key:
             raise HTTPException(status_code=401, detail="Invalid token: Key not found")
-        logger.info(f"Key: {key}")
+        logger.info(f"Key key: {key}")
 
         # Construct the public key using PyJWK
         # Use PyJWK.from_dict for a dictionary instead of from_json
-        public_key = PyJWK.from_dict(key).key
-        logger.info(f"Key: {public_key}")
+        try:
+            # Construct the public key using PyJWK
+            public_key = PyJWK.from_dict(key).key
+        except Exception as e:
+            logger.error(f"Error while constructing public key: {str(e)}")
+            raise HTTPException(status_code=500, detail="Error processing Cognito public key")
+
 
         # Decode and verify the token
         payload = jwt.decode(
