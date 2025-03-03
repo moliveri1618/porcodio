@@ -10,7 +10,6 @@ from models.items import Item
 from dependecies import get_db
 
 
-
 router = APIRouter()
 
 # Endpoint to create an item
