@@ -95,7 +95,7 @@ Whenever you install a new dependency, it has to be installed inside the virtual
 ```bash
 pip install <package-name>
 ```
-Then **update `requirements.txt`** to install them during the deployment to AWS Lambda:
+Then **update `requirements.txt`** to install them during the deployment to AWS Lambdaa:
 ```bash
 pip freeze > requirements.txt
 ```
