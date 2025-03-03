@@ -37,17 +37,13 @@ app.include_router(
 
 
 @app.get("/")
-async def root(current_user: dict = Depends(verify_cognito_token)):
+#async def root(current_user: dict = Depends(verify_cognito_token)):
+async def root():
+    import requests
 
+    try:
+        response = requests.get("https://www.google.com", timeout=5)
+        return {"status": response.status_code, "body": response.text[:200]}  # Return first 200 chars
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
     return {"message": "Hello"}
-
-
-# @app.get("/")
-# async def root():
-#     import requests
-
-#     try:
-#         response = requests.get("https://www.google.com", timeout=5)
-#         return {"status": response.status_code, "body": response.text[:200]}  # Return first 200 chars
-#     except requests.exceptions.RequestException as e:
-#         return {"error": str(e)}
