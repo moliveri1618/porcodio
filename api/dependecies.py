@@ -20,7 +20,10 @@ if not RUNNING_IN_AWS:
     load_dotenv(env_path)
     
 DATABASE_URL = os.getenv("DATABASE_URL")
-
+COGNITO_REGION = os.getenv("COGNITO_REGION")
+COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID")
+COGNITO_APP_CLIENT_ID = os.getenv("COGNITO_APP_CLIENT_ID")
+COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_REGION}_{COGNITO_USER_POOL_ID}/.well-known/jwks.json"
 
 # Connect to db & Initialize tables
 engine = create_engine(DATABASE_URL, echo=True)
@@ -33,10 +36,6 @@ def get_db():
         yield session
 
 # Load Cognito settings from environment variables
-COGNITO_REGION = "eu-north-1"
-COGNITO_USER_POOL_ID = "eu-north-1_v3F3Ahwnw"
-COGNITO_APP_CLIENT_ID = "obemnph8vgsfrcip0s3bg4flm"
-COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_v3F3Ahwnw/.well-known/jwks.json"
 cognito_client = boto3.client("cognito-idp", region_name=COGNITO_REGION)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
