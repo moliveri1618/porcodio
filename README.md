@@ -113,7 +113,7 @@ Follow this tutorial to set up the database:
 🔗 [Database Setup Guide](https://www.youtube.com/watch?v=wqVyN2LAFDY)
 
 ### ⚠️ **Important:**
-- Make sure that the security groups selected have the same inbound and outbound rules of the one already created.
+- Make sure that the security groups selected have the same inbound and outbound rules of the one already createdd.
 
 <br>
 <br>
