@@ -37,7 +37,7 @@ def read_item(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
-# Endpoint to update an item
+# Put
 @router.put("/{item_id}", response_model=ItemRead)
 def update_item(item_id: int, item_update: ItemUpdate, db: Session = Depends(get_db)):
     item = db.get(Item, item_id)
@@ -51,7 +51,7 @@ def update_item(item_id: int, item_update: ItemUpdate, db: Session = Depends(get
     db.refresh(item)
     return item
 
-# Endpoint to delete an item
+# Delete
 @router.delete("/{item_id}", status_code=204)
 def delete_item(item_id: int, db: Session = Depends(get_db)):
     item = db.get(Item, item_id)
