@@ -6,8 +6,6 @@ from sqlmodel import SQLModel, create_engine, Session
 from fastapi import HTTPException, Depends
 import requests
 from fastapi.security import OAuth2PasswordBearer
-import jwt
-from jwt.api_jwk import PyJWK
 import logging
 import boto3
 logger = logging.getLogger()
