@@ -95,10 +95,14 @@ Whenever you install a new dependency, it has to be installed inside the virtual
 ```bash
 pip install <package-name>
 ```
-Then **update `requirements.txt`** to install them during the deployment to AWS Lambdaa:
+Then **update `requirements.txt`** to install them during the deployment to AWS Lambda:
 ```bash
 pip freeze > requirements.txt
 ```
+
+### ⚠️ **Important:**
+- If a dependency is installed and create a problem in AWS Lambda like **`crypto`** for example, you have to either `uninstall it` from the virtual enviornment or `delete the virtual environment`, remove the dependency from the `requirements.txt` file and create a new one without that dependency.
+- The CI/CID piepeline in GitHub Actions uses the libs from the virtual environment.
 
 <br>
 <br>
