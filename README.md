@@ -126,7 +126,7 @@ For AWS Lambda deployment, follow this guide:
 ### Additional Steps in AWS Lambda:
 1. Add the same **environment variables** that you can find in **.env** 
 2. Configure **RDS database connection** 
-3. Set up a **subnet for internet access** (if required)  
+3. Set it up with **no pvc** (for internet connection)  
 
 <br>
 <br>
