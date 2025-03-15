@@ -79,7 +79,7 @@ pip install -r requirements.txt
 
 ### 3️⃣ Start FastAPI
 ```bash
-uvicorn api.main:app --reload
+uvicorn main:app --reload
 ```
 
 ### 4️⃣ Copy Github Secrets
