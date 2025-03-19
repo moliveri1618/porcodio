@@ -120,6 +120,13 @@ Follow this tutorial to set up the database:
 <br>
 <br>
 
+## 📊 Creating a new table
+
+Add a new model for the table and add the import of the table in routers, otherwise wont work
+
+<br>
+<br>
+
 ## 🚀 Deploying to AWS Lambda
 
 For AWS Lambda deployment, follow this guide:  
