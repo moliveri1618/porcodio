@@ -1,28 +1,26 @@
-# schemas/progetti.py
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional, Dict, Any
 
-class ProgettiCreate(BaseModel):
+class FornitoriCreate(BaseModel):
     nome_cliente: str
-    status: str
-    tecnico: str  # This field must be included
-    stato: str
-    fornitori: str
-    centro_di_costo: str
+    citta: str  # New field for "citta"
     indirizzo: str
+    numero_tel: str  # New field for "numero_tel"
+    sito: str  # New field for "sito"
+    contatti: Optional[Dict[str, Any]] = None  # New field for contact details (JSON)
+    note: Optional[str] = None  # New field for "note"
     data_creazione: datetime
-    importo: float
 
-class ProgettiRead(ProgettiCreate):
-    id: int
+class FornitoriRead(FornitoriCreate):
+    id: int  # Read model now includes 'id'
 
-class ProgettiUpdate(BaseModel):
-    nome_cliente: str | None = None
-    status: str | None = None
-    tecnico: str | None = None
-    stato: str | None = None
-    fornitori: str | None = None
-    centro_di_costo: str | None = None
-    indirizzo: str | None = None
-    data_creazione: datetime | None = None
-    importo: float | None = None
+class FornitoriUpdate(BaseModel):
+    nome_cliente: Optional[str] = None
+    citta: Optional[str] = None
+    indirizzo: Optional[str] = None
+    numero_tel: Optional[str] = None
+    sito: Optional[str] = None  # New field for "sito"
+    contatti: Optional[Dict[str, Any]] = None
+    note: Optional[str] = None
+    data_creazione: Optional[datetime] = None

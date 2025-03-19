@@ -10,6 +10,7 @@ if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__))
 from routers import items  
 from routers import progetti
 from routers import clienti
+from routers import fornitori
 from dependecies import create_db_and_tables, verify_cognito_token
 
 
@@ -49,6 +50,11 @@ app.include_router(
     tags=["clienti"]
 )
 
+app.include_router(
+    fornitori.router, 
+    prefix="/fornitori", 
+    tags=["fornitori"]
+)
 
 
 @app.get("/")
