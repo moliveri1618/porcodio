@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 import asyncio
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
-from routers import items  
 from routers import progetti
 from routers import clienti
 from routers import fornitori
@@ -31,12 +30,6 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"], 
 )
 
-
-app.include_router(
-    items.router, 
-    prefix="/items", 
-    tags=["Items"]
-)
 
 app.include_router(
     progetti.router, 
