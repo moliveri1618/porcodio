@@ -78,7 +78,7 @@ pip install -r requirements.txt
 ```
 
 ### 3️⃣ Start FastAPI
-Navigate to api:
+Navigate to api-:
 
 ```bash
 uvicorn main:app --reload
