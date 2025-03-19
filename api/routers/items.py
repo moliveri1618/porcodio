@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from models.items import Item
+from models.projects import Progetti
 from schemas.items import ItemCreate, ItemRead, ItemUpdate
 from dependecies import get_db
 
