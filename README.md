@@ -93,7 +93,7 @@ Check the secrets in **main.yaml** to be copied in your github repository for th
 
 ## 📦 Dependency Management
 
-Whenever you install a new dependency, it has to be installed inside the virtual environment:
+Whenevereee you install a new dependency, it has to be installed inside the virtual environment:
 ```bash
 pip install <package-name>
 ```
