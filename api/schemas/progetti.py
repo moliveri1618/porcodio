@@ -8,6 +8,7 @@ class ProgettiCreate(BaseModel):
     data_creazione: datetime
     importo: float
     cliente_id: int
+    fornitore_id: int
 
 class ProgettiRead(ProgettiCreate):
     id: int
@@ -18,3 +19,4 @@ class ProgettiUpdate(BaseModel):
     data_creazione: datetime | None = None
     importo: float | None = None
     cliente_id: int
+    fornitore_id: int 

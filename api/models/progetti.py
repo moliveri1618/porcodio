@@ -6,5 +6,6 @@ class Progetti(SQLModel, table=True):
     tecnico: str = Field(..., nullable=False)
     stato: str = Field(..., nullable=False)
     cliente_id: int = Field(..., foreign_key="cliente.id", nullable=False)
+    fornitore_id: int = Field(..., foreign_key="fornitore.id", nullable=False)
     data_creazione: datetime = Field(..., nullable=False)
     importo: float = Field(..., nullable=False)

@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
 from models.clienti import Cliente
+from models.fornitori import Fornitore
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from dependecies import get_db
 
@@ -65,8 +66,9 @@ def read_progetti(db: Session = Depends(get_db)):
 @router.get("/{progetto_id}")
 def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
     stmt = (
-        select(Progetti, Cliente)
+        select(Progetti, Cliente, Fornitore)
         .join(Cliente, Progetti.cliente_id == Cliente.id, isouter=True)
+        .join(Fornitore, Progetti.fornitore_id == Fornitore.id, isouter=True)
         .where(Progetti.id == progetto_id)
     )
     result = db.exec(stmt).first()
@@ -74,7 +76,8 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(status_code=404, detail="Progetto not found")
     
-    progetto, cliente = result
+    progetto, cliente, fornitore = result
+    print('resultTTTT', fornitore)
     
     cliente_dict = {
         "cliente_id": progetto.cliente_id,
@@ -87,6 +90,13 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "note": cliente.note if cliente else None,
         "data_creazione_cliente": cliente.data_creazione if cliente else None,
     }
+    
+    fornitore_dict = {
+        "fornitore_id": progetto.fornitore_id,
+        "nome_fornitore": fornitore.nome_cliente if fornitore else None,
+        "indirizzo": fornitore.indirizzo if fornitore else None,
+        "data_creazione_fornitore": fornitore.data_creazione if fornitore else None,
+    }
 
     return {
         "progetto_id": progetto.id,
@@ -94,7 +104,8 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "stato": progetto.stato,
         "data_creazione": progetto.data_creazione,
         "importo": progetto.importo,
-        "cliente": cliente_dict
+        "cliente": cliente_dict,
+        "fornitore": fornitore_dict 
     }
 
 # Put
