@@ -28,7 +28,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
 def read_progetti(db: Session = Depends(get_db)):
     stmt = (
             select(Progetti, Cliente)
-            .join(Cliente, Progetti.cliente_id == Cliente.id)
+            .join(Cliente, Progetti.cliente_id == Cliente.id, isouter=True)
         )
     results = db.exec(stmt).all()
     
@@ -37,6 +37,18 @@ def read_progetti(db: Session = Depends(get_db)):
 
     progetti_with_clienti = []
     for progetto, cliente in results:
+        cliente_dict = {
+            "id": cliente.id,
+            "nome_cliente": cliente.nome_cliente,
+            "citta": cliente.citta,
+            "indirizzo": cliente.indirizzo,
+            "numero_tel": cliente.numero_tel,
+            "centro_di_costo": cliente.centro_di_costo,
+            "contatti": cliente.contatti,
+            "note": cliente.note,
+            "data_creazione": cliente.data_creazione,
+        } if cliente else {}
+
         progetti_with_clienti.append({
             "id": progetto.id,
             "tecnico": progetto.tecnico,
@@ -44,17 +56,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "cliente_id": progetto.cliente_id,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
-            "cliente": {
-                "id": cliente.id,
-                "nome_cliente": cliente.nome_cliente,
-                "citta": cliente.citta,
-                "indirizzo": cliente.indirizzo,
-                "numero_tel": cliente.numero_tel,
-                "centro_di_costo": cliente.centro_di_costo,
-                "contatti": cliente.contatti,
-                "note": cliente.note,
-                "data_creazione": cliente.data_creazione,
-            }
+            "cliente": cliente_dict
         })
 
     return progetti_with_clienti
@@ -64,7 +66,7 @@ def read_progetti(db: Session = Depends(get_db)):
 def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
     stmt = (
         select(Progetti, Cliente)
-        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .join(Cliente, Progetti.cliente_id == Cliente.id, isouter=True)
         .where(Progetti.id == progetto_id)
     )
     result = db.exec(stmt).first()
@@ -74,24 +76,25 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
     
     progetto, cliente = result
     
-    # Combine both into a single flat dict
+    cliente_dict = {
+        "cliente_id": progetto.cliente_id,
+        "nome_cliente": cliente.nome_cliente if cliente else None,
+        "citta": cliente.citta if cliente else None,
+        "indirizzo": cliente.indirizzo if cliente else None,
+        "numero_tel": cliente.numero_tel if cliente else None,
+        "centro_di_costo": cliente.centro_di_costo if cliente else None,
+        "contatti": cliente.contatti if cliente else None,
+        "note": cliente.note if cliente else None,
+        "data_creazione_cliente": cliente.data_creazione if cliente else None,
+    }
+
     return {
         "progetto_id": progetto.id,
         "tecnico": progetto.tecnico,
         "stato": progetto.stato,
         "data_creazione": progetto.data_creazione,
-        "cliente": {
-            "cliente_id": progetto.cliente_id,
-            "importo": progetto.importo,
-            "nome_cliente": cliente.nome_cliente,
-            "citta": cliente.citta,
-            "indirizzo": cliente.indirizzo,
-            "numero_tel": cliente.numero_tel,
-            "centro_di_costo": cliente.centro_di_costo,
-            "contatti": cliente.contatti,
-            "note": cliente.note,
-            "data_creazione_cliente": cliente.data_creazione,
-        }
+        "importo": progetto.importo,
+        "cliente": cliente_dict
     }
 
 # Put
