@@ -28,16 +28,18 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
     stmt = (
-            select(Progetti, Cliente)
+            select(Progetti, Cliente, Fornitore)
             .join(Cliente, Progetti.cliente_id == Cliente.id, isouter=True)
+            .join(Fornitore, Progetti.fornitore_id == Fornitore.id, isouter=True)
+
         )
     results = db.exec(stmt).all()
     
     if not results:
         raise HTTPException(status_code=404, detail="Progetto not found")
 
-    progetti_with_clienti = []
-    for progetto, cliente in results:
+    progetti_client_fornitori_dict = []
+    for progetto, cliente, fornitore  in results:
         cliente_dict = {
             "id": cliente.id,
             "nome_cliente": cliente.nome_cliente,
@@ -49,18 +51,30 @@ def read_progetti(db: Session = Depends(get_db)):
             "note": cliente.note,
             "data_creazione": cliente.data_creazione,
         } if cliente else {}
+        
+        fornitore_dict = {
+            "id": fornitore.id,
+            "nome_fornitore": fornitore.nome_cliente,
+            "indirizzo": fornitore.indirizzo,
+            "citta": fornitore.citta,
+            "numero_tel": fornitore.numero_tel,
+            "sito": fornitore.sito,
+            "contatti": fornitore.contatti,
+            "data_creazione_fornitore": fornitore.data_creazione,
+        } if fornitore else {}
 
-        progetti_with_clienti.append({
+        progetti_client_fornitori_dict.append({
             "id": progetto.id,
             "tecnico": progetto.tecnico,
             "stato": progetto.stato,
             "cliente_id": progetto.cliente_id,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
-            "cliente": cliente_dict
+            "cliente": cliente_dict,
+            "fornitore": fornitore_dict
         })
 
-    return progetti_with_clienti
+    return progetti_client_fornitori_dict
 
 # Get one
 @router.get("/{progetto_id}")
@@ -77,7 +91,6 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Progetto not found")
     
     progetto, cliente, fornitore = result
-    print('resultTTTT', fornitore)
     
     cliente_dict = {
         "cliente_id": progetto.cliente_id,
@@ -95,6 +108,10 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "fornitore_id": progetto.fornitore_id,
         "nome_fornitore": fornitore.nome_cliente if fornitore else None,
         "indirizzo": fornitore.indirizzo if fornitore else None,
+        "citta": fornitore.citta if fornitore else None,
+        "numero_tel": fornitore.numero_tel if fornitore else None,
+        "sito": fornitore.sito if fornitore else None,
+        "contatti": fornitore.contatti if fornitore else None,
         "data_creazione_fornitore": fornitore.data_creazione if fornitore else None,
     }
 
