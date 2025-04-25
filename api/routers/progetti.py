@@ -49,7 +49,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "centro_di_costo": cliente.centro_di_costo,
             "contatti": cliente.contatti,
             "note": cliente.note,
-            "data_creazione": cliente.data_creazione,
+            "data_creazione_cliente": cliente.data_creazione,
         } if cliente else {}
         
         fornitore_dict = {
