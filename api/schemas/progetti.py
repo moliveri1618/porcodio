@@ -7,6 +7,7 @@ class ProgettiCreate(BaseModel):
     stato: str
     data_creazione: datetime
     importo: float
+    cliente_id: int
 
 class ProgettiRead(ProgettiCreate):
     id: int
@@ -16,3 +17,4 @@ class ProgettiUpdate(BaseModel):
     stato: str | None = None
     data_creazione: datetime | None = None
     importo: float | None = None
+    cliente_id: int

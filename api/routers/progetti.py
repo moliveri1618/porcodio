@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
+from models.clienti import Cliente
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from dependecies import get_db
 
@@ -29,12 +30,39 @@ def read_progetti(db: Session = Depends(get_db)):
     return progetti
 
 # Get one
-@router.get("/{progetto_id}", response_model=ProgettiRead)
+@router.get("/{progetto_id}")
 def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
-    progetto = db.get(Progetti, progetto_id)
-    if not progetto:
+    stmt = (
+        select(Progetti, Cliente)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .where(Progetti.id == progetto_id)
+    )
+    result = db.exec(stmt).first()
+    
+    if not result:
         raise HTTPException(status_code=404, detail="Progetto not found")
-    return progetto
+    
+    progetto, cliente = result
+    
+    # Combine both into a single flat dict
+    return {
+        "progetto_id": progetto.id,
+        "tecnico": progetto.tecnico,
+        "stato": progetto.stato,
+        "data_creazione": progetto.data_creazione,
+        "cliente": {
+            "cliente_id": progetto.cliente_id,
+            "importo": progetto.importo,
+            "nome_cliente": cliente.nome_cliente,
+            "citta": cliente.citta,
+            "indirizzo": cliente.indirizzo,
+            "numero_tel": cliente.numero_tel,
+            "centro_di_costo": cliente.centro_di_costo,
+            "contatti": cliente.contatti,
+            "note": cliente.note,
+            "data_creazione_cliente": cliente.data_creazione,
+        }
+    }
 
 # Put
 @router.put("/{progetto_id}", response_model=ProgettiRead)
