@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(create_db_and_tables)
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=None)
 handler = Mangum(app=app)
 
 
