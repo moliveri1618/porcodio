@@ -2,6 +2,12 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+class FileInfo(BaseModel):
+    file_name: str
+    folder_path: str
+    full_key: str
+
+
 class FornitoriCreate(BaseModel):
     nome_cliente: str
     citta: str  # New field for "citta"
@@ -11,6 +17,8 @@ class FornitoriCreate(BaseModel):
     contatti: Optional[Dict[str, Any]] = None  # New field for contact details (JSON)
     note: Optional[str] = None  # New field for "note"
     data_creazione: datetime
+    file_info: Optional[FileInfo] = None
+
 
 class FornitoriRead(FornitoriCreate):
     id: int  # Read model now includes 'id'
@@ -24,3 +32,5 @@ class FornitoriUpdate(BaseModel):
     contatti: Optional[Dict[str, Any]] = None
     note: Optional[str] = None
     data_creazione: Optional[datetime] = None
+    file_info: Optional[FileInfo] = None
+

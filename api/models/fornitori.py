@@ -16,3 +16,9 @@ class Fornitore(SQLModel, table=True):
     )
     note: Optional[str] = Field(default=None, nullable=True)  # New field for "note"
     data_creazione: datetime = Field(..., nullable=False)  # "data_creazione" remains the same
+    file_info: Optional[dict] = Field(
+        default=None,
+        nullable=True,
+        sa_type=JSON,
+        description="S3 file metadata: {'file_name': str, 'folder_path': str, 'full_key': str}"
+    )
