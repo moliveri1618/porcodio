@@ -35,6 +35,7 @@ def read_progetti(db: Session = Depends(get_db)):
         )
     results = db.exec(stmt).all()
     
+    
     if not results:
         raise HTTPException(status_code=404, detail="Progetto not found")
 
@@ -71,7 +72,9 @@ def read_progetti(db: Session = Depends(get_db)):
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
             "cliente": cliente_dict,
-            "fornitore": fornitore_dict
+            "fornitore": fornitore_dict,
+            "file_info": progetto.file_info,  
+
         })
 
     return progetti_client_fornitori_dict
