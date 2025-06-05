@@ -28,7 +28,7 @@ COGNITO_REGION = os.getenv("COGNITO_REGION")
 COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID")
 COGNITO_APP_CLIENT_ID = os.getenv("COGNITO_APP_CLIENT_ID")
 COGNITO_PUBLIC_KEY_URL = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_REGION}_{COGNITO_USER_POOL_ID}/.well-known/jwks.json"
-
+print('sdfsdfsdf', DATABASE_URL)
 
 
 
