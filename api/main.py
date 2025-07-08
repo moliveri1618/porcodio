@@ -10,6 +10,7 @@ if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__))
 from routers import progetti
 from routers import clienti
 from routers import fornitori
+from routers import progetto_fornitore_link
 from dependecies import create_db_and_tables, verify_cognito_token
 
 
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(create_db_and_tables)
     yield
 
-app = FastAPI(lifespan=None)
+app = FastAPI(lifespan=lifespan)
 handler = Mangum(app=app)
 
 
@@ -48,6 +49,13 @@ app.include_router(
     prefix="/fornitori", 
     tags=["fornitori"]
 )
+
+app.include_router(
+    progetto_fornitore_link.router, 
+    prefix="/progetti-fornitori", 
+    tags=["progetti-fornitori"]
+)
+
 
 
 @app.get("/")
