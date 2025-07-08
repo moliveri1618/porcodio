@@ -31,7 +31,6 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"], 
 )
 
-
 app.include_router(
     progetti.router, 
     prefix="/progetti", 
@@ -55,7 +54,6 @@ app.include_router(
     prefix="/progetti-fornitori", 
     tags=["progetti-fornitori"]
 )
-
 
 
 @app.get("/")

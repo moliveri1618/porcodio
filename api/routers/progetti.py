@@ -10,6 +10,7 @@ if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__))
 from models.progetti import Progetti
 from models.clienti import Cliente
 from models.fornitori import Fornitore
+from models.progetto_fornitore_link import ProgettoFornitoreLink
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from dependecies import get_db
 
@@ -18,29 +19,46 @@ router = APIRouter()
 # Create
 @router.post("", response_model=ProgettiRead)
 def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
-    db_progetto = Progetti(**progetto.model_dump())
+    
+    # 1. Create the Progetto record
+    db_progetto = Progetti(
+        tecnico=progetto.tecnico,
+        stato=progetto.stato,
+        cliente_id=progetto.cliente_id,
+        data_creazione=progetto.data_creazione,
+        importo=progetto.importo
+    )
     db.add(db_progetto)
+    db.commit()
+    db.refresh(db_progetto)
+
+    # 2. Create associated ProgettoFornitoreLink entries
+    for f in progetto.fornitori:
+        link = ProgettoFornitoreLink(
+            progetto_id=db_progetto.id,
+            fornitore_id=f.fornitore_id,
+            contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
+            rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else []
+        )
+        db.add(link)
+
     db.commit()
     db.refresh(db_progetto)
     return db_progetto
 
+
 # Get all
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
-    stmt = (
-            select(Progetti, Cliente, Fornitore)
-            .join(Cliente, Progetti.cliente_id == Cliente.id, isouter=True)
-            .join(Fornitore, Progetti.fornitore_id == Fornitore.id, isouter=True)
-
-        )
-    results = db.exec(stmt).all()
+    progetti = db.exec(select(Progetti)).all()
     
-    
-    if not results:
-        raise HTTPException(status_code=404, detail="Progetto not found")
+    if not progetti:
+        raise HTTPException(status_code=404, detail="No progetti found")
 
-    progetti_client_fornitori_dict = []
-    for progetto, cliente, fornitore  in results:
+    result = []
+    for progetto in progetti:
+        # Get cliente info
+        cliente = db.get(Cliente, progetto.cliente_id)
         cliente_dict = {
             "id": cliente.id,
             "nome_cliente": cliente.nome_cliente,
@@ -52,19 +70,30 @@ def read_progetti(db: Session = Depends(get_db)):
             "note": cliente.note,
             "data_creazione_cliente": cliente.data_creazione,
         } if cliente else {}
-        
-        fornitore_dict = {
-            "id": fornitore.id,
-            "nome_fornitore": fornitore.nome_cliente,
-            "indirizzo": fornitore.indirizzo,
-            "citta": fornitore.citta,
-            "numero_tel": fornitore.numero_tel,
-            "sito": fornitore.sito,
-            "contatti": fornitore.contatti,
-            "data_creazione_fornitore": fornitore.data_creazione,
-        } if fornitore else {}
 
-        progetti_client_fornitori_dict.append({
+        # Get linked fornitori via join table
+        links = db.exec(
+            select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto.id)
+        ).all()
+
+        fornitori_list = []
+        for link in links:
+            fornitore = db.get(Fornitore, link.fornitore_id)
+            if fornitore:
+                fornitori_list.append({
+                    "id": fornitore.id,
+                    "nome_fornitore": fornitore.nome_cliente,
+                    "indirizzo": fornitore.indirizzo,
+                    "citta": fornitore.citta,
+                    "numero_tel": fornitore.numero_tel,
+                    "sito": fornitore.sito,
+                    "contatti": fornitore.contatti,
+                    "data_creazione_fornitore": fornitore.data_creazione,
+                    "contratti": link.contratti,
+                    "rilievi_misure": link.rilievi_misure
+                })
+
+        result.append({
             "id": progetto.id,
             "tecnico": progetto.tecnico,
             "stato": progetto.stato,
@@ -72,81 +101,106 @@ def read_progetti(db: Session = Depends(get_db)):
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
             "cliente": cliente_dict,
-            "fornitore": fornitore_dict,
-            "file_info": progetto.file_info,  
-
+            "fornitori": fornitori_list,
         })
 
-    return progetti_client_fornitori_dict
+    return result
 
 # Get one
 @router.get("/{progetto_id}")
 def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
-    stmt = (
-        select(Progetti, Cliente, Fornitore)
-        .join(Cliente, Progetti.cliente_id == Cliente.id, isouter=True)
-        .join(Fornitore, Progetti.fornitore_id == Fornitore.id, isouter=True)
-        .where(Progetti.id == progetto_id)
-    )
-    result = db.exec(stmt).first()
-    
-    if not result:
+    progetto = db.get(Progetti, progetto_id)
+    if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
-    
-    progetto, cliente, fornitore = result
-    
+
+    # Fetch cliente
+    cliente = db.get(Cliente, progetto.cliente_id)
     cliente_dict = {
-        "cliente_id": progetto.cliente_id,
-        "nome_cliente": cliente.nome_cliente if cliente else None,
-        "citta": cliente.citta if cliente else None,
-        "indirizzo": cliente.indirizzo if cliente else None,
-        "numero_tel": cliente.numero_tel if cliente else None,
-        "centro_di_costo": cliente.centro_di_costo if cliente else None,
-        "contatti": cliente.contatti if cliente else None,
-        "note": cliente.note if cliente else None,
-        "data_creazione_cliente": cliente.data_creazione if cliente else None,
-    }
-    
-    fornitore_dict = {
-        "fornitore_id": progetto.fornitore_id,
-        "nome_fornitore": fornitore.nome_cliente if fornitore else None,
-        "indirizzo": fornitore.indirizzo if fornitore else None,
-        "citta": fornitore.citta if fornitore else None,
-        "numero_tel": fornitore.numero_tel if fornitore else None,
-        "sito": fornitore.sito if fornitore else None,
-        "contatti": fornitore.contatti if fornitore else None,
-        "data_creazione_fornitore": fornitore.data_creazione if fornitore else None,
-    }
+        "id": cliente.id,
+        "nome_cliente": cliente.nome_cliente,
+        "citta": cliente.citta,
+        "indirizzo": cliente.indirizzo,
+        "numero_tel": cliente.numero_tel,
+        "centro_di_costo": cliente.centro_di_costo,
+        "contatti": cliente.contatti,
+        "note": cliente.note,
+        "data_creazione_cliente": cliente.data_creazione,
+    } if cliente else {}
+
+    # Fetch linked fornitori
+    links = db.exec(
+        select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto_id)
+    ).all()
+
+    fornitori_data = []
+    for link in links:
+        fornitore = db.get(Fornitore, link.fornitore_id)
+        if fornitore:
+            fornitori_data.append({
+                "id": fornitore.id,
+                "nome_fornitore": fornitore.nome_cliente,
+                "indirizzo": fornitore.indirizzo,
+                "citta": fornitore.citta,
+                "numero_tel": fornitore.numero_tel,
+                "sito": fornitore.sito,
+                "contatti": fornitore.contatti,
+                "data_creazione_fornitore": fornitore.data_creazione,
+                "contratti": link.contratti,
+                "rilievi_misure": link.rilievi_misure
+            })
 
     return {
-        "progetto_id": progetto.id,
+        "id": progetto.id,
         "tecnico": progetto.tecnico,
         "stato": progetto.stato,
+        "cliente_id": progetto.cliente_id,
         "data_creazione": progetto.data_creazione,
         "importo": progetto.importo,
         "cliente": cliente_dict,
-        "fornitore": fornitore_dict 
+        "fornitori": fornitori_data
     }
 
-# Put
+# Modify one 
 @router.put("/{progetto_id}", response_model=ProgettiRead)
 def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Session = Depends(get_db)):
     progetto = db.get(Progetti, progetto_id)
     if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
-    progetto_data = progetto_update.model_dump(exclude_unset=True)
+
+    # Update base fields
+    progetto_data = progetto_update.dict(exclude_unset=True, exclude={"fornitori"})
     for key, value in progetto_data.items():
         setattr(progetto, key, value)
     db.add(progetto)
+
+    # Update fornitori links if provided
+    if progetto_update.fornitori is not None:
+        # Remove existing links
+        existing_links = db.exec(
+            select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto_id)
+        ).all()
+        for link in existing_links:
+            db.delete(link)
+
+        # Add new links
+        for f in progetto_update.fornitori:
+            new_link = ProgettoFornitoreLink(
+                progetto_id=progetto_id,
+                fornitore_id=f.fornitore_id,
+                contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
+                rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else []
+            )
+            db.add(new_link)
+
     db.commit()
     db.refresh(progetto)
     return progetto
 
-# Delete
-@router.delete("/{progetto_id}", status_code=204)
-def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
-    progetto = db.get(Progetti, progetto_id)
-    if not progetto:
-        raise HTTPException(status_code=404, detail="Progetto not found")
-    db.delete(progetto)
-    db.commit()
+# # Delete
+# @router.delete("/{progetto_id}", status_code=204)
+# def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
+#     progetto = db.get(Progetti, progetto_id)
+#     if not progetto:
+#         raise HTTPException(status_code=404, detail="Progetto not found")
+#     db.delete(progetto)
+#     db.commit()

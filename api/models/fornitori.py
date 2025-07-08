@@ -1,8 +1,16 @@
 from typing import Optional, Dict, Any
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 from sqlalchemy import JSON, Column
+from typing import List, TYPE_CHECKING
+import sys
+import os
 
+if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
+from models.progetto_fornitore_link import ProgettoFornitoreLink  # real class import
+if TYPE_CHECKING:
+    from models.progetti import Progetti
+    
 class Fornitore(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nome_cliente: str = Field(..., nullable=False)  # "nome_cliente" remains the same
@@ -21,4 +29,8 @@ class Fornitore(SQLModel, table=True):
         nullable=True,
         sa_type=JSON,
         description="S3 file metadata: {'file_name': str, 'folder_path': str, 'full_key': str}"
+    )
+    progetti: List["Progetti"] = Relationship(
+        back_populates="fornitori",
+        link_model=ProgettoFornitoreLink
     )
