@@ -199,12 +199,3 @@ def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Sessi
     db.commit()
     db.refresh(progetto)
     return progetto
-
-# # Delete
-# @router.delete("/{progetto_id}", status_code=204)
-# def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
-#     progetto = db.get(Progetti, progetto_id)
-#     if not progetto:
-#         raise HTTPException(status_code=404, detail="Progetto not found")
-#     db.delete(progetto)
-#     db.commit()
