@@ -38,7 +38,8 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
             progetto_id=db_progetto.id,
             fornitore_id=f.fornitore_id,
             contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-            rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else []
+            rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
+            prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else []  
         )
         db.add(link)
 
@@ -90,7 +91,8 @@ def read_progetti(db: Session = Depends(get_db)):
                     "contatti": fornitore.contatti,
                     "data_creazione_fornitore": fornitore.data_creazione,
                     "contratti": link.contratti,
-                    "rilievi_misure": link.rilievi_misure
+                    "rilievi_misure": link.rilievi_misure,
+                    "prodotti_fornitore": link.prodotti_fornitore
                 })
 
         result.append({
@@ -146,7 +148,8 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
                 "contatti": fornitore.contatti,
                 "data_creazione_fornitore": fornitore.data_creazione,
                 "contratti": link.contratti,
-                "rilievi_misure": link.rilievi_misure
+                "rilievi_misure": link.rilievi_misure,
+                "prodotti_fornitore": link.prodotti_fornitore,
             })
 
     return {
@@ -188,7 +191,8 @@ def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Sessi
                 progetto_id=progetto_id,
                 fornitore_id=f.fornitore_id,
                 contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-                rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else []
+                rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
+                prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else [] 
             )
             db.add(new_link)
 

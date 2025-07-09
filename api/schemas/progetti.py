@@ -3,6 +3,10 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
 
+class ProdottoFornitore(BaseModel):
+    nome: str
+    quantita: int
+
 class FileInfo(BaseModel):
     file_name: str
     folder_path: str
@@ -12,6 +16,8 @@ class FornitoreLinkData(BaseModel):
     fornitore_id: int
     contratti: Optional[List[FileInfo]] = []
     rilievi_misure: Optional[List[FileInfo]] = []
+    prodotti_fornitore: Optional[List[ProdottoFornitore]] = []  # ✅ Add this
+
 
 class ProgettiCreate(BaseModel):
     tecnico: str  
