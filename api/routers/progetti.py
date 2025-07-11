@@ -37,9 +37,9 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         link = ProgettoFornitoreLink(
             progetto_id=db_progetto.id,
             fornitore_id=f.fornitore_id,
-            contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-            rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
-            prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else []  
+            contratti=f.contratti if f.contratti else [],
+            rilievi_misure=f.rilievi_misure if f.rilievi_misure else [],
+            prodotti_fornitore=f.prodotti_fornitore if f.prodotti_fornitore else []
         )
         db.add(link)
 
@@ -186,13 +186,14 @@ def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Sessi
             db.delete(link)
 
         # Add new links
+        
         for f in progetto_update.fornitori:
             new_link = ProgettoFornitoreLink(
                 progetto_id=progetto_id,
                 fornitore_id=f.fornitore_id,
-                contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-                rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
-                prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else [] 
+                contratti=f.contratti if f.contratti else [],
+                rilievi_misure=f.rilievi_misure if f.rilievi_misure else [],
+                prodotti_fornitore=f.prodotti_fornitore if f.prodotti_fornitore else []
             )
             db.add(new_link)
 

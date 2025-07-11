@@ -14,9 +14,10 @@ class FileInfo(BaseModel):
     
 class FornitoreLinkData(BaseModel):
     fornitore_id: int
-    contratti: Optional[List[FileInfo]] = []
-    rilievi_misure: Optional[List[FileInfo]] = []
-    prodotti_fornitore: Optional[List[ProdottoFornitore]] = []  # ✅ Add this
+    contratti: Optional[List[str]] = []         # ✅ now accepts file paths
+    rilievi_misure: Optional[List[str]] = []    # ✅ now accepts file paths
+    prodotti_fornitore: Optional[List[ProdottoFornitore]] = []
+
 
 
 class ProgettiCreate(BaseModel):
