@@ -49,4 +49,3 @@ class ProgettiUpdate(BaseModel):
     cliente_id: Optional[int] = None
     fornitori: Optional[List[FornitoreLinkData]] = None
     upload_id: Optional[str] = None
-

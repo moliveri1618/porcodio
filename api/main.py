@@ -25,7 +25,10 @@ handler = Mangum(app=app)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=[
+        "http://localhost:5173",
+        "https://staging.d1z7mkjg7hq21f.amplifyapp.com"
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
     allow_headers=["Content-Type", "Authorization"], 
