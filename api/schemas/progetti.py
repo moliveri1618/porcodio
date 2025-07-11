@@ -26,6 +26,7 @@ class ProgettiCreate(BaseModel):
     importo: float
     cliente_id: int
     fornitori: List[FornitoreLinkData]  # ⬅️ changed from List[int] to List[FornitoreLinkData]
+    upload_id: Optional[str] = None
 
 
 class FornitoreInProgetto(BaseModel):
@@ -47,4 +48,5 @@ class ProgettiUpdate(BaseModel):
     importo: Optional[float] = None
     cliente_id: Optional[int] = None
     fornitori: Optional[List[FornitoreLinkData]] = None
+    upload_id: Optional[str] = None
 
