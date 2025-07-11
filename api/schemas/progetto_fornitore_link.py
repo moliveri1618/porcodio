@@ -10,12 +10,12 @@ class FileInfo(BaseModel):
 class ProgettoFornitoreLinkCreate(BaseModel):
     progetto_id: int
     fornitore_id: int
-    contratti: Optional[List[FileInfo]] = []
-    rilievi_misure: Optional[List[FileInfo]] = []
+    contratti: Optional[List[str]] = []
+    rilievi_misure: Optional[List[str]] = []
 
 class ProgettoFornitoreLinkRead(ProgettoFornitoreLinkCreate):
     pass 
 
 class ProgettoFornitoreLinkUpdate(BaseModel):
-    contratti: Optional[List[FileInfo]] = None
-    rilievi_misure: Optional[List[FileInfo]] = None
+    contratti: Optional[List[str]] = None
+    rilievi_misure: Optional[List[str]] = None
