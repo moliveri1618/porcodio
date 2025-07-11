@@ -145,7 +145,7 @@ For AWS Lambda deployment, follow this guide:
 To test authenticated API requests, you need an **AWS Cognito ID Token**. Use the following command to use **AWS Cognito** to generate a token for API testing:
 
 ```bash
-aws cognito-idp initiate-auth --client-id obemnph8vgsfrcip0s3bg4flm --auth-flow USER_PASSWORD_AUTH --auth-parameters USERNAME="70bcc95c-b0f1-70e3-5c17-ee40967d4051",PASSWORD="NewSecurePass123!" --region eu-north-1 --output json > token_response.json
+aws cognito-idp initiate-auth --client-id obemnph8vgsfrcip0s3bg4flm --auth-flow USER_PASSWORD_AUTH --auth-parameters USERNAME="d06c694c-10e1-70b1-6220-5b99fabd72b2",PASSWORD="123Qwe1!" --region eu-north-1 --output json > token_response.json
 ```
 
 ### ⚠️ **Important:**

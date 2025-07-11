@@ -34,3 +34,4 @@ class Fornitore(SQLModel, table=True):
         back_populates="fornitori",
         link_model=ProgettoFornitoreLink
     )
+    upload_id: Optional[str] = Field(default=None,nullable=True,index=True)

@@ -18,6 +18,7 @@ class FornitoriCreate(BaseModel):
     note: Optional[str] = None  # New field for "note"
     data_creazione: datetime
     file_info: Optional[FileInfo] = None
+    upload_id: Optional[str] = None
 
 
 class FornitoriRead(FornitoriCreate):
@@ -33,4 +34,5 @@ class FornitoriUpdate(BaseModel):
     note: Optional[str] = None
     data_creazione: Optional[datetime] = None
     file_info: Optional[FileInfo] = None
+    upload_id: Optional[str] = None
 
