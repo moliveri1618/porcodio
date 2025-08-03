@@ -16,7 +16,7 @@ class FornitoreLinkData(BaseModel):
     fornitore_id: int
     contratti: Optional[List[FileInfo]] = []
     rilievi_misure: Optional[List[FileInfo]] = []
-    prodotti_fornitore: Optional[List[ProdottoFornitore]] = []  # ✅ Add this
+    prodotti_fornitore: Optional[List[ProdottoFornitore]] = []  
 
 
 class ProgettiCreate(BaseModel):
@@ -25,7 +25,7 @@ class ProgettiCreate(BaseModel):
     data_creazione: datetime
     importo: float
     cliente_id: int
-    fornitori: List[FornitoreLinkData]  # ⬅️ changed from List[int] to List[FornitoreLinkData]
+    fornitori: List[FornitoreLinkData]  
     upload_id: Optional[str] = None
 
 
