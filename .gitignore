@@ -3,3 +3,14 @@
 __pycache__
 .env
 token_response.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
