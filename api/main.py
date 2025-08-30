@@ -5,6 +5,7 @@ from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
+import httpx
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
 from routers import progetti
@@ -61,5 +62,41 @@ app.include_router(
 
 @app.get("/")
 async def root(current_user: dict = Depends(verify_cognito_token)):
-
+    
     return {"message": "Hello"}
+
+
+API_BASE = "https://www.tigulliocrm.it/api"
+API_URL = "https://www.tigulliocrm.it/api/fornitori/"
+API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
+
+@app.get("/")
+def root():
+    return {"message": "FastAPI test client is running"}
+
+@app.get("/test-fornitori")
+def test_fornitori():
+    headers = {
+        "Authorization": f"Bearer {API_KEY}"
+    }
+    try:
+        response = httpx.get(API_URL, headers=headers, timeout=30.0)
+        return {
+            "status_code": response.status_code,
+            "response": response.json() if response.status_code == 200 else response.text
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/test-dip-tecnico")
+def test_dip_tecnico():
+    """Calls the dip-tecnico API with Bearer token in header"""
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    try:
+        response = httpx.get(f"{API_BASE}/dip-tecnico/", headers=headers, timeout=30.0)
+        return {
+            "status_code": response.status_code,
+            "response": response.json() if response.status_code == 200 else response.text
+        }
+    except Exception as e:
+        return {"error": str(e)}
