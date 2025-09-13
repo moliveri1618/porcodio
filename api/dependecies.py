@@ -37,10 +37,10 @@ print('sdfsdfsdf', DATABASE_URL)
 # from models.fornitori import Fornitore
 # from models.clienti import Cliente
 # from models.progetto_fornitore_link import ProgettoFornitoreLink  # ✅ <--- critical
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 
 def create_db_and_tables():
-    print("🛠️ Tables to be created:", list(SQLModel.metadata.tables.keys()))
+    #print("🛠️ Tables to be created:", list(SQLModel.metadata.tables.keys()))
     SQLModel.metadata.create_all(engine) # creates the database tables based on the modelds defined using SQLModel
 
 def get_db():

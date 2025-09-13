@@ -6,6 +6,7 @@ import os
 from typing import List
 from sqlmodel import Session, select
 import httpx
+from datetime import datetime, timezone
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.fornitori import Fornitore  # Changed model name from Cliente to Fornitori
@@ -32,6 +33,89 @@ def create_fornitore(fornitore: FornitoriCreate, db: Session = Depends(get_db)):
 def read_fornitori(db: Session = Depends(get_db)):
     fornitori = db.exec(select(Fornitore)).all()  # Using Fornitori model to fetch all records
     return fornitori
+
+# Test endpoint to verify external API connectivity
+DEFAULTS_FOR_FORNITORE = dict(
+    citta="",
+    indirizzo="",
+    numero_tel="",
+    sito="",
+    contatti={},
+    note="",
+    file_info={"file_name": "", "folder_path": "", "full_key": ""},
+    upload_id="",
+)
+
+@router.post("/import-from-api")
+def import_from_gesty(db: Session = Depends(get_db)):
+    """
+    Fetch all fornitori from external API and upsert into local DB.
+    - Uses JSON 'id' as primary key.
+    - Maps 'nome_it' -> 'nome_cliente'.
+    - Fills required fields not present in JSON with defaults.
+    - If a record with the same id exists, updates nome_cliente only (keep your local fields).
+    """
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    r = httpx.get(API_URL, headers=headers, timeout=30.0)
+    try:
+        payload = r.json()
+    except ValueError:
+        raise HTTPException(status_code=502, detail=f"Upstream returned non-JSON: {r.text[:300]}")
+
+    if r.status_code != 200 or not isinstance(payload, dict) or "data" not in payload:
+        raise HTTPException(status_code=502, detail=f"Unexpected upstream response: {payload}")
+
+    items = payload["data"]
+    print(items)
+    if not isinstance(items, list):
+        raise HTTPException(status_code=502, detail="Upstream 'data' is not a list")
+
+    created = 0
+    updated = 0
+    skipped = 0
+
+    for item in items:
+        try:
+            fid = int(item["id"])
+            print('fid', fid)
+            nome = (item.get("nome_it") or "").strip()
+            if not nome:
+                skipped += 1
+                continue
+        except Exception:
+            skipped += 1
+            continue
+
+        existing = db.get(Fornitore, fid)
+        print( 'existing', existing )
+        if existing:
+            print('yooo')
+            # Update only the name if it changed; keep your local fields intact
+            if existing.nome_cliente != nome:
+                existing.nome_cliente = nome
+                db.add(existing)
+                updated += 1
+        else:
+            print('ehre')
+            db.add(
+                Fornitore(
+                    id=fid,
+                    nome_cliente=nome,
+                    data_creazione=datetime.now(timezone.utc),
+                    **DEFAULTS_FOR_FORNITORE,
+                )
+            )
+            created += 1
+
+    db.commit()
+    return {
+        "status": "ok",
+        "source_count": len(items),
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
+    }
+
 
 # Get one
 @router.get("/{fornitore_id}", response_model=FornitoriRead)
@@ -63,18 +147,4 @@ def delete_fornitore(fornitore_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Fornitore not found")
     db.delete(fornitore)
     db.commit()
-    
-    
-@router.get("/import-fornitori-from-api")
-def import_fornitori_from_gesty():
-    headers = {
-        "Authorization": f"Bearer {API_KEY}"
-    }
-    try:
-        response = httpx.get(API_URL, headers=headers, timeout=30.0)
-        return {
-            "status_code": response.status_code,
-            "response": response.json() if response.status_code == 200 else response.text
-        }
-    except Exception as e:
-        return {"error": str(e)}
+
