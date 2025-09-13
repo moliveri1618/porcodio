@@ -5,6 +5,7 @@ import sys
 import os
 from typing import List
 from sqlmodel import Session, select
+import httpx
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.fornitori import Fornitore  # Changed model name from Cliente to Fornitori
@@ -12,6 +13,10 @@ from schemas.fornitori import FornitoriCreate, FornitoriRead, FornitoriUpdate  #
 from dependecies import get_db
 
 router = APIRouter()
+
+API_BASE = "https://www.tigulliocrm.it/api"
+API_URL = "https://www.tigulliocrm.it/api/fornitori/"
+API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
 
 # Create
 @router.post("", response_model=FornitoriRead)
@@ -58,3 +63,18 @@ def delete_fornitore(fornitore_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Fornitore not found")
     db.delete(fornitore)
     db.commit()
+    
+    
+@router.get("/import-fornitori-from-api")
+def import_fornitori_from_gesty():
+    headers = {
+        "Authorization": f"Bearer {API_KEY}"
+    }
+    try:
+        response = httpx.get(API_URL, headers=headers, timeout=30.0)
+        return {
+            "status_code": response.status_code,
+            "response": response.json() if response.status_code == 200 else response.text
+        }
+    except Exception as e:
+        return {"error": str(e)}
