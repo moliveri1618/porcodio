@@ -48,15 +48,10 @@ DEFAULTS_FOR_FORNITORE = dict(
 
 @router.post("/import-from-api")
 def import_from_gesty(db: Session = Depends(get_db)):
-    """
-    Fetch all fornitori from external API and upsert into local DB.
-    - Uses JSON 'id' as primary key.
-    - Maps 'nome_it' -> 'nome_cliente'.
-    - Fills required fields not present in JSON with defaults.
-    - If a record with the same id exists, updates nome_cliente only (keep your local fields).
-    """
+    
     headers = {"Authorization": f"Bearer {API_KEY}"}
     r = httpx.get(API_URL, headers=headers, timeout=30.0)
+    
     try:
         payload = r.json()
     except ValueError:
@@ -66,18 +61,15 @@ def import_from_gesty(db: Session = Depends(get_db)):
         raise HTTPException(status_code=502, detail=f"Unexpected upstream response: {payload}")
 
     items = payload["data"]
-    print(items)
     if not isinstance(items, list):
         raise HTTPException(status_code=502, detail="Upstream 'data' is not a list")
 
     created = 0
     updated = 0
     skipped = 0
-
     for item in items:
         try:
             fid = int(item["id"])
-            print('fid', fid)
             nome = (item.get("nome_it") or "").strip()
             if not nome:
                 skipped += 1
@@ -87,16 +79,9 @@ def import_from_gesty(db: Session = Depends(get_db)):
             continue
 
         existing = db.get(Fornitore, fid)
-        print( 'existing', existing )
         if existing:
-            print('yooo')
-            # Update only the name if it changed; keep your local fields intact
-            if existing.nome_cliente != nome:
-                existing.nome_cliente = nome
-                db.add(existing)
-                updated += 1
+            skipped += 1
         else:
-            print('ehre')
             db.add(
                 Fornitore(
                     id=fid,
