@@ -1,20 +1,23 @@
 import sys
 import os
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request, HTTPException
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
-import httpx
+import httpx, io
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from fastapi.responses import StreamingResponse, JSONResponse
+
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
-from routers import progetti
-from routers import clienti
-from routers import fornitori
-from routers import progetto_fornitore_link
+from routers import progetti, clienti, fornitori, progetto_fornitore_link, getFiles
+# from routers import clienti
+# from routers import fornitori
+# from routers import progetto_fornitore_link
+# from routers import getFiles
 from dependecies import create_db_and_tables, verify_cognito_token
 
 
@@ -62,6 +65,13 @@ app.include_router(
     tags=["progetti-fornitori"]
 )
 
+app.include_router(
+    getFiles.router, 
+    prefix="/getFiles", 
+    tags=["getFiles"]
+)
+
+
 
 @app.get("/")
 async def root(current_user: dict = Depends(verify_cognito_token)):
@@ -77,19 +87,19 @@ API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
 def root():
     return {"message": "FastAPI test client is running"}
 
-@app.get("/test-fornitori")
-def test_fornitori():
-    headers = {
-        "Authorization": f"Bearer {API_KEY}"
-    }
-    try:
-        response = httpx.get(API_URL, headers=headers, timeout=30.0)
-        return {
-            "status_code": response.status_code,
-            "response": response.json() if response.status_code == 200 else response.text
-        }
-    except Exception as e:
-        return {"error": str(e)}
+# @app.get("/test-fornitori")
+# def test_fornitori():
+#     headers = {
+#         "Authorization": f"Bearer {API_KEY}"
+#     }
+#     try:
+#         response = httpx.get(API_URL, headers=headers, timeout=30.0)
+#         return {
+#             "status_code": response.status_code,
+#             "response": response.json() if response.status_code == 200 else response.text
+#         }
+#     except Exception as e:
+#         return {"error": str(e)}
 
 @app.get("/test-dip-tecnico")
 def test_dip_tecnico():
@@ -103,7 +113,30 @@ def test_dip_tecnico():
         }
     except Exception as e:
         return {"error": str(e)}
-    
+
+@app.get("/contratto/{code}", responses={
+    200: {"content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}},
+    401: {"description": "Token non valido"},
+})
+async def get_contratto(code: str):
+    url = f"{API_BASE}/contratto/{code}/"
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(url, headers=headers)
+
+    if r.status_code == 200:
+        return StreamingResponse(
+            io.BytesIO(r.content),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="contratto-{code}.pdf"'}
+        )
+
+    if r.status_code in (401, 403):
+        raise HTTPException(status_code=401, detail="Token non valido")
+
+    raise HTTPException(status_code=r.status_code, detail=r.text)
+
     
 @app.get("/send-email")
 def send_email_to_user():
