@@ -107,18 +107,18 @@ def root():
 #     except Exception as e:
 #         return {"error": str(e)}
 
-@app.get("/test-dip-tecnico")
-def test_dip_tecnico():
-    """Calls the dip-tecnico API with Bearer token in header"""
-    headers = {"Authorization": f"Bearer {API_KEY}"}
-    try:
-        response = httpx.get(f"{API_BASE}/dip-tecnico/", headers=headers, timeout=30.0)
-        return {
-            "status_code": response.status_code,
-            "response": response.json() if response.status_code == 200 else response.text
-        }
-    except Exception as e:
-        return {"error": str(e)}
+# @app.get("/test-dip-tecnico")
+# def test_dip_tecnico():
+#     """Calls the dip-tecnico API with Bearer token in header"""
+#     headers = {"Authorization": f"Bearer {API_KEY}"}
+#     try:
+#         response = httpx.get(f"{API_BASE}/dip-tecnico/", headers=headers, timeout=30.0)
+#         return {
+#             "status_code": response.status_code,
+#             "response": response.json() if response.status_code == 200 else response.text
+#         }
+#     except Exception as e:
+#         return {"error": str(e)}
 
 # @app.get("/contratto/{code}", responses={
 #     200: {"content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}},
