@@ -27,7 +27,8 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,
-        upload_id=progetto.upload_id
+        upload_id=progetto.upload_id,
+        upload_id_progetto_files=progetto.upload_id_progetto_files
     )
     db.add(db_progetto)
     db.commit()
