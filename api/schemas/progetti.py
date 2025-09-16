@@ -27,6 +27,7 @@ class ProgettiCreate(BaseModel):
     cliente_id: int
     fornitori: List[FornitoreLinkData]  
     upload_id: Optional[str] = None
+    upload_id_progetto_files: Optional[str] = None
 
 
 class FornitoreInProgetto(BaseModel):
@@ -49,3 +50,4 @@ class ProgettiUpdate(BaseModel):
     cliente_id: Optional[int] = None
     fornitori: Optional[List[FornitoreLinkData]] = None
     upload_id: Optional[str] = None
+    upload_id_progetto_files: Optional[str] = None

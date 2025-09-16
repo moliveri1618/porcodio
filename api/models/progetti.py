@@ -22,3 +22,4 @@ class Progetti(SQLModel, table=True):
         link_model=ProgettoFornitoreLink
     )
     upload_id: Optional[str] = Field(default=None,nullable=True,index=True)
+    upload_id_progetto_files: Optional[str] = Field(default=None,nullable=True,index=True)
