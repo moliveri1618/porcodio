@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
-from routers import progetti, clienti, fornitori, progetto_fornitore_link, getFiles
+from routers import progetti, clienti, fornitori, progetto_fornitore_link, getFiles, prodotti
 # from routers import clienti
 # from routers import fornitori
 # from routers import progetto_fornitore_link
@@ -71,6 +71,12 @@ app.include_router(
     tags=["getFiles"]
 )
 
+app.include_router(
+    prodotti.router, 
+    prefix="/prodotti", 
+    tags=["prodotti"]
+)
+
 
 
 @app.get("/")
@@ -114,28 +120,28 @@ def test_dip_tecnico():
     except Exception as e:
         return {"error": str(e)}
 
-@app.get("/contratto/{code}", responses={
-    200: {"content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}},
-    401: {"description": "Token non valido"},
-})
-async def get_contratto(code: str):
-    url = f"{API_BASE}/contratto/{code}/"
-    headers = {"Authorization": f"Bearer {API_KEY}"}
+# @app.get("/contratto/{code}", responses={
+#     200: {"content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}},
+#     401: {"description": "Token non valido"},
+# })
+# async def get_contratto(code: str):
+#     url = f"{API_BASE}/contratto/{code}/"
+#     headers = {"Authorization": f"Bearer {API_KEY}"}
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.get(url, headers=headers)
+#     async with httpx.AsyncClient(timeout=30.0) as client:
+#         r = await client.get(url, headers=headers)
 
-    if r.status_code == 200:
-        return StreamingResponse(
-            io.BytesIO(r.content),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'inline; filename="contratto-{code}.pdf"'}
-        )
+#     if r.status_code == 200:
+#         return StreamingResponse(
+#             io.BytesIO(r.content),
+#             media_type="application/pdf",
+#             headers={"Content-Disposition": f'inline; filename="contratto-{code}.pdf"'}
+#         )
 
-    if r.status_code in (401, 403):
-        raise HTTPException(status_code=401, detail="Token non valido")
+#     if r.status_code in (401, 403):
+#         raise HTTPException(status_code=401, detail="Token non valido")
 
-    raise HTTPException(status_code=r.status_code, detail=r.text)
+#     raise HTTPException(status_code=r.status_code, detail=r.text)
 
     
 @app.get("/send-email")

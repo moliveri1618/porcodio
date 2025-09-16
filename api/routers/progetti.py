@@ -5,16 +5,23 @@ import sys
 import os
 from typing import List
 from sqlmodel import Session, select
+import httpx
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
 from models.clienti import Cliente
 from models.fornitori import Fornitore
+from models.prodotti import Prodotto
 from models.progetto_fornitore_link import ProgettoFornitoreLink
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
+from routers.utils import _extract_prodotti_names
 from dependecies import get_db
 
 router = APIRouter()
+
+API_BASE = "https://www.tigulliocrm.it/api"
+API_URL = "https://www.tigulliocrm.it/api/fornitori/"
+API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
 
 # Create
 @router.post("", response_model=ProgettiRead)
@@ -49,6 +56,69 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
     db.refresh(db_progetto)
     return db_progetto
 
+# Get from gesty
+@router.get("/get_progetti_gesty")
+def progetti_from_gesty(db: Session = Depends(get_db)):
+    """
+    Calls the dip-tecnico API with Bearer token in header
+    """
+    
+    if not API_BASE or not API_KEY:
+        raise HTTPException(status_code=500, detail="API_BASE/API_KEY not configured")
+
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    try:
+        resp = httpx.get(f"{API_BASE}/dip-tecnico/", headers=headers, timeout=30.0)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Gesty fetch error: {e}")
+
+    # Accept non-200 as upstream error but still relay body for debugging
+    if resp.status_code != 200:
+        try:
+            body = resp.json()
+        except Exception:
+            body = resp.text
+        raise HTTPException(status_code=resp.status_code, detail={"upstream": body})
+
+    payload = resp.json()
+    if not payload.get("success"):
+        raise HTTPException(status_code=502, detail="Gesty returned success=false")
+
+    names = _extract_prodotti_names(payload)
+    if not names:
+        return {"inserted": 0, "skipped": 0, "message": "No product names found in payload."}
+
+    # Get existing product names
+    existing: list[str] = db.exec(select(Prodotto.nome_prodotto)).all()
+    existing_set = set(existing)
+
+    to_create = [Prodotto(nome_prodotto=n) for n in names if n not in existing_set]
+    skipped = len(names) - len(to_create)
+
+    if to_create:
+        db.add_all(to_create)
+        try:
+            db.commit()
+        except Exception as e:
+            # In case of race/unique conflicts, rollback and try inserting one by one
+            db.rollback()
+            inserted_safe = 0
+            for prod in to_create:
+                try:
+                    db.add(prod)
+                    db.commit()
+                    db.refresh(prod)
+                    inserted_safe += 1
+                except Exception:
+                    db.rollback()  # likely unique collision; ignore
+            return {"inserted": inserted_safe, "skipped": len(names) - inserted_safe}
+
+    return {
+        "inserted": len(to_create),
+        "skipped": skipped,
+        "total_unique_seen": len(names),
+        "sample": sorted(list(names))[:10],  # small preview
+    }
 
 # Get all
 @router.get("")
