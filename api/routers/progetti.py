@@ -100,6 +100,7 @@ def read_progetti(db: Session = Depends(get_db)):
         result.append({
             "id": progetto.id,
             "upload_id": progetto.upload_id,
+            "upload_id_progetto_files": progetto.upload_id_progetto_files,
             "tecnico": progetto.tecnico,
             "stato": progetto.stato,
             "cliente_id": progetto.cliente_id,
@@ -123,6 +124,7 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
     cliente_dict = {
         "id": cliente.id,
         "upload_id": progetto.upload_id,
+        "upload_id_progetto_files": progetto.upload_id_progetto_files,
         "nome_cliente": cliente.nome_cliente,
         "citta": cliente.citta,
         "indirizzo": cliente.indirizzo,
