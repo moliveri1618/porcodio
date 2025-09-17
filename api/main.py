@@ -81,13 +81,12 @@ app.include_router(
 
 @app.get("/")
 async def root(current_user: dict = Depends(verify_cognito_token)):
-    
     return {"message": "Hello"}
 
 
-API_BASE = "https://www.tigulliocrm.it/api"
-API_URL = "https://www.tigulliocrm.it/api/fornitori/"
-API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
+# API_BASE = "https://www.tigulliocrm.it/api"
+# API_URL = "https://www.tigulliocrm.it/api/fornitori/"
+# API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
 
 @app.get("/")
 def root():

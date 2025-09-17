@@ -33,3 +33,27 @@ async def get_contratto(code: str):
         raise HTTPException(status_code=401, detail="Token non valido")
 
     raise HTTPException(status_code=r.status_code, detail=r.text)
+
+
+@router.get("/rm/{code}", responses={
+    200: {"content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}},
+    401: {"description": "Token non valido"},
+})
+async def get_rm(code: str):
+    url = f"{API_BASE}/rm/{code}/"
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(url, headers=headers)
+
+    if r.status_code == 200:
+        return StreamingResponse(
+            io.BytesIO(r.content),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="contratto-{code}.pdf"'}
+        )
+
+    if r.status_code in (401, 403):
+        raise HTTPException(status_code=401, detail="Token non valido")
+
+    raise HTTPException(status_code=r.status_code, detail=r.text)

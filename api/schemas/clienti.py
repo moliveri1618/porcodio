@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 class ClienteCreate(BaseModel):
+    id: Optional[int] = None
     nome_cliente: str
     citta: str  # Updated field
     indirizzo: str

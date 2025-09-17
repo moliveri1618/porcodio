@@ -16,9 +16,13 @@ router = APIRouter()
 # Create
 @router.post("", response_model=ClienteRead)
 def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db)):
-    db_cliente = Cliente(**cliente.dict())  # Changed to Cliente model and dict() method
+    db_cliente = Cliente(**cliente.dict(exclude_unset=True))
     db.add(db_cliente)
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error inserting cliente: {str(e)}")
     db.refresh(db_cliente)
     return db_cliente
 
