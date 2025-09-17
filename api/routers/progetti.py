@@ -26,6 +26,8 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
     # 1. Create the Progetto record
     db_progetto = Progetti(
         tecnico=progetto.tecnico,
+        azienda=progetto.azienda,
+        centro_di_costo=progetto.centro_di_costo,
         stato=progetto.stato,
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
@@ -64,7 +66,7 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     payload = payload[:5]
 
     # Extract & Insert Prodotti from Progetti
-    #prodotti_inserted_info = extract_prodotti_names(db, payload)
+    prodotti_inserted_info = extract_prodotti_names(db, payload)
     
     # transform contratto_code & rm code into full proxy URL
     payload = attach_file_links(payload)
@@ -82,7 +84,7 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
         created = create_progetto(progetto=progetto_in, db=db)
         created_progetti.append(created)
     
-    return progetti_payload
+    return payload
     
 # Get all
 @router.get("")
