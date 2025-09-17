@@ -6,6 +6,7 @@ from fastapi import HTTPException
 import sys
 import os
 from datetime import datetime, timezone
+from typing import List, Dict, Any
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
@@ -164,3 +165,104 @@ def create_clienti_from_payload(db: Session, payload: list[dict]) -> dict:
             skipped.append(f"insert_error:{cliente_id or nome_cliente}:{e}")
 
     return {"created": created_ids, "skipped": skipped}
+
+
+# def build_progetti_payloads(db: Session, payload: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+
+#     results: List[Dict[str, Any]] = []
+#     now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+#     for item in payload or []:
+#         cli = (item or {}).get("Cliente") or {}
+#         prj = (item or {}).get("Progetto") or {}
+
+#         # --- resolve cliente_id (we prefer the provided id; fall back to lookup by name+address) ---
+#         cliente_id = None
+#         cli_id_raw = cli.get("id")
+#         if isinstance(cli_id_raw, (str, int)) and str(cli_id_raw).strip().isdigit():
+#             candidate = db.get(Cliente, int(cli_id_raw))
+#             if candidate:
+#                 cliente_id = candidate.id
+
+#         if cliente_id is None:
+#             nome = (cli.get("nome_cliente") or "").strip()
+#             indirizzo = (cli.get("indirizzo") or "").strip()
+#             if nome or indirizzo:
+#                 existing = db.exec(
+#                     select(Cliente).where(
+#                         Cliente.nome_cliente == nome,
+#                         Cliente.indirizzo == indirizzo,
+#                     )
+#                 ).first()
+#                 if existing:
+#                     cliente_id = existing.id
+
+#         # If still not found, skip generating this project payload to avoid invalid FK
+#         if cliente_id is None:
+#             # You could log a warning here if needed
+#             continue
+
+#         # --- parse project-level values ---
+#         tecnico = (prj.get("commerciale") or "").strip()        # best available mapping
+#         stato = ""                                              # not provided → empty
+#         data_creazione = now_iso                                # or map from upstream if you have it
+#         try:
+#             importo = float(prj.get("importo", 0) or 0)
+#         except Exception:
+#             importo = 0.0
+
+#         contratti_url = []
+#         cc = prj.get("contratto_code")
+#         if isinstance(cc, str) and cc.strip():
+#             contratti_url.append(cc.strip())
+
+#         rilievi_url = []
+#         rm = prj.get("rm_code")
+#         if isinstance(rm, str) and rm.strip():
+#             rilievi_url.append(rm.strip())
+
+#         # --- map fornitori ---
+#         fornitori_src = (prj.get("fornitori") or {})
+#         fornitori_out: List[Dict[str, Any]] = []
+#         if isinstance(fornitori_src, dict):
+#             for _, fdata in fornitori_src.items():
+#                 # Fornitori entries come like:
+#                 # { "id": "1", "prodotti": [ {"prodotto": "...", "quantita": "2"}, ... ] }
+#                 fid_raw = (fdata or {}).get("id")
+#                 try:
+#                     fornitore_id = int(fid_raw) if fid_raw is not None else 0
+#                 except Exception:
+#                     fornitore_id = 0
+
+#                 prodotti_out = []
+#                 for p in (fdata or {}).get("prodotti", []) or []:
+#                     nome = (p.get("prodotto") or "").strip()
+#                     try:
+#                         quantita = int(p.get("quantita") or 0)
+#                     except Exception:
+#                         quantita = 0
+#                     prodotti_out.append({
+#                         "nome": nome,
+#                         "quantita": quantita,
+#                     })
+
+#                 fornitori_out.append({
+#                     "fornitore_id": fornitore_id,
+#                     # attach project-level links to each supplier block (adjust if your API expects them at project-level instead)
+#                     "contratti": contratti_url[:],
+#                     "rilievi_misure": rilievi_url[:],
+#                     "prodotti_fornitore": prodotti_out,
+#                 })
+
+#         results.append({
+#             "tecnico": tecnico,
+#             "stato": stato,
+#             "data_creazione": data_crezione if (data_crezione := data_creazione) else now_iso,  # keep 'now' if not overridden
+#             "importo": importo,
+#             "cliente_id": cliente_id,
+#             "fornitori": fornitori_out,
+#             "upload_id": "",
+#             "upload_id_progetto_files": "",
+#         })
+
+#     return results

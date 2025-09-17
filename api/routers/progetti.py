@@ -69,8 +69,11 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     # transform contratto_code & rm code into full proxy URL
     payload = attach_file_links(payload)
     
-    # add new cliente 
+    # Add new cliente 
     clienti_inserted_info = create_clienti_from_payload(db, payload)
+    
+    # Add Progetto & Fornitori 
+    
     
     return payload
     

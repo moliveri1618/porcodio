@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 class Progetti(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tecnico: str = Field(..., nullable=False)
+    azienda: Optional[str] = Field(default=None, nullable=True)
+    centro_di_costo: Optional[str] = Field(default=None, nullable=True)
     stato: str = Field(..., nullable=False)
     cliente_id: int = Field(..., foreign_key="cliente.id", nullable=False)
     data_creazione: datetime = Field(..., nullable=False)
