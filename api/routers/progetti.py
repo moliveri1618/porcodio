@@ -139,6 +139,8 @@ def read_progetti(db: Session = Depends(get_db)):
             "upload_id_progetto_files": progetto.upload_id_progetto_files,
             "tecnico": progetto.tecnico,
             "stato": progetto.stato,
+            "azienda":progetto.azienda,
+            "centro_di_costo":progetto.centro_di_costo,
             "cliente_id": progetto.cliente_id,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
