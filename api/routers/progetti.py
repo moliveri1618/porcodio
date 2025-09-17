@@ -70,7 +70,7 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     payload = attach_file_links(payload)
     
     # Add new cliente 
-    #clienti_inserted_info = create_clienti_from_payload(db, payload)
+    clienti_inserted_info = create_clienti_from_payload(db, payload)
     
     # Build Progetto & Fornitori payload 
     progetti_payload = build_progetti_payloads(payload)
