@@ -3,6 +3,20 @@
 
 import httpx
 from fastapi import HTTPException
+import sys
+import os
+from datetime import datetime, timezone
+
+if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
+from models.progetti import Progetti
+from models.clienti import Cliente
+from models.fornitori import Fornitore
+from models.prodotti import Prodotto
+from models.progetto_fornitore_link import ProgettoFornitoreLink
+from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
+from routers.utils import *
+from dependecies import get_db
+from sqlmodel import Session, select
 
 API_BASE = "https://www.tigulliocrm.it/api"
 API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
@@ -38,7 +52,7 @@ def fetch_from_gesty(endpoint: str) -> dict:
     return payload['data'] if 'data' in payload else payload
 
 
-def extract_prodotti_names(gesty_payload: dict) -> set[str]:
+def extract_prodotti_names(db: Session, gesty_payload: dict) -> set[str]:
     """
     Traverse the Gesty payload and collect all product names.
     Expected structure: data -> list of items -> Progetto -> fornitori (dict) -> each has 'prodotti' list with 'prodotto'
@@ -56,7 +70,32 @@ def extract_prodotti_names(gesty_payload: dict) -> set[str]:
                     clean = name.strip()
                     if clean:
                         names.add(clean)
-    return names
+                        
+    if not names:
+        return {"inserted": 0, "skipped": 0, "message": "No product names found in payload."}
+    existing: list[str] = db.exec(select(Prodotto.nome_prodotto)).all()
+    existing_set = set(existing)
+    to_create = [Prodotto(nome_prodotto=n) for n in names if n not in existing_set]
+    skipped = len(names) - len(to_create)
+    
+    if to_create:
+        db.add_all(to_create)
+        try:
+            db.commit()
+        except Exception as e:
+            # In case of race/unique conflicts, rollback and try inserting one by one
+            db.rollback()
+            inserted_safe = 0
+            for prod in to_create:
+                try:
+                    db.add(prod)
+                    db.commit()
+                    db.refresh(prod)
+                    inserted_safe += 1
+                except Exception:
+                    db.rollback()  # likely unique collision; ignore
+        return {"inserted": inserted_safe, "skipped": len(names) - inserted_safe}
+
 
 def attach_file_links(payload: list[dict]) -> list[dict]:
     """
@@ -74,3 +113,54 @@ def attach_file_links(payload: list[dict]) -> list[dict]:
             progetto["rm_code"] = f"{BASE_URL}/getFiles/rm/{rm_code}"
 
     return payload
+
+
+def create_clienti_from_payload(db: Session, payload: list[dict]) -> dict:
+    created_ids: list[int] = []
+    skipped: list[str] = []
+    curr_date = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    for item in payload or []:
+        raw_cliente = (item or {}).get("Cliente") or {}
+        if not raw_cliente:
+            continue
+
+        # Normalize and fill defaults
+        try:
+            cliente_id = int(raw_cliente["id"]) if "id" in raw_cliente and str(raw_cliente["id"]).strip().isdigit() else None
+        except Exception:
+            cliente_id = None
+
+        nome_cliente = (raw_cliente.get("nome_cliente") or "").strip()
+        citta = (raw_cliente.get("citta") or "").strip()
+        indirizzo = (raw_cliente.get("indirizzo") or "").strip()
+        numero_tel = (raw_cliente.get("numero_tel") or "").strip()
+        centro_di_costo = ""
+        contatti = {}
+        note = ""
+        data_creazione = curr_date
+
+        # Build and insert
+        data = {
+            "id": cliente_id,
+            "nome_cliente": nome_cliente,
+            "citta": citta,
+            "indirizzo": indirizzo,
+            "numero_tel": numero_tel,
+            "centro_di_costo": centro_di_costo,
+            "contatti": contatti,
+            "note": note,
+            "data_creazione": data_creazione,
+        }
+
+        obj = Cliente(**{k: v for k, v in data.items() if v is not None})
+        db.add(obj)
+        try:
+            db.commit()
+            db.refresh(obj)
+            created_ids.append(obj.id)
+        except Exception as e:
+            db.rollback()
+            skipped.append(f"insert_error:{cliente_id or nome_cliente}:{e}")
+
+    return {"created": created_ids, "skipped": skipped}

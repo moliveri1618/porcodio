@@ -64,41 +64,13 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     payload = payload[:5]
 
     # Extract & Insert Prodotti from Progetti
-    # names = extract_prodotti_names(payload)
-    # if not names:
-    #     return {"inserted": 0, "skipped": 0, "message": "No product names found in payload."}
-    # existing: list[str] = db.exec(select(Prodotto.nome_prodotto)).all()
-    # existing_set = set(existing)
-    # to_create = [Prodotto(nome_prodotto=n) for n in names if n not in existing_set]
-    # skipped = len(names) - len(to_create)
-    # if to_create:
-    #     db.add_all(to_create)
-    #     try:
-    #         db.commit()
-    #     except Exception as e:
-    #         # In case of race/unique conflicts, rollback and try inserting one by one
-    #         db.rollback()
-    #         inserted_safe = 0
-    #         for prod in to_create:
-    #             try:
-    #                 db.add(prod)
-    #                 db.commit()
-    #                 db.refresh(prod)
-    #                 inserted_safe += 1
-    #             except Exception:
-    #                 db.rollback()  # likely unique collision; ignore
-    #         return {"inserted": inserted_safe, "skipped": len(names) - inserted_safe}
-    # prodotti_payload = {
-    #     "inserted": len(to_create),
-    #     "skipped": skipped,
-    #     "total_unique_seen": len(names),
-    #     "sample": sorted(list(names))[:10], 
-    # }
+    #prodotti_inserted_info = extract_prodotti_names(db, payload)
     
     # transform contratto_code & rm code into full proxy URL
     payload = attach_file_links(payload)
     
-    
+    # add new cliente 
+    clienti_inserted_info = create_clienti_from_payload(db, payload)
     
     return payload
     
