@@ -143,6 +143,8 @@ def root():
 #     raise HTTPException(status_code=r.status_code, detail=r.text)
 
     
+
+
 @app.get("/send-email")
 def send_email_to_user():
     sender_email = "lastiada1@gmail.com"

@@ -2,9 +2,10 @@ from typing import Optional, Dict, Any
 from sqlmodel import SQLModel, Field
 from datetime import datetime
 from sqlalchemy import JSON, Column
+from sqlalchemy import Integer
 
 class Cliente(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+    id: int = Field(sa_column=Column(Integer, primary_key=True, autoincrement=False))
     nome_cliente: str = Field(..., nullable=False)  # "nome_cliente" remains the same
     citta: str = Field(..., nullable=False)  # New field for "citta"
     indirizzo: str = Field(..., nullable=False)  # "indirizzo" remains the same

@@ -53,38 +53,57 @@ def fetch_from_gesty(endpoint: str) -> dict:
     return payload['data'] if 'data' in payload else payload
 
 
-def extract_prodotti_names(db: Session, gesty_payload: dict) -> set[str]:
+def extract_prodotti_names(db: Session, gesty_payload: Any) -> Dict[str, Any]:
     """
-    Traverse the Gesty payload and collect all product names.
-    Expected structure: data -> list of items -> Progetto -> fornitori (dict) -> each has 'prodotti' list with 'prodotto'
+    Collect unique product names from the Gesty payload and insert missing ones.
+
+    Accepts either:
+      - a list[dict] like the sample you posted, or
+      - a dict with a 'data' key containing that list.
+
+    Returns a summary dict.
     """
-    names: set[str] = set()
-    data = gesty_payload.get("data") or []
-    for item in data:
+    # Normalize input to a list of items
+    if isinstance(gesty_payload, dict):
+        items = gesty_payload.get("data") or []
+    elif isinstance(gesty_payload, list):
+        items = gesty_payload
+    else:
+        items = []
+
+    # Traverse and collect unique product names
+    names: Set[str] = set()
+    for item in items:
         progetto = (item or {}).get("Progetto") or {}
-        fornitori = progetto.get("fornitori") or {}
-        for _, forn in fornitori.items():
-            for prod in (forn or {}).get("prodotti") or []:
-                name = (prod or {}).get("prodotto")
-                if isinstance(name, str):
-                    # normalize: strip extra spaces; keep original casing otherwise
-                    clean = name.strip()
-                    if clean:
-                        names.add(clean)
-                        
+        fornitori = (progetto or {}).get("fornitori") or {}
+        if isinstance(fornitori, dict):
+            for _, forn in fornitori.items():
+                for prod in (forn or {}).get("prodotti", []) or []:
+                    name = (prod or {}).get("prodotto")
+                    if isinstance(name, str):
+                        clean = name.strip()
+                        if clean:
+                            names.add(clean)
+
     if not names:
-        return {"inserted": 0, "skipped": 0, "message": "No product names found in payload."}
-    existing: list[str] = db.exec(select(Prodotto.nome_prodotto)).all()
-    existing_set = set(existing)
+        return {"inserted": 0, "skipped": 0, "total_unique_seen": 0, "message": "No product names found in payload."}
+
+    # Fetch existing product names from DB
+    # Depending on SQLModel/engine, this can return list[str] or list[tuple]; normalize to set[str]
+    existing_rows = db.exec(select(Prodotto.nome_prodotto)).all()
+    existing_set = {row if isinstance(row, str) else row[0] for row in existing_rows}
+
     to_create = [Prodotto(nome_prodotto=n) for n in names if n not in existing_set]
     skipped = len(names) - len(to_create)
-    
+
+    inserted = 0
     if to_create:
         db.add_all(to_create)
         try:
             db.commit()
-        except Exception as e:
-            # In case of race/unique conflicts, rollback and try inserting one by one
+            inserted = len(to_create)
+        except Exception:
+            # On bulk insert race/unique conflicts, fall back to safe per-row inserts
             db.rollback()
             inserted_safe = 0
             for prod in to_create:
@@ -95,7 +114,14 @@ def extract_prodotti_names(db: Session, gesty_payload: dict) -> set[str]:
                     inserted_safe += 1
                 except Exception:
                     db.rollback()  # likely unique collision; ignore
-        return {"inserted": inserted_safe, "skipped": len(names) - inserted_safe}
+            inserted = inserted_safe
+
+    return {
+        "inserted": inserted,
+        "skipped": skipped,
+        "total_unique_seen": len(names),
+        "sample": sorted(list(names))[:10],
+    }
 
 
 def attach_file_links(payload: list[dict]) -> list[dict]:
