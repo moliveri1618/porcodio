@@ -70,12 +70,19 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     payload = attach_file_links(payload)
     
     # Add new cliente 
-    clienti_inserted_info = create_clienti_from_payload(db, payload)
+    #clienti_inserted_info = create_clienti_from_payload(db, payload)
     
-    # Add Progetto & Fornitori 
+    # Build Progetto & Fornitori payload 
+    progetti_payload = build_progetti_payloads(payload)
     
+    # Insert them into DB using your existing logic
+    created_progetti = []
+    for body in progetti_payload:
+        progetto_in = ProgettiCreate(**body)  
+        created = create_progetto(progetto=progetto_in, db=db)
+        created_progetti.append(created)
     
-    return payload
+    return progetti_payload
     
 # Get all
 @router.get("")
