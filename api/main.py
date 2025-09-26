@@ -77,13 +77,6 @@ app.include_router(
     tags=["prodotti"]
 )
 
-app.include_router(
-    sendEmail.router, 
-    prefix="/sendEmail", 
-    tags=["sendEmail"]
-)
-
-
 
 @app.get("/")
 async def root(current_user: dict = Depends(verify_cognito_token)):
