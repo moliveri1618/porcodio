@@ -101,7 +101,6 @@ def import_from_gesty(db: Session = Depends(get_db)):
         "skipped": skipped,
     }
 
-
 # Get one
 @router.get("/{fornitore_id}", response_model=FornitoriRead)
 def read_fornitore(fornitore_id: int, db: Session = Depends(get_db)):
