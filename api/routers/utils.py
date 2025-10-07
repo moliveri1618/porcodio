@@ -211,8 +211,8 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
             continue
 
         # --- project fields ---
-        tecnico = (prj.get("commerciale") or "").strip()
-        stato = ""   # not available, keep empty
+        tecnico = ""   # not available, keep empty
+        stato = (prj.get("commerciale") or "").strip()
         data_creazione = now_iso
         try:
             importo = float(prj.get("importo", 0) or 0)
