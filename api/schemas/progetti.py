@@ -21,6 +21,7 @@ class FornitoreLinkData(BaseModel):
 
 class ProgettiCreate(BaseModel):
     tecnico: str  
+    progetto_id : Optional[str] = None
     azienda: Optional[str] = None 
     centro_di_costo: Optional[str] = None
     stato: str
@@ -46,6 +47,7 @@ class ProgettiRead(ProgettiCreate):
 
 class ProgettiUpdate(BaseModel):
     tecnico: Optional[str] = None
+    progetto_id : Optional[str] = None
     azienda: Optional[str] = None 
     centro_di_costo: Optional[str] = None
     stato: Optional[str] = None

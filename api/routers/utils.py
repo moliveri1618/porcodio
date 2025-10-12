@@ -212,6 +212,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
 
         # --- project fields ---
         tecnico = ""   # not available, keep empty
+        progetto_id = (prj.get("id") or "").strip()
         stato = (prj.get("commerciale") or "").strip()
         data_creazione = now_iso
         try:
@@ -253,6 +254,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
         results.append({
             "tecnico": tecnico,
             "stato": stato,
+            "progetto_id": progetto_id,
             "data_creazione": data_creazione,
             "importo": importo,
             "cliente_id": cliente_id,

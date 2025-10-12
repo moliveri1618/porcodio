@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 class Progetti(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tecnico: str = Field(..., nullable=False)
+    progetto_id: Optional[str] = Field(default=None, nullable=True)
     azienda: Optional[str] = Field(default=None, nullable=True)
     centro_di_costo: Optional[str] = Field(default=None, nullable=True)
     stato: str = Field(..., nullable=False)

@@ -19,12 +19,91 @@ from dependecies import get_db
 
 router = APIRouter()
 
+def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
+    # delete existing links
+    db.query(ProgettoFornitoreLink).filter(
+        ProgettoFornitoreLink.progetto_id == progetto_pk
+    ).delete(synchronize_session=False)
+
+    # insert new links
+    if fornitori_payload:
+        for f in fornitori_payload:
+            link = ProgettoFornitoreLink(
+                progetto_id=progetto_pk,
+                fornitore_id=f.fornitore_id,
+                contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
+                rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
+                prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else []
+            )
+            db.add(link)
+
+
+def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti:
+    """
+    Upsert by progetto.progetto_id:
+      - If progetto_id is present and matches an existing row -> UPDATE that row.
+      - Else -> CREATE a new Progetti row.
+    Also (re)syncs ProgettoFornitoreLink entries for this progetto.
+    """
+
+    # Try to find existing by progetto_id (only if provided)
+    existing = None
+    if progetto.progetto_id:
+        existing = db.exec(
+            select(Progetti).where(Progetti.progetto_id == progetto.progetto_id)
+        ).first()
+
+    if existing:
+        # --- UPDATE path ---
+        existing.tecnico = progetto.tecnico
+        existing.azienda = progetto.azienda
+        existing.centro_di_costo = progetto.centro_di_costo
+        existing.stato = progetto.stato
+        existing.cliente_id = progetto.cliente_id
+        existing.data_creazione = progetto.data_crezione if hasattr(progetto, "data_crezione") else progetto.data_creazione
+        existing.importo = progetto.importo
+        existing.upload_id = progetto.upload_id
+        existing.upload_id_progetto_files = progetto.upload_id_progetto_files
+
+        # Re-sync fornitori links (simple strategy: replace all)
+        # If you want a "merge" strategy, see alternative below.
+        _replace_fornitori_links(db, existing.id, progetto.fornitori)
+
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    # --- CREATE path ---
+    db_progetto = Progetti(
+        progetto_id=progetto.progetto_id,
+        tecnico=progetto.tecnico,
+        azienda=progetto.azienda,
+        centro_di_costo=progetto.centro_di_costo,
+        stato=progetto.stato,
+        cliente_id=progetto.cliente_id,
+        data_creazione=progetto.data_creazione,
+        importo=progetto.importo,
+        upload_id=progetto.upload_id,
+        upload_id_progetto_files=progetto.upload_id_progetto_files
+    )
+    db.add(db_progetto)
+    db.commit()
+    db.refresh(db_progetto)
+
+    _replace_fornitori_links(db, db_progetto.id, progetto.fornitori)
+
+    db.commit()
+    db.refresh(db_progetto)
+    return db_progetto
+
 # Create
 @router.post("", response_model=ProgettiRead)
 def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
     
     # 1. Create the Progetto record
     db_progetto = Progetti(
+        progetto_id=progetto.progetto_id,
         tecnico=progetto.tecnico,
         azienda=progetto.azienda,
         centro_di_costo=progetto.centro_di_costo,
@@ -78,11 +157,16 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     progetti_payload = build_progetti_payloads(payload)
     
     # Insert them into DB using your existing logic
-    created_progetti = []
+    # created_progetti = []
+    # for body in progetti_payload:
+    #     progetto_in = ProgettiCreate(**body)  
+    #     created = create_progetto(progetto=progetto_in, db=db)
+    #     created_progetti.append(created)
+    created_or_updated = []
     for body in progetti_payload:
-        progetto_in = ProgettiCreate(**body)  
-        created = create_progetto(progetto=progetto_in, db=db)
-        created_progetti.append(created)
+        progetto_in = ProgettiCreate(**body)
+        saved = create_or_update_progetto(progetto_in, db=db)
+        created_or_updated.append(saved)
     
     return payload
     
