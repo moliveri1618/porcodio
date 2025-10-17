@@ -12,6 +12,7 @@ from models.progetti import Progetti
 from models.clienti import Cliente
 from models.fornitori import Fornitore
 from models.prodotti import Prodotto
+from datetime import datetime, timedelta
 from models.progetto_fornitore_link import ProgettoFornitoreLink
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from routers.utils import *
@@ -142,7 +143,17 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     
     # Get progetti
     payload = fetch_from_gesty("dip-tecnico")
-    payload = payload[:5]
+    
+    # Get current date and calculate 1 year ago
+    current_date = datetime.now()
+    one_year_ago = current_date - timedelta(days=365)
+
+    # Filter projects where data_primo_pagamento is no older than 1 year
+    payload = [
+        project for project in payload
+        if project.get("Progetto", {}).get("data_primo_pagamento") and
+        datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d") >= one_year_ago
+    ]
 
     # Extract & Insert Prodotti from Progetti
     #prodotti_inserted_info = extract_prodotti_names(db, payload)
