@@ -196,7 +196,7 @@ def create_clienti_from_payload(db: Session, payload: list[dict]) -> dict:
 def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
     results: List[Dict[str, Any]] = []
-    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    #now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     for item in payload or []:
         cli = (item or {}).get("Cliente") or {}
@@ -214,7 +214,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
         tecnico = ""   # not available, keep empty
         progetto_id = (prj.get("id") or "").strip()
         stato = (prj.get("commerciale") or "").strip()
-        data_creazione = now_iso
+        data_creazione = (prj.get("data_primo_pagamento") or "").strip()
         try:
             importo = float(prj.get("importo", 0) or 0)
         except Exception:
