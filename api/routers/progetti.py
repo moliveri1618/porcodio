@@ -144,9 +144,9 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     # Get progetti
     payload = fetch_from_gesty("dip-tecnico")
     
-    # Get current date and calculate 1 year ago
+    # Get current date and calculate 3 months ago 
     current_date = datetime.now()
-    one_year_ago = current_date - timedelta(days=365)
+    one_year_ago = current_date - timedelta(days=90)
 
     # Filter projects where data_primo_pagamento is no older than 1 year
     payload = [
