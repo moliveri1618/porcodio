@@ -54,26 +54,30 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
             select(Progetti).where(Progetti.progetto_id == progetto.progetto_id)
         ).first()
 
+    # --- SKIP existing projects ---
     if existing:
-        # --- UPDATE path ---
-        existing.tecnico = progetto.tecnico
-        existing.azienda = progetto.azienda
-        existing.centro_di_costo = progetto.centro_di_costo
-        existing.stato = progetto.stato
-        existing.cliente_id = progetto.cliente_id
-        existing.data_creazione = progetto.data_crezione if hasattr(progetto, "data_crezione") else progetto.data_creazione
-        existing.importo = progetto.importo
-        existing.upload_id = progetto.upload_id
-        existing.upload_id_progetto_files = progetto.upload_id_progetto_files
-
-        # Re-sync fornitori links (simple strategy: replace all)
-        # If you want a "merge" strategy, see alternative below.
-        _replace_fornitori_links(db, existing.id, progetto.fornitori)
-
-        db.add(existing)
-        db.commit()
-        db.refresh(existing)
+        # Optional: just return the existing record
         return existing
+    # if existing:
+    #     # --- UPDATE path ---
+    #     existing.tecnico = progetto.tecnico
+    #     existing.azienda = progetto.azienda
+    #     existing.centro_di_costo = progetto.centro_di_costo
+    #     existing.stato = progetto.stato
+    #     existing.cliente_id = progetto.cliente_id
+    #     existing.data_creazione = progetto.data_crezione if hasattr(progetto, "data_crezione") else progetto.data_creazione
+    #     existing.importo = progetto.importo
+    #     existing.upload_id = progetto.upload_id
+    #     existing.upload_id_progetto_files = progetto.upload_id_progetto_files
+
+    #     # Re-sync fornitori links (simple strategy: replace all)
+    #     # If you want a "merge" strategy, see alternative below.
+    #     _replace_fornitori_links(db, existing.id, progetto.fornitori)
+
+    #     db.add(existing)
+    #     db.commit()
+    #     db.refresh(existing)
+    #     return existing
 
     # --- CREATE path ---
     db_progetto = Progetti(
