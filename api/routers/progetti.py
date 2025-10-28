@@ -5,8 +5,10 @@ import sys
 import os
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import nulls_last  
 from fastapi.responses import ORJSONResponse
-from pprint import pprint
+import time
+#from pprint import pprint
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
@@ -162,6 +164,7 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
 # Get all
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
+    #start_time = time.perf_counter() 
     
     # Eager load cliente and links with their fornitori in one go
     stmt = (
@@ -170,6 +173,7 @@ def read_progetti(db: Session = Depends(get_db)):
             selectinload(Progetti.cliente),
             selectinload(Progetti.fornitori_links).selectinload(ProgettoFornitoreLink.fornitore)
         )
+        .order_by(nulls_last(Progetti.data_creazione.desc()))
     )
     progetti = db.exec(stmt).all()
 
@@ -225,7 +229,9 @@ def read_progetti(db: Session = Depends(get_db)):
             "fornitori": fornitori_list,
         })
 
+    #elapsed = time.perf_counter() - start_time      
     return result
+
 
 # Get one
 @router.get("/{progetto_id}")
