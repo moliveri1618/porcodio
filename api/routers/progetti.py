@@ -250,41 +250,51 @@ def read_progetti(db: Session = Depends(get_db)):
     return result
 
 # Get one
-@router.get("/{progetto_id}", response_class=ORJSONResponse)
+@router.get("/{progetto_id}")
 def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
-    # 1) Project + Cliente in ONE query, and only the columns we need
-    proj_stmt = (
-        select(Progetti)
-        .where(Progetti.id == progetto_id)
-        .options(
-            joinedload(Progetti.cliente)  # eager load all cliente columns
-        )
-    )
-    progetto = db.exec(proj_stmt).one_or_none()
+    progetto = db.get(Progetti, progetto_id)
     if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
 
-    # 2) Link + Fornitori in ONE query, returned as dicts directly
-    forn_stmt = (
-        select(
-            ProgettoFornitoreLink.contratti,
-            ProgettoFornitoreLink.rilievi_misure,
-            ProgettoFornitoreLink.prodotti_fornitore,
-            Fornitore.id,
-            Fornitore.nome_cliente,
-            Fornitore.indirizzo,
-            Fornitore.citta,
-            Fornitore.numero_tel,
-            Fornitore.sito,
-            Fornitore.contatti,
-            Fornitore.data_creazione,
-        )
-        .join(Fornitore, ProgettoFornitoreLink.fornitore_id == Fornitore.id)
-        .where(ProgettoFornitoreLink.progetto_id == progetto_id)
-    )
-    fornitori_data = db.exec(forn_stmt).mappings().all()  # list[dict]
+    # Fetch cliente
+    cliente = db.get(Cliente, progetto.cliente_id)
+    cliente_dict = {
+        "id": cliente.id,
+        "upload_id": progetto.upload_id,
+        "upload_id_progetto_files": progetto.upload_id_progetto_files,
+        "nome_cliente": cliente.nome_cliente,
+        "citta": cliente.citta,
+        "indirizzo": cliente.indirizzo,
+        "numero_tel": cliente.numero_tel,
+        "centro_di_costo": cliente.centro_di_costo,
+        "contatti": cliente.contatti,
+        "note": cliente.note,
+        "data_creazione_cliente": cliente.data_creazione,
+    } if cliente else {}
 
-    # 3) Return—cliente is already loaded; ORJSONResponse handles fast serialization
+    # Fetch linked fornitori
+    links = db.exec(
+        select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto_id)
+    ).all()
+
+    fornitori_data = []
+    for link in links:
+        fornitore = db.get(Fornitore, link.fornitore_id)
+        if fornitore:
+            fornitori_data.append({
+                "id": fornitore.id,
+                "nome_fornitore": fornitore.nome_cliente,
+                "indirizzo": fornitore.indirizzo,
+                "citta": fornitore.citta,
+                "numero_tel": fornitore.numero_tel,
+                "sito": fornitore.sito,
+                "contatti": fornitore.contatti,
+                "data_creazione_fornitore": fornitore.data_creazione,
+                "contratti": link.contratti,
+                "rilievi_misure": link.rilievi_misure,
+                "prodotti_fornitore": link.prodotti_fornitore,
+            })
+
     return {
         "id": progetto.id,
         "tecnico": progetto.tecnico,
@@ -292,10 +302,8 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "cliente_id": progetto.cliente_id,
         "data_creazione": progetto.data_creazione,
         "importo": progetto.importo,
-        "upload_id": progetto.upload_id,
-        "upload_id_progetto_files": progetto.upload_id_progetto_files,
-        "cliente": progetto.cliente,    # SQLModel serializes cleanly
-        "fornitori": fornitori_data,
+        "cliente": cliente_dict,
+        "fornitori": fornitori_data
     }
 
 # Modify one 
