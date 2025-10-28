@@ -72,6 +72,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
         azienda=progetto.azienda,
         centro_di_costo=progetto.centro_di_costo,
         stato=progetto.stato,
+        commerciale=progetto.commerciale,
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,
