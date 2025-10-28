@@ -16,6 +16,7 @@ class Progetti(SQLModel, table=True):
     progetto_id: Optional[str] = Field(default=None, nullable=True)
     azienda: Optional[str] = Field(default=None, nullable=True)
     centro_di_costo: Optional[str] = Field(default=None, nullable=True)
+    commerciale: Optional[str] = Field(default=None, nullable=True)
     stato: str = Field(..., nullable=False)
     cliente_id: int = Field(..., foreign_key="cliente.id", nullable=False)
     data_creazione: datetime = Field(..., nullable=False)

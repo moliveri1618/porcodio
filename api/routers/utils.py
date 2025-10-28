@@ -214,6 +214,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
         tecnico = ""   # not available, keep empty
         progetto_id = (prj.get("id") or "").strip()
         stato = (prj.get("commerciale") or "").strip()
+        commerciale = (prj.get("commerciale") or "").strip()
         data_creazione = (prj.get("data_primo_pagamento") or "").strip()
         try:
             importo = float(prj.get("importo", 0) or 0)

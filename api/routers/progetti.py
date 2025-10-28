@@ -125,6 +125,8 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
     db.refresh(db_progetto)
     return db_progetto
 
+
+
 # Get from gesty
 @router.get("/get_progetti_gesty")
 def progetti_from_gesty(db: Session = Depends(get_db)):
@@ -156,7 +158,6 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     
     return payload
     
-# Get all
 # Get all
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
@@ -213,6 +214,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "upload_id_progetto_files": progetto.upload_id_progetto_files,
             "tecnico": progetto.tecnico,
             "stato": progetto.stato,
+            "commerciale": progetto.commerciale,
             "azienda": progetto.azienda,
             "centro_di_costo": progetto.centro_di_costo,
             "cliente_id": progetto.cliente_id,
@@ -274,6 +276,7 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "id": progetto.id,
         "tecnico": progetto.tecnico,
         "stato": progetto.stato,
+        "commerciale": progetto.commerciale,
         "cliente_id": progetto.cliente_id,
         "data_creazione": progetto.data_creazione,
         "importo": progetto.importo,

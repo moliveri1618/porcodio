@@ -25,6 +25,7 @@ class ProgettiCreate(BaseModel):
     azienda: Optional[str] = None 
     centro_di_costo: Optional[str] = None
     stato: str
+    commerciale: Optional[str] = None
     data_creazione: datetime
     importo: float
     cliente_id: int
@@ -51,6 +52,7 @@ class ProgettiUpdate(BaseModel):
     azienda: Optional[str] = None 
     centro_di_costo: Optional[str] = None
     stato: Optional[str] = None
+    commerciale: Optional[str] = None
     data_creazione: Optional[datetime] = None
     importo: Optional[float] = None
     cliente_id: Optional[int] = None
