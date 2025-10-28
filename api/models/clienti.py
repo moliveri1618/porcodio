@@ -1,5 +1,5 @@
-from typing import Optional, Dict, Any
-from sqlmodel import SQLModel, Field
+from typing import Optional, Dict, Any, List
+from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 from sqlalchemy import JSON, Column
 from sqlalchemy import Integer
@@ -17,3 +17,5 @@ class Cliente(SQLModel, table=True):
     )
     note: Optional[str] = Field(default=None, nullable=True)  # New field for "note"
     data_creazione: datetime = Field(..., nullable=False)  # "data_creazione" remains the same
+
+    progetti: List["Progetti"] = Relationship(back_populates="cliente")

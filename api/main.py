@@ -87,6 +87,8 @@ async def root(current_user: dict = Depends(verify_cognito_token)):
 # API_URL = "https://www.tigulliocrm.it/api/fornitori/"
 # API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
 
+
+
 @app.get("/")
 def root():
     return {"message": "FastAPI test client is running"}

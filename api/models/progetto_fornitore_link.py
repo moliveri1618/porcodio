@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, JSON
 from typing import Optional, List
 
@@ -27,3 +27,6 @@ class ProgettoFornitoreLink(SQLModel, table=True):
         sa_column=Column(JSON),
         description="List of products provided by the supplier with quantity"
     )
+    
+    progetto: Optional["Progetti"] = Relationship(back_populates="fornitori_links")
+    fornitore: Optional["Fornitore"] = Relationship(back_populates="progetti_links")

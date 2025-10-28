@@ -35,3 +35,5 @@ class Fornitore(SQLModel, table=True):
         link_model=ProgettoFornitoreLink
     )
     upload_id: Optional[str] = Field(default=None,nullable=True,index=True)
+
+    progetti_links: List["ProgettoFornitoreLink"] = Relationship(back_populates="fornitore")

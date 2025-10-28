@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 import sys
 import os
 from sqlmodel import Session, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from fastapi.responses import ORJSONResponse
-
+from pprint import pprint
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
@@ -20,6 +20,12 @@ from dependecies import get_db
 
 router = APIRouter()
 
+def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
+    if not fornitore_id or fornitore_id == 0:
+        return False
+    return db.exec(select(Fornitore.id).where(Fornitore.id == fornitore_id)).first() is not None
+
+
 def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
     # delete existing links
     db.query(ProgettoFornitoreLink).filter(
@@ -29,6 +35,9 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
     # insert new links
     if fornitori_payload:
         for f in fornitori_payload:
+            if not _fornitore_exists(db, f.fornitore_id):
+                # skip invalid supplier id
+                continue
             link = ProgettoFornitoreLink(
                 progetto_id=progetto_pk,
                 fornitore_id=f.fornitore_id,
@@ -38,7 +47,6 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
             )
             db.add(link)
 
-
 def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti:
     """
     Upsert by progetto.progetto_id:
@@ -47,7 +55,6 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     Also (re)syncs ProgettoFornitoreLink entries for this progetto.
     """
 
-    # Try to find existing by progetto_id (only if provided)
     existing = None
     if progetto.progetto_id:
         existing = db.exec(
@@ -56,28 +63,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
 
     # --- SKIP existing projects ---
     if existing:
-        # Optional: just return the existing record
         return existing
-    # if existing:
-    #     # --- UPDATE path ---
-    #     existing.tecnico = progetto.tecnico
-    #     existing.azienda = progetto.azienda
-    #     existing.centro_di_costo = progetto.centro_di_costo
-    #     existing.stato = progetto.stato
-    #     existing.cliente_id = progetto.cliente_id
-    #     existing.data_creazione = progetto.data_crezione if hasattr(progetto, "data_crezione") else progetto.data_creazione
-    #     existing.importo = progetto.importo
-    #     existing.upload_id = progetto.upload_id
-    #     existing.upload_id_progetto_files = progetto.upload_id_progetto_files
-
-    #     # Re-sync fornitori links (simple strategy: replace all)
-    #     # If you want a "merge" strategy, see alternative below.
-    #     _replace_fornitori_links(db, existing.id, progetto.fornitori)
-
-    #     db.add(existing)
-    #     db.commit()
-    #     db.refresh(existing)
-    #     return existing
 
     # --- CREATE path ---
     db_progetto = Progetti(
@@ -96,6 +82,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     db.commit()
     db.refresh(db_progetto)
 
+    # ✅ only add valid fornitori
     _replace_fornitori_links(db, db_progetto.id, progetto.fornitori)
 
     db.commit()
@@ -145,38 +132,22 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     Calls the dip-tecnico API with Bearer token in header
     """
     
-    # Get progetti
     payload = fetch_from_gesty("dip-tecnico")
+    #pprint(payload)
     
-    # Get current date and calculate 3 months ago 
     current_date = datetime.now()
     one_year_ago = current_date - timedelta(days=90)
 
-    # Filter projects where data_primo_pagamento is no older than 1 year
     payload = [
         project for project in payload
         if project.get("Progetto", {}).get("data_primo_pagamento") and
         datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d") >= one_year_ago
     ]
 
-    # Extract & Insert Prodotti from Progetti
-    #prodotti_inserted_info = extract_prodotti_names(db, payload)
-    
-    # transform contratto_code & rm_code into full proxy URL for file download
     payload = attach_file_links(payload)
-    
-    # Add new cliente 
     clienti_inserted_info = create_clienti_from_payload(db, payload)
-    
-    # Build Progetto & Fornitori payload 
     progetti_payload = build_progetti_payloads(payload)
     
-    # Insert them into DB using your existing logic
-    # created_progetti = []
-    # for body in progetti_payload:
-    #     progetto_in = ProgettiCreate(**body)  
-    #     created = create_progetto(progetto=progetto_in, db=db)
-    #     created_progetti.append(created)
     created_or_updated = []
     for body in progetti_payload:
         progetto_in = ProgettiCreate(**body)
@@ -186,37 +157,41 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     return payload
     
 # Get all
+# Get all
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
-    progetti = db.exec(select(Progetti)).all()
     
+    # Eager load cliente and links with their fornitori in one go
+    stmt = (
+        select(Progetti)
+        .options(
+            selectinload(Progetti.cliente),
+            selectinload(Progetti.fornitori_links).selectinload(ProgettoFornitoreLink.fornitore)
+        )
+    )
+    progetti = db.exec(stmt).all()
+
     if not progetti:
         raise HTTPException(status_code=404, detail="No progetti found")
 
     result = []
     for progetto in progetti:
-        # Get cliente info
-        cliente = db.get(Cliente, progetto.cliente_id)
-        # cliente_dict = {
-        #     "id": cliente.id,
-        #     "nome_cliente": cliente.nome_cliente,
-        #     "citta": cliente.citta,
-        #     "indirizzo": cliente.indirizzo,
-        #     "numero_tel": cliente.numero_tel,
-        #     "centro_di_costo": cliente.centro_di_costo,
-        #     "contatti": cliente.contatti,
-        #     "note": cliente.note,
-        #     "data_creazione_cliente": cliente.data_creazione,
-        # } if cliente else {}
-
-        # Get linked fornitori via join table
-        links = db.exec(
-            select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto.id)
-        ).all()
+        cliente = progetto.cliente
+        cliente_dict = {
+            "id": cliente.id,
+            "nome_cliente": cliente.nome_cliente,
+            "citta": cliente.citta,
+            "indirizzo": cliente.indirizzo,
+            "numero_tel": cliente.numero_tel,
+            "centro_di_costo": cliente.centro_di_costo,
+            "contatti": cliente.contatti,
+            "note": cliente.note,
+            "data_creazione_cliente": cliente.data_creazione,
+        } if cliente else {}
 
         fornitori_list = []
-        for link in links:
-            fornitore = db.get(Fornitore, link.fornitore_id)
+        for link in progetto.fornitori_links:
+            fornitore = link.fornitore
             if fornitore:
                 fornitori_list.append({
                     "id": fornitore.id,
@@ -238,12 +213,12 @@ def read_progetti(db: Session = Depends(get_db)):
             "upload_id_progetto_files": progetto.upload_id_progetto_files,
             "tecnico": progetto.tecnico,
             "stato": progetto.stato,
-            "azienda":progetto.azienda,
-            "centro_di_costo":progetto.centro_di_costo,
+            "azienda": progetto.azienda,
+            "centro_di_costo": progetto.centro_di_costo,
             "cliente_id": progetto.cliente_id,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
-            "cliente": cliente,
+            "cliente": cliente_dict,
             "fornitori": fornitori_list,
         })
 
