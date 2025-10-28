@@ -197,17 +197,17 @@ def read_progetti(db: Session = Depends(get_db)):
     for progetto in progetti:
         # Get cliente info
         cliente = db.get(Cliente, progetto.cliente_id)
-        cliente_dict = {
-            "id": cliente.id,
-            "nome_cliente": cliente.nome_cliente,
-            "citta": cliente.citta,
-            "indirizzo": cliente.indirizzo,
-            "numero_tel": cliente.numero_tel,
-            "centro_di_costo": cliente.centro_di_costo,
-            "contatti": cliente.contatti,
-            "note": cliente.note,
-            "data_creazione_cliente": cliente.data_creazione,
-        } if cliente else {}
+        # cliente_dict = {
+        #     "id": cliente.id,
+        #     "nome_cliente": cliente.nome_cliente,
+        #     "citta": cliente.citta,
+        #     "indirizzo": cliente.indirizzo,
+        #     "numero_tel": cliente.numero_tel,
+        #     "centro_di_costo": cliente.centro_di_costo,
+        #     "contatti": cliente.contatti,
+        #     "note": cliente.note,
+        #     "data_creazione_cliente": cliente.data_creazione,
+        # } if cliente else {}
 
         # Get linked fornitori via join table
         links = db.exec(
@@ -243,7 +243,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "cliente_id": progetto.cliente_id,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
-            "cliente": cliente_dict,
+            "cliente": cliente,
             "fornitori": fornitori_list,
         })
 
