@@ -213,7 +213,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
         # --- project fields ---
         tecnico = ""   # not available, keep empty
         progetto_id = (prj.get("id") or "").strip()
-        stato = ""
+        stato = "ATTIVO"
         commerciale = (prj.get("commerciale") or "").strip()
         data_creazione = (prj.get("data_primo_pagamento") or "").strip()
         try:
