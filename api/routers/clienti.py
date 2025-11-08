@@ -16,7 +16,27 @@ router = APIRouter()
 # Create
 @router.post("", response_model=ClienteRead)
 def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db)):
-    db_cliente = Cliente(**cliente.dict(exclude_unset=True))
+    
+    
+    
+    # Always ensure we have an ID before creating the object
+    cliente_data = cliente.dict(exclude_unset=True)
+    if not cliente_data.get('id') or cliente_data.get('id') == '':
+        last_cliente = db.query(Cliente).order_by(Cliente.id.desc()).first()
+        
+        if last_cliente and last_cliente.id:
+            try:
+                last_num = int(last_cliente.id)
+                cliente_data['id'] = str(last_num + 1)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Cannot auto-generate ID: last ID is not numeric")
+        else:
+            cliente_data['id'] = '1'
+            
+    
+            
+            
+    db_cliente = Cliente(**cliente_data)
     db.add(db_cliente)
     try:
         db.commit()
