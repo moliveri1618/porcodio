@@ -28,6 +28,7 @@ class ProgettiCreate(BaseModel):
     commerciale: Optional[str] = None
     data_creazione: datetime
     importo: float
+    note: Optional[str] = None 
     cliente_id: int
     fornitori: List[FornitoreLinkData]  
     upload_id: Optional[str] = None
@@ -41,6 +42,7 @@ class FornitoreInProgetto(BaseModel):
     indirizzo: str
     numero_tel: str
     sito: str
+    note: Optional[str] = None 
 
 class ProgettiRead(ProgettiCreate):
     id: int
@@ -55,6 +57,7 @@ class ProgettiUpdate(BaseModel):
     commerciale: Optional[str] = None
     data_creazione: Optional[datetime] = None
     importo: Optional[float] = None
+    note: Optional[str] = None 
     cliente_id: Optional[int] = None
     fornitori: Optional[List[FornitoreLinkData]] = None
     upload_id: Optional[str] = None
