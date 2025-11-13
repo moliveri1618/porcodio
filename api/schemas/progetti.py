@@ -17,6 +17,7 @@ class FornitoreLinkData(BaseModel):
     contratti: Optional[List[FileInfo]] = []
     rilievi_misure: Optional[List[FileInfo]] = []
     prodotti_fornitore: Optional[List[ProdottoFornitore]] = []  
+    note: Optional[str] = None 
 
 
 class ProgettiCreate(BaseModel):

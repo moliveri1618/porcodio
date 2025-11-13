@@ -28,5 +28,7 @@ class ProgettoFornitoreLink(SQLModel, table=True):
         description="List of products provided by the supplier with quantity"
     )
     
+    note: Optional[str] = Field(default=None, nullable=True) 
+    
     progetto: Optional["Progetti"] = Relationship(back_populates="fornitori_links")
     fornitore: Optional["Fornitore"] = Relationship(back_populates="progetti_links")

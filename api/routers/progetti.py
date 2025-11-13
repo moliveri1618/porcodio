@@ -211,7 +211,8 @@ def read_progetti(db: Session = Depends(get_db)):
                     "data_creazione_fornitore": fornitore.data_creazione,
                     "contratti": link.contratti,
                     "rilievi_misure": link.rilievi_misure,
-                    "prodotti_fornitore": link.prodotti_fornitore
+                    "prodotti_fornitore": link.prodotti_fornitore,
+                    "note": link.note
                 })
 
         result.append({
