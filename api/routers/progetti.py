@@ -236,8 +236,8 @@ def read_progetti(db: Session = Depends(get_db)):
     return result
 
 
-ALLOWED_FIELDS = ["note"]
-@router.patch("/{progetto_id}/field", response_model=ProgettiRead)
+ALLOWED_FIELDS = ["note"] # DO NOT CHANGE
+@router.put("/{progetto_id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
     progetto_id: int,
     field: str,
