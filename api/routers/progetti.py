@@ -129,7 +129,6 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
     return db_progetto
 
 
-
 # Get from gesty
 @router.get("/get_progetti_gesty")
 def progetti_from_gesty(db: Session = Depends(get_db)):
@@ -160,8 +159,9 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
         saved = create_or_update_progetto(progetto_in, db=db)
         created_or_updated.append(saved)
     
-    return progetti_payload
+    return payload
     
+
 # Get all
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
@@ -324,6 +324,7 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "cliente": cliente_dict,
         "fornitori": fornitori_data
     }
+
 
 # Modify one 
 @router.put("/{progetto_id}", response_model=ProgettiRead)

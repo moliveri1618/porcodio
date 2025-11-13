@@ -82,3 +82,38 @@ def delete_cliente(cliente_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cliente not found")
     db.delete(cliente)
     db.commit()
+
+
+
+ALLOWED_FIELDS_CLIENTE = ["centro_di_costo"]  # DO NOT CHANGE
+@router.put("/bulk/field", response_model=dict)
+def update_multiple_clienti_field(
+    field: str,
+    values: dict[str, List[str] | None],  # 👈 paste your dictionary here
+    db: Session = Depends(get_db),
+):
+    # ✅ only allow whitelisted fields
+    if field not in ALLOWED_FIELDS_CLIENTE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Field '{field}' is not allowed to be updated. Allowed fields: {ALLOWED_FIELDS_CLIENTE}"
+        )
+
+    updated, not_found = [], []
+
+    for cliente_id, value in values.items():
+        cliente = db.get(Cliente, cliente_id)
+        if not cliente:
+            not_found.append(cliente_id)
+            continue
+
+        try:
+            setattr(cliente, field, value)
+            db.add(cliente)
+            updated.append(cliente_id)
+        except AttributeError:
+            raise HTTPException(status_code=400, detail=f"Field '{field}' not found on model")
+
+    db.commit()
+
+    return {"updated": updated, "not_found": not_found}

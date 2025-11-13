@@ -15,6 +15,7 @@ from typing import List
 
 router = APIRouter()
 
+
 # Create a link
 @router.post("/", response_model=ProgettoFornitoreLinkRead)
 def create_link(link: ProgettoFornitoreLinkCreate, db: Session = Depends(get_db)):
@@ -24,6 +25,7 @@ def create_link(link: ProgettoFornitoreLinkCreate, db: Session = Depends(get_db)
     db.refresh(db_link)
     return db_link
 
+
 # Get all links for a specific progetto
 @router.get("/progetto/{progetto_id}", response_model=List[ProgettoFornitoreLinkRead])
 def get_links_for_progetto(progetto_id: int, db: Session = Depends(get_db)):
@@ -31,6 +33,7 @@ def get_links_for_progetto(progetto_id: int, db: Session = Depends(get_db)):
         select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto_id)
     ).all()
     return results
+
 
 # Update files for a specific link
 @router.put("/", response_model=ProgettoFornitoreLinkRead)
@@ -45,7 +48,6 @@ def update_link(link: ProgettoFornitoreLinkUpdate, progetto_id: int, fornitore_i
     db.commit()
     db.refresh(db_link)
     return db_link
-
 
 
 ALLOWED_FIELDS = ["note"]  # DO NOT CHANGE

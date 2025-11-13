@@ -162,7 +162,7 @@ def create_clienti_from_payload(db: Session, payload: list[dict]) -> dict:
         citta = (raw_cliente.get("citta") or "").strip()
         indirizzo = (raw_cliente.get("indirizzo") or "").strip()
         numero_tel = (raw_cliente.get("numero_tel") or "").strip()
-        centro_di_costo = ""
+        centro_di_costo = (raw_cliente.get("email") or "").strip()
         contatti = {}
         note = ""
         data_creazione = curr_date
