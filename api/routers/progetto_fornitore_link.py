@@ -45,3 +45,36 @@ def update_link(link: ProgettoFornitoreLinkUpdate, progetto_id: int, fornitore_i
     db.commit()
     db.refresh(db_link)
     return db_link
+
+
+
+ALLOWED_FIELDS = ["note"]  # DO NOT CHANGE
+@router.put("/{progetto_id}/{fornitore_id}/field", response_model=ProgettoFornitoreLinkRead)
+def update_single_link_field(
+    progetto_id: int,
+    fornitore_id: int,
+    field: str,
+    value: str | None,
+    db: Session = Depends(get_db),
+):
+    db_link = db.get(ProgettoFornitoreLink, (progetto_id, fornitore_id))
+    if not db_link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    if field not in ALLOWED_FIELDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Field '{field}' is not allowed to be updated. Allowed fields: {ALLOWED_FIELDS}",
+        )
+
+    try:
+        setattr(db_link, field, value)
+    except AttributeError:
+        raise HTTPException(
+            status_code=400, detail=f"Field '{field}' not found on model"
+        )
+
+    db.add(db_link)
+    db.commit()
+    db.refresh(db_link)
+    return db_link
