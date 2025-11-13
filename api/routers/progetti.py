@@ -222,6 +222,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "stato": progetto.stato,
             "commerciale": progetto.commerciale,
             "azienda": progetto.azienda,
+            "note": progetto.note,
             "centro_di_costo": progetto.centro_di_costo,
             "cliente_id": progetto.cliente_id,
             "data_creazione": progetto.data_creazione,
