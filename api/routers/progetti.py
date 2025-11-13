@@ -236,6 +236,37 @@ def read_progetti(db: Session = Depends(get_db)):
     return result
 
 
+ALLOWED_FIELDS = ["note"]
+@router.patch("/{progetto_id}/field", response_model=ProgettiRead)
+def update_single_progetto_field(
+    progetto_id: int,
+    field: str,
+    value: str | None,
+    db: Session = Depends(get_db),
+):
+    progetto = db.get(Progetti, progetto_id)
+    if not progetto:
+        raise HTTPException(status_code=404, detail="Progetto not found")
+
+    # ✅ only allow fields in the whitelist
+    if field not in ALLOWED_FIELDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Field '{field}' is not allowed to be updated. Allowed fields: {ALLOWED_FIELDS}"
+        )
+
+    try:
+        setattr(progetto, field, value)
+    except AttributeError:
+        raise HTTPException(status_code=400, detail=f"Field '{field}' not found on model")
+
+    db.add(progetto)
+    db.commit()
+    db.refresh(progetto)
+    
+    return progetto
+
+
 # Get one
 @router.get("/{progetto_id}")
 def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
