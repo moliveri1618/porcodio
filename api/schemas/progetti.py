@@ -42,7 +42,6 @@ class FornitoreInProgetto(BaseModel):
     indirizzo: str
     numero_tel: str
     sito: str
-    note: Optional[str] = None 
 
 class ProgettiRead(ProgettiCreate):
     id: int
