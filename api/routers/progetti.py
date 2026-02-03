@@ -152,7 +152,6 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     clienti_inserted_info = create_clienti_from_payload(db, payload)
     progetti_payload = build_progetti_payloads(payload)
     
-    
     created_or_updated = []
     for body in progetti_payload:
         progetto_in = ProgettiCreate(**body)
