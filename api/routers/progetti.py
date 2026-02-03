@@ -65,7 +65,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
 
     # --- SKIP existing projects ---
     if existing:
-        return existing
+        return None
 
     # --- CREATE path ---
     db_progetto = Progetti(
@@ -152,13 +152,15 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     clienti_inserted_info = create_clienti_from_payload(db, payload)
     progetti_payload = build_progetti_payloads(payload)
     
-    created_or_updated = []
+    created = []
     for body in progetti_payload:
         progetto_in = ProgettiCreate(**body)
         saved = create_or_update_progetto(progetto_in, db=db)
-        created_or_updated.append(saved)
+        if saved is not None:
+            created.append(saved)
+
     
-    return created_or_updated
+    return created
     
 
 # Get all
