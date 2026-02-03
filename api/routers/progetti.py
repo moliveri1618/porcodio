@@ -159,7 +159,7 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
         saved = create_or_update_progetto(progetto_in, db=db)
         created_or_updated.append(saved)
     
-    return payload
+    return created_or_updated
     
 
 # Get all
