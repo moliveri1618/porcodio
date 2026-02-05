@@ -22,6 +22,7 @@ class Progetti(SQLModel, table=True):
     data_creazione: datetime = Field(..., nullable=False)
     importo: float = Field(..., nullable=False)
     note: Optional[str] = Field(default=None, nullable=True) 
+    data_cambiamento_stato: Optional[str] = Field(default="", nullable=True)
     fornitori: List["Fornitore"] = Relationship( # Relationship to Fornitore through ProgettoFornitoreLink, not physical column
         back_populates="progetti",
         link_model=ProgettoFornitoreLink

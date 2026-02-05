@@ -103,6 +103,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         azienda=progetto.azienda,
         centro_di_costo=progetto.centro_di_costo,
         stato=progetto.stato,
+        data_cambiamento_stato=progetto.data_cambiamento_stato,
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,
@@ -227,6 +228,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "note": progetto.note,
             "centro_di_costo": progetto.centro_di_costo,
             "cliente_id": progetto.cliente_id,
+            "data_cambiamento_stato": progetto.data_cambiamento_stato,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
             "cliente": cliente_dict,
@@ -237,7 +239,7 @@ def read_progetti(db: Session = Depends(get_db)):
     return result
 
 
-ALLOWED_FIELDS = ["note"] # DO NOT CHANGE
+ALLOWED_FIELDS = ["note", "data_cambiamento_stato"] # DO NOT CHANGE
 @router.put("/{progetto_id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
     progetto_id: int,
@@ -318,6 +320,7 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "id": progetto.id,
         "tecnico": progetto.tecnico,
         "stato": progetto.stato,
+        "data_cambiamento_stato": progetto.data_cambiamento_stato,
         "commerciale": progetto.commerciale,
         "cliente_id": progetto.cliente_id,
         "data_creazione": progetto.data_creazione,
