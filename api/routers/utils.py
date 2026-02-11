@@ -220,15 +220,11 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
             importo = float(prj.get("importo", 0) or 0)
         except Exception:
             importo = 0.0
+        importo_parz = 0.0  # will calculate later
         azienda = (prj.get("azienda") or "").strip()
         centro_di_costo = (prj.get("centro_di_costo") or "").strip()
         upload_id = (prj.get("contratto_code") or "").strip()
         upload_id_progetto_files = (prj.get("contratto_code") or "").strip()
-
-        # --- proj importo_parz ---
-        cdc = centro_di_costo.strip().lower()
-        aliquota = 0.042 if cdc == "genova" else 0.025
-        importo_parz = importo * aliquota
 
         # --- fornitori ---
         rilievi = []
