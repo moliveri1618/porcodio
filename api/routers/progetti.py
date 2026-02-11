@@ -78,6 +78,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,
+        importo_parz=progetto.importo_parz,
         upload_id=progetto.upload_id,
         upload_id_progetto_files=progetto.upload_id_progetto_files
     )
@@ -107,6 +108,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,
+        importo_parz=progetto.importo_parz,
         upload_id=progetto.upload_id,
         upload_id_progetto_files=progetto.upload_id_progetto_files
     )
@@ -231,6 +233,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "data_cambiamento_stato": progetto.data_cambiamento_stato,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
+            "importo_parz": progetto.importo_parz,
             "cliente": cliente_dict,
             "fornitori": fornitori_list,
         })
@@ -325,6 +328,7 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "cliente_id": progetto.cliente_id,
         "data_creazione": progetto.data_creazione,
         "importo": progetto.importo,
+        "importo_parz": progetto.importo_parz,
         "cliente": cliente_dict,
         "fornitori": fornitori_data
     }

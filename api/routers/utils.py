@@ -225,6 +225,11 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
         upload_id = (prj.get("contratto_code") or "").strip()
         upload_id_progetto_files = (prj.get("contratto_code") or "").strip()
 
+        # --- proj importo_parz ---
+        cdc = centro_di_costo.strip().lower()
+        aliquota = 0.042 if cdc == "genova" else 0.025
+        importo_parz = importo * aliquota
+
         # --- fornitori ---
         rilievi = []
         contratti = []
@@ -258,6 +263,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
             "progetto_id": progetto_id,
             "data_creazione": data_creazione,
             "importo": importo,
+            "importo_parz": importo_parz,
             "commerciale": commerciale,
             "cliente_id": cliente_id,
             "azienda": azienda,
