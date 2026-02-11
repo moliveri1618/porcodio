@@ -96,6 +96,11 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
 # Create
 @router.post("", response_model=ProgettiRead)
 def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
+
+    # --- compute importo_parz server-side ---
+    cdc = (progetto.centro_di_costo or "").strip().lower()
+    aliquota = 0.042 if cdc == "genova" else 0.025
+    calc_importo_parz = (progetto.importo or 0.0) * aliquota
     
     # 1. Create the Progetto record
     db_progetto = Progetti(
@@ -108,7 +113,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,
-        importo_parz=progetto.importo_parz,
+        importo_parz=calc_importo_parz,
         upload_id=progetto.upload_id,
         upload_id_progetto_files=progetto.upload_id_progetto_files
     )
@@ -219,11 +224,6 @@ def read_progetti(db: Session = Depends(get_db)):
                     "note": link.note
                 })
 
-        # --- importo_parz calculated on the fly ---
-        cdc = (progetto.centro_di_costo or "").strip().lower()
-        aliquota = 0.042 if cdc == "genova" else 0.025
-        importo_parz = (progetto.importo or 0.0) * aliquota
-
         result.append({
             "id": progetto.id,
             "upload_id": progetto.upload_id,
@@ -238,7 +238,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "data_cambiamento_stato": progetto.data_cambiamento_stato,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
-            "importo_parz": importo_parz,
+            "importo_parz": progetto.importo_parz,
             "cliente": cliente_dict,
             "fornitori": fornitori_list,
         })
