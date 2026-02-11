@@ -219,6 +219,11 @@ def read_progetti(db: Session = Depends(get_db)):
                     "note": link.note
                 })
 
+        # --- importo_parz calculated on the fly ---
+        cdc = (progetto.centro_di_costo or "").strip().lower()
+        aliquota = 0.042 if cdc == "genova" else 0.025
+        importo_parz = (progetto.importo or 0.0) * aliquota
+
         result.append({
             "id": progetto.id,
             "upload_id": progetto.upload_id,
@@ -233,7 +238,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "data_cambiamento_stato": progetto.data_cambiamento_stato,
             "data_creazione": progetto.data_creazione,
             "importo": progetto.importo,
-            "importo_parz": progetto.importo_parz,
+            "importo_parz": importo_parz,
             "cliente": cliente_dict,
             "fornitori": fornitori_list,
         })
