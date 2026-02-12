@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 
 
 if os.getenv("GITHUB_ACTIONS"):sys.path.append(os.path.dirname(__file__)) 
-from routers import progetti, clienti, fornitori, progetto_fornitore_link, getFiles, prodotti
+from routers import progetti, clienti, fornitori, progetto_fornitore_link, getFiles, prodotti, notePrivate
 # from routers import clienti
 # from routers import fornitori
 # from routers import progetto_fornitore_link
@@ -76,6 +76,13 @@ app.include_router(
     prefix="/prodotti", 
     tags=["prodotti"]
 )
+
+app.include_router(
+    notePrivate.router, 
+    prefix="/notePrivate", 
+    tags=["notePrivate"]
+)
+
 
 
 @app.get("/")
