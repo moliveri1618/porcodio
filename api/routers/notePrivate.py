@@ -3,6 +3,7 @@ import sys
 import os
 from typing import List
 from sqlmodel import Session, select
+from sqlalchemy import func
 
 # Allow relative imports when running in GitHub Actions
 if os.getenv("GITHUB_ACTIONS"):
@@ -14,14 +15,19 @@ from dependecies import get_db
 
 router = APIRouter()
 
-# Create
 @router.post("", response_model=NotePrivateRead, status_code=201)
 def create_note(note: NotePrivateCreate, db: Session = Depends(get_db)):
-    db_note = NotePrivate(**note.dict())
+
+    db_note = NotePrivate(
+        **note.dict(),
+        username=note.username.lower()
+    )
+
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
     return db_note
+
 
 # Get all (optional, but useful)
 @router.get("", response_model=List[NotePrivateRead])
@@ -40,7 +46,9 @@ def read_note(note_id: int, db: Session = Depends(get_db)):
 # Get by username (recommended for your UI)
 @router.get("/by-username/{username}", response_model=List[NotePrivateRead])
 def read_notes_by_username(username: str, db: Session = Depends(get_db)):
-    stmt = select(NotePrivate).where(NotePrivate.username == username)
+    stmt = select(NotePrivate).where(
+        func.lower(NotePrivate.username) == username.lower()
+    )
     return db.exec(stmt).all()
 
 # Put (partial update supported via exclude_unset)
