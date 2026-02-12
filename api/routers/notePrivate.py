@@ -15,11 +15,38 @@ from dependecies import get_db
 
 router = APIRouter()
 
-@router.post("", response_model=NotePrivateRead, status_code=201)
-def create_note(note: NotePrivateCreate, db: Session = Depends(get_db)):
-    data = note.dict()
-    data["username"] = data["username"].strip().lower()
+# @router.post("", response_model=NotePrivateRead, status_code=201)
+# def create_note(note: NotePrivateCreate, db: Session = Depends(get_db)):
+#     data = note.dict()
+#     data["username"] = data["username"].strip().lower()
 
+#     db_note = NotePrivate(**data)
+#     db.add(db_note)
+#     db.commit()
+#     db.refresh(db_note)
+#     return db_note
+
+
+@router.post("", response_model=NotePrivateRead, status_code=201)
+def create_update_note(note: NotePrivateCreate, db: Session = Depends(get_db)):
+    data = note.dict()
+
+    normalized_username = data["username"].strip().lower()
+    data["username"] = normalized_username
+
+    # case-insensitive lookup (safe even if older rows have mixed case)
+    stmt = select(NotePrivate).where(func.lower(NotePrivate.username) == normalized_username)
+    existing = db.exec(stmt).first()
+
+    if existing:
+        # update only the note field (and any other fields you want)
+        existing.note = data.get("note", existing.note)
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    # create new
     db_note = NotePrivate(**data)
     db.add(db_note)
     db.commit()
