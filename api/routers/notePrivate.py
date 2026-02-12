@@ -17,16 +17,15 @@ router = APIRouter()
 
 @router.post("", response_model=NotePrivateRead, status_code=201)
 def create_note(note: NotePrivateCreate, db: Session = Depends(get_db)):
+    data = note.dict()
+    data["username"] = data["username"].strip().lower()
 
-    db_note = NotePrivate(
-        **note.dict(),
-        username=note.username.lower()
-    )
-
+    db_note = NotePrivate(**data)
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
     return db_note
+
 
 
 # Get all (optional, but useful)
