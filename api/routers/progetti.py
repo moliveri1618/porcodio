@@ -105,7 +105,8 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
         importo=progetto.importo,
         importo_parz=progetto.importo_parz,
         upload_id=progetto.upload_id,
-        upload_id_progetto_files=progetto.upload_id_progetto_files
+        upload_id_progetto_files=progetto.upload_id_progetto_files,
+        status_percent=25
     )
     db.add(db_progetto)
     db.commit()
