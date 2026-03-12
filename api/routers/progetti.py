@@ -186,7 +186,7 @@ def read_progetti(db: Session = Depends(get_db)):
             ),
         )
         .order_by(nulls_last(Progetti.data_creazione.desc()))
-        .limit(25)
+        # .limit(25)
     )
     progetti = db.exec(stmt).all()
 
