@@ -320,9 +320,9 @@ from sqlmodel import Session, select
 # from dependecies import get_db
 # from models.progetti import Progetti, ProgettoFornitoreLink
 
-
-@router.get("/v2")
-def read_progettiV2(
+#actually v2
+@router.get("/v5")
+def read_progettiV5(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
@@ -855,8 +855,8 @@ def read_progettiV4(
     }
 
 
-@router.get("/v5")
-def read_progettiV5(
+@router.get("/v2")
+def read_progettiV2(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
