@@ -283,6 +283,18 @@ def read_progetti(db: Session = Depends(get_db)):
 
 
 # Get all
+from math import ceil
+
+from fastapi import Depends, Query
+from sqlalchemy import and_, case, func
+from sqlalchemy.orm import selectinload
+from sqlmodel import Session, select
+
+# assuming these are already imported in your file:
+# from dependecies import get_db
+# from models.progetti import Progetti, ProgettoFornitoreLink
+
+
 @router.get("/v2")
 def read_progettiV2(
     db: Session = Depends(get_db),
@@ -290,13 +302,62 @@ def read_progettiV2(
     page_size: int = Query(25, ge=1, le=100),
     include_completed: bool = False,
     include_suspended: bool = False,
-    tecnico: str | None = None
+    tecnico: str | None = None,
 ):
-
-    # separate count query
+    # ------------------------------------------------------------
+    # 1) Compute pagination offset once
+    # ------------------------------------------------------------
     offset = (page - 1) * page_size
+
+    # ------------------------------------------------------------
+    # 2) Custom priority for sorting "stato"
+    #    Lower number = comes first
+    # ------------------------------------------------------------
+    stato_priority = case(
+        (func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO", 1),
+        (func.upper(func.coalesce(Progetti.stato, "")) == "INVIATO", 2),
+        (func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "SOSPESO"]), 3),
+        else_=999,
+    )
+
+    # ------------------------------------------------------------
+    # 3) Define SQL expression for "completed"
+    #    This lets DB filter it directly instead of Python doing it
+    # ------------------------------------------------------------
+    is_completed_expr = and_(
+        func.coalesce(Progetti.status_percent, 0) == 100,
+        func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO",
+    )
+
+    # ------------------------------------------------------------
+    # 4) Build all WHERE filters once
+    # ------------------------------------------------------------
+    filters = []
+
+    # Filter by tecnico unless it is empty or "generali"
+    if tecnico and tecnico.strip().lower() != "generali":
+        tecnico_value = tecnico.strip()
+        filters.append(Progetti.tecnico.ilike(f"%{tecnico_value}%"))
+
+    # Exclude suspended unless explicitly included
+    if not include_suspended:
+        filters.append(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
+
+    # Exclude completed unless explicitly included
+    if not include_completed:
+        filters.append(~is_completed_expr)
+
+    # ------------------------------------------------------------
+    # 5) Count query:
+    #    count ONLY rows that match the real filters
+    # ------------------------------------------------------------
     total_stmt = select(func.count()).select_from(Progetti)
+    if filters:
+        total_stmt = total_stmt.where(*filters)
+
     total = db.exec(total_stmt).one()
+
+    # Early return if nothing found
     if total == 0:
         return {
             "items": [],
@@ -306,44 +367,40 @@ def read_progettiV2(
             "total_pages": 0,
         }
 
-    # sorting
-    stato_priority = case(
-        (func.upper(Progetti.stato) == "VALIDATO", 1),
-        (func.upper(Progetti.stato) == "INVIATO", 2),
-        (func.upper(Progetti.stato).in_(["ATTIVO", "SOSPESO"]), 3),
-        else_=999,
-    )
-
-    # base query
-    stmt = select(Progetti).options(
-        selectinload(Progetti.cliente),
-        selectinload(Progetti.fornitori_links).selectinload(
-            ProgettoFornitoreLink.fornitore
-        ),
-    )
-
-    # filtro tecnico
-    if tecnico and tecnico.strip().lower() != "generali":
-        stmt = stmt.where(
-            func.lower(func.coalesce(Progetti.tecnico, "")).contains(
-                tecnico.strip().lower()
-            )
+    # ------------------------------------------------------------
+    # 6) Main query:
+    #    IMPORTANT: apply filters + order + offset + limit in SQL
+    #    so database returns only the requested page
+    # ------------------------------------------------------------
+    stmt = (
+        select(Progetti)
+        .where(*filters)
+        .options(
+            # Load related client in one extra query, not N queries
+            selectinload(Progetti.cliente),
+            # Load supplier links and linked supplier data efficiently
+            selectinload(Progetti.fornitori_links).selectinload(
+                ProgettoFornitoreLink.fornitore
+            ),
         )
-
-    # filtro sospesi
-    if not include_suspended:
-        stmt = stmt.where(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
-
-    # sorting
-    stmt = stmt.order_by(
-        stato_priority.asc(),
-        Progetti.data_creazione.asc().nullslast(),
+        .order_by(
+            stato_priority.asc(),
+            Progetti.data_creazione.asc().nullslast(),
+        )
+        .offset(offset)
+        .limit(page_size)
     )
+
     progetti = db.exec(stmt).all()
 
-    result = []
+    # ------------------------------------------------------------
+    # 7) Build API response only for current page rows
+    # ------------------------------------------------------------
+    items = []
+
     for progetto in progetti:
         cliente = progetto.cliente
+
         cliente_dict = (
             {
                 "id": cliente.id,
@@ -363,23 +420,25 @@ def read_progettiV2(
         fornitori_list = []
         for link in progetto.fornitori_links:
             fornitore = link.fornitore
-            if fornitore:
-                fornitori_list.append(
-                    {
-                        "id": fornitore.id,
-                        "nome_fornitore": fornitore.nome_cliente,
-                        "indirizzo": fornitore.indirizzo,
-                        "citta": fornitore.citta,
-                        "numero_tel": fornitore.numero_tel,
-                        "sito": fornitore.sito,
-                        "contatti": fornitore.contatti,
-                        "data_creazione_fornitore": fornitore.data_creazione,
-                        "contratti": link.contratti,
-                        "rilievi_misure": link.rilievi_misure,
-                        "prodotti_fornitore": link.prodotti_fornitore,
-                        "note": link.note,
-                    }
-                )
+            if not fornitore:
+                continue
+
+            fornitori_list.append(
+                {
+                    "id": fornitore.id,
+                    "nome_fornitore": fornitore.nome_cliente,
+                    "indirizzo": fornitore.indirizzo,
+                    "citta": fornitore.citta,
+                    "numero_tel": fornitore.numero_tel,
+                    "sito": fornitore.sito,
+                    "contatti": fornitore.contatti,
+                    "data_creazione_fornitore": fornitore.data_creazione,
+                    "contratti": link.contratti,
+                    "rilievi_misure": link.rilievi_misure,
+                    "prodotti_fornitore": link.prodotti_fornitore,
+                    "note": link.note,
+                }
+            )
 
         status_percent = int(progetto.status_percent or 0)
         is_completed = (
@@ -387,7 +446,7 @@ def read_progettiV2(
             and str(progetto.stato or "").strip().upper() == "VALIDATO"
         )
 
-        result.append(
+        items.append(
             {
                 "id": progetto.id,
                 "upload_id": progetto.upload_id,
@@ -410,17 +469,11 @@ def read_progettiV2(
             }
         )
 
-    # filter completed
-    if not include_completed:
-        result = [item for item in result if not item["is_completed"]]
-
-    # paginate AFTER filters
-    total = len(result)
-    offset = (page - 1) * page_size
-    paged_result = result[offset : offset + page_size]
-
+    # ------------------------------------------------------------
+    # 8) Return already-paginated data
+    # ------------------------------------------------------------
     return {
-        "items": paged_result,
+        "items": items,
         "total": total,
         "page": page,
         "page_size": page_size,
