@@ -28,10 +28,8 @@ def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
         return False
     return db.exec(select(Fornitore.id).where(Fornitore.id == fornitore_id)).first() is not None
 
-
 def has_any_file(arr):
     return bool(arr) and any((x.file_name or "").strip() for x in arr)
-
 
 def compute_status_percent(progetto: ProgettiCreate) -> int:
     fornitori = progetto.fornitori or []
@@ -51,7 +49,6 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
 
     total = project_part + ordini_part + conferme_part
     return max(0, min(100, round(total)))
-
 
 def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
     # delete existing links
@@ -118,6 +115,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     db.commit()
     db.refresh(db_progetto)
     return db_progetto
+
 
 # Create
 @router.post("", response_model=ProgettiRead)
@@ -383,49 +381,7 @@ def read_progettiV2(
                     }
                 )
 
-        # completed logic
-        n = len(fornitori_list)
-
-        rilievo_done = (
-            1 if (progetto.upload_id and str(progetto.upload_id).strip()) else 0
-        )
-        contratto_done = (
-            1
-            if (
-                progetto.upload_id_progetto_files
-                and str(progetto.upload_id_progetto_files).strip()
-            )
-            else 0
-        )
-        project_part = (rilievo_done + contratto_done) * 12.5
-
-        orders_done = sum(
-            1
-            for f in fornitori_list
-            if isinstance(f.get("contratti"), list)
-            and any(
-                c.get("file_name") and str(c["file_name"]).strip()
-                for c in f["contratti"]
-            )
-        )
-        ordini_part = (orders_done / n) * 50 if n > 0 else 0
-
-        conferme_done = sum(
-            1
-            for f in fornitori_list
-            if isinstance(f.get("rilievi_misure"), list)
-            and any(
-                r.get("file_name") and str(r["file_name"]).strip()
-                for r in f["rilievi_misure"]
-            )
-        )
-        conferme_part = (conferme_done / n) * 25 if n > 0 else 0
-
-        status_percent = max(
-            0,
-            min(100, round(project_part + ordini_part + conferme_part)),
-        )
-
+        status_percent = int(progetto.status_percent or 0)
         is_completed = (
             status_percent == 100
             and str(progetto.stato or "").strip().upper() == "VALIDATO"
@@ -464,12 +420,12 @@ def read_progettiV2(
     paged_result = result[offset : offset + page_size]
 
     return {
-            "items": result,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": ceil(total / page_size),
-        }
+        "items": paged_result,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": ceil(total / page_size),
+    }
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"] # DO NOT CHANGE
@@ -602,109 +558,109 @@ def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Sessi
     return progetto
 
 
-@router.post("/recalc_importo_parz")
-def recalc_importo_parz(db: Session = Depends(get_db)):
-    # Fetch all progetti
-    progetti = db.exec(select(Progetti)).all()
-    if not progetti:
-        raise HTTPException(status_code=404, detail="No progetti found")
+# @router.post("/recalc_importo_parz")
+# def recalc_importo_parz(db: Session = Depends(get_db)):
+#     # Fetch all progetti
+#     progetti = db.exec(select(Progetti)).all()
+#     if not progetti:
+#         raise HTTPException(status_code=404, detail="No progetti found")
 
-    updated = 0
-    details = []
+#     updated = 0
+#     details = []
 
-    for p in progetti:
-        cdc = (p.centro_di_costo or "").strip().lower()
-        aliquota = 0.042 if cdc == "genova" else 0.025
-        new_importo_parz = (p.importo or 0.0) * aliquota
+#     for p in progetti:
+#         cdc = (p.centro_di_costo or "").strip().lower()
+#         aliquota = 0.042 if cdc == "genova" else 0.025
+#         new_importo_parz = (p.importo or 0.0) * aliquota
 
-        old_importo_parz = p.importo_parz or 0.0
+#         old_importo_parz = p.importo_parz or 0.0
 
-        # update only if changed (tolerance avoids float noise)
-        if abs(old_importo_parz - new_importo_parz) > 1e-9:
-            p.importo_parz = new_importo_parz
-            db.add(p)
-            updated += 1
+#         # update only if changed (tolerance avoids float noise)
+#         if abs(old_importo_parz - new_importo_parz) > 1e-9:
+#             p.importo_parz = new_importo_parz
+#             db.add(p)
+#             updated += 1
 
-        details.append({
-            "id": p.id,
-            "centro_di_costo": p.centro_di_costo,
-            "importo": p.importo,
-            "old_importo_parz": old_importo_parz,
-            "new_importo_parz": new_importo_parz,
-            "changed": abs(old_importo_parz - new_importo_parz) > 1e-9,
-        })
+#         details.append({
+#             "id": p.id,
+#             "centro_di_costo": p.centro_di_costo,
+#             "importo": p.importo,
+#             "old_importo_parz": old_importo_parz,
+#             "new_importo_parz": new_importo_parz,
+#             "changed": abs(old_importo_parz - new_importo_parz) > 1e-9,
+#         })
 
-    db.commit()
+#     db.commit()
 
-    return {
-        "total": len(progetti),
-        "updated": updated,
-        "details": details,
-    }
-
-
-def _has_any_file_dict(arr):
-    return bool(arr) and any(
-        isinstance(x, dict) and str(x.get("file_name") or "").strip() for x in arr
-    )
+#     return {
+#         "total": len(progetti),
+#         "updated": updated,
+#         "details": details,
+#     }
 
 
-def compute_status_percent_db(progetto: Progetti) -> int:
-    links = progetto.fornitori_links or []
-    n = len(links)
-
-    # project-level
-    rilievo_done = 1 if str(progetto.upload_id or "").strip() else 0
-    contratto_done = 1 if str(progetto.upload_id_progetto_files or "").strip() else 0
-    project_part = (rilievo_done + contratto_done) * 12.5
-
-    # supplier-level
-    orders_done = sum(1 for link in links if _has_any_file_dict(link.contratti or []))
-    ordini_part = (orders_done / n) * 50 if n > 0 else 0
-
-    conferme_done = sum(
-        1 for link in links if _has_any_file_dict(link.rilievi_misure or [])
-    )
-    conferme_part = (conferme_done / n) * 25 if n > 0 else 0
-
-    total = project_part + ordini_part + conferme_part
-    return max(0, min(100, round(total)))
+# def _has_any_file_dict(arr):
+#     return bool(arr) and any(
+#         isinstance(x, dict) and str(x.get("file_name") or "").strip() for x in arr
+#     )
 
 
-@router.post("/recalc_status_percent")
-def recalc_status_percent(db: Session = Depends(get_db)):
-    stmt = select(Progetti).options(selectinload(Progetti.fornitori_links))
-    progetti = db.exec(stmt).all()
+# def compute_status_percent_db(progetto: Progetti) -> int:
+#     links = progetto.fornitori_links or []
+#     n = len(links)
 
-    if not progetti:
-        raise HTTPException(status_code=404, detail="No progetti found")
+#     # project-level
+#     rilievo_done = 1 if str(progetto.upload_id or "").strip() else 0
+#     contratto_done = 1 if str(progetto.upload_id_progetto_files or "").strip() else 0
+#     project_part = (rilievo_done + contratto_done) * 12.5
 
-    updated = 0
-    details = []
+#     # supplier-level
+#     orders_done = sum(1 for link in links if _has_any_file_dict(link.contratti or []))
+#     ordini_part = (orders_done / n) * 50 if n > 0 else 0
 
-    for p in progetti:
-        old_status_percent = p.status_percent or 0
-        new_status_percent = compute_status_percent_db(p)
+#     conferme_done = sum(
+#         1 for link in links if _has_any_file_dict(link.rilievi_misure or [])
+#     )
+#     conferme_part = (conferme_done / n) * 25 if n > 0 else 0
 
-        changed = old_status_percent != new_status_percent
-        if changed:
-            p.status_percent = new_status_percent
-            db.add(p)
-            updated += 1
+#     total = project_part + ordini_part + conferme_part
+#     return max(0, min(100, round(total)))
 
-        details.append(
-            {
-                "id": p.id,
-                "old_status_percent": old_status_percent,
-                "new_status_percent": new_status_percent,
-                "changed": changed,
-            }
-        )
 
-    db.commit()
+# @router.post("/recalc_status_percent")
+# def recalc_status_percent(db: Session = Depends(get_db)):
+#     stmt = select(Progetti).options(selectinload(Progetti.fornitori_links))
+#     progetti = db.exec(stmt).all()
 
-    return {
-        "total": len(progetti),
-        "updated": updated,
-        "details": details,
-    }
+#     if not progetti:
+#         raise HTTPException(status_code=404, detail="No progetti found")
+
+#     updated = 0
+#     details = []
+
+#     for p in progetti:
+#         old_status_percent = p.status_percent or 0
+#         new_status_percent = compute_status_percent_db(p)
+
+#         changed = old_status_percent != new_status_percent
+#         if changed:
+#             p.status_percent = new_status_percent
+#             db.add(p)
+#             updated += 1
+
+#         details.append(
+#             {
+#                 "id": p.id,
+#                 "old_status_percent": old_status_percent,
+#                 "new_status_percent": new_status_percent,
+#                 "changed": changed,
+#             }
+#         )
+
+#     db.commit()
+
+#     return {
+#         "total": len(progetti),
+#         "updated": updated,
+#         "details": details,
+#     }
