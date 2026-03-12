@@ -1,13 +1,14 @@
 # Defines API routes and endpoints related to progetti
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 import sys
 import os
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
-from sqlalchemy import nulls_last  
+from sqlalchemy import func, case, nulls_last
 from fastapi.responses import ORJSONResponse
 import time
+from math import ceil
 # from pprint import pprint
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
@@ -143,10 +144,10 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     """
     Calls the dip-tecnico API with Bearer token in header
     """
-    
+
     payload = fetch_from_gesty("dip-tecnico")
-    #pprint(payload)
-    
+    # pprint(payload)
+
     current_date = datetime.now()
     one_year_ago = current_date - timedelta(days=90)
 
@@ -159,7 +160,7 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     payload = attach_file_links(payload)
     clienti_inserted_info = create_clienti_from_payload(db, payload)
     progetti_payload = build_progetti_payloads(payload)
-    
+
     created = []
     for body in progetti_payload:
         progetto_in = ProgettiCreate(**body)
@@ -167,7 +168,6 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
         if saved is not None:
             created.append(saved)
 
-    
     return created
 
 
@@ -196,58 +196,183 @@ def read_progetti(db: Session = Depends(get_db)):
     result = []
     for progetto in progetti:
         cliente = progetto.cliente
-        cliente_dict = {
-            "id": cliente.id,
-            "nome_cliente": cliente.nome_cliente,
-            "citta": cliente.citta,
-            "indirizzo": cliente.indirizzo,
-            "numero_tel": cliente.numero_tel,
-            "centro_di_costo": cliente.centro_di_costo,
-            "contatti": cliente.contatti,
-            "note": cliente.note,
-            "data_creazione_cliente": cliente.data_creazione,
-        } if cliente else {}
+        cliente_dict = (
+            {
+                "id": cliente.id,
+                "nome_cliente": cliente.nome_cliente,
+                "citta": cliente.citta,
+                "indirizzo": cliente.indirizzo,
+                "numero_tel": cliente.numero_tel,
+                "centro_di_costo": cliente.centro_di_costo,
+                "contatti": cliente.contatti,
+                "note": cliente.note,
+                "data_creazione_cliente": cliente.data_creazione,
+            }
+            if cliente
+            else {}
+        )
 
         fornitori_list = []
         for link in progetto.fornitori_links:
             fornitore = link.fornitore
             if fornitore:
-                fornitori_list.append({
-                    "id": fornitore.id,
-                    "nome_fornitore": fornitore.nome_cliente,
-                    "indirizzo": fornitore.indirizzo,
-                    "citta": fornitore.citta,
-                    "numero_tel": fornitore.numero_tel,
-                    "sito": fornitore.sito,
-                    "contatti": fornitore.contatti,
-                    "data_creazione_fornitore": fornitore.data_creazione,
-                    "contratti": link.contratti,
-                    "rilievi_misure": link.rilievi_misure,
-                    "prodotti_fornitore": link.prodotti_fornitore,
-                    "note": link.note
-                })
+                fornitori_list.append(
+                    {
+                        "id": fornitore.id,
+                        "nome_fornitore": fornitore.nome_cliente,
+                        "indirizzo": fornitore.indirizzo,
+                        "citta": fornitore.citta,
+                        "numero_tel": fornitore.numero_tel,
+                        "sito": fornitore.sito,
+                        "contatti": fornitore.contatti,
+                        "data_creazione_fornitore": fornitore.data_creazione,
+                        "contratti": link.contratti,
+                        "rilievi_misure": link.rilievi_misure,
+                        "prodotti_fornitore": link.prodotti_fornitore,
+                        "note": link.note,
+                    }
+                )
 
-        result.append({
-            "id": progetto.id,
-            "upload_id": progetto.upload_id,
-            "upload_id_progetto_files": progetto.upload_id_progetto_files,
-            "tecnico": progetto.tecnico,
-            "stato": progetto.stato,
-            "commerciale": progetto.commerciale,
-            "azienda": progetto.azienda,
-            "note": progetto.note,
-            "centro_di_costo": progetto.centro_di_costo,
-            "cliente_id": progetto.cliente_id,
-            "data_cambiamento_stato": progetto.data_cambiamento_stato,
-            "data_creazione": progetto.data_creazione,
-            "importo": progetto.importo,
-            "importo_parz": progetto.importo_parz,
-            "cliente": cliente_dict,
-            "fornitori": fornitori_list,
-        })
+        result.append(
+            {
+                "id": progetto.id,
+                "upload_id": progetto.upload_id,
+                "upload_id_progetto_files": progetto.upload_id_progetto_files,
+                "tecnico": progetto.tecnico,
+                "stato": progetto.stato,
+                "commerciale": progetto.commerciale,
+                "azienda": progetto.azienda,
+                "note": progetto.note,
+                "centro_di_costo": progetto.centro_di_costo,
+                "cliente_id": progetto.cliente_id,
+                "data_cambiamento_stato": progetto.data_cambiamento_stato,
+                "data_creazione": progetto.data_creazione,
+                "importo": progetto.importo,
+                "importo_parz": progetto.importo_parz,
+                "cliente": cliente_dict,
+                "fornitori": fornitori_list,
+            }
+        )
 
     # elapsed = time.perf_counter() - start_time
     return result
+
+
+# Get all
+@router.get("/v2")
+def read_progettiV2(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+):
+
+    # separate count query
+    offset = (page - 1) * page_size
+    total_stmt = select(func.count()).select_from(Progetti)
+    total = db.exec(total_stmt).one()
+    if total == 0:
+        return {
+            "items": [],
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 0,
+        }
+
+    # sorting
+    stato_priority = case(
+        (func.upper(Progetti.stato) == "VALIDATO", 1),
+        (func.upper(Progetti.stato) == "INVIATO", 2),
+        (func.upper(Progetti.stato).in_(["ATTIVO", "SOSPESO"]), 3),
+        else_=999,
+    )
+
+    # Eager load cliente and links with their fornitori in one go
+    stmt = (
+        select(Progetti)
+        .options(
+            selectinload(Progetti.cliente),
+            selectinload(Progetti.fornitori_links).selectinload(
+                ProgettoFornitoreLink.fornitore
+            ),
+        )
+        .order_by(
+            stato_priority.asc(),
+            Progetti.data_creazione.asc().nullslast(),
+        )
+        .offset(offset)
+        .limit(page_size)
+    )
+    progetti = db.exec(stmt).all()
+
+    result = []
+    for progetto in progetti:
+        cliente = progetto.cliente
+        cliente_dict = (
+            {
+                "id": cliente.id,
+                "nome_cliente": cliente.nome_cliente,
+                "citta": cliente.citta,
+                "indirizzo": cliente.indirizzo,
+                "numero_tel": cliente.numero_tel,
+                "centro_di_costo": cliente.centro_di_costo,
+                "contatti": cliente.contatti,
+                "note": cliente.note,
+                "data_creazione_cliente": cliente.data_creazione,
+            }
+            if cliente
+            else {}
+        )
+
+        fornitori_list = []
+        for link in progetto.fornitori_links:
+            fornitore = link.fornitore
+            if fornitore:
+                fornitori_list.append(
+                    {
+                        "id": fornitore.id,
+                        "nome_fornitore": fornitore.nome_cliente,
+                        "indirizzo": fornitore.indirizzo,
+                        "citta": fornitore.citta,
+                        "numero_tel": fornitore.numero_tel,
+                        "sito": fornitore.sito,
+                        "contatti": fornitore.contatti,
+                        "data_creazione_fornitore": fornitore.data_creazione,
+                        "contratti": link.contratti,
+                        "rilievi_misure": link.rilievi_misure,
+                        "prodotti_fornitore": link.prodotti_fornitore,
+                        "note": link.note,
+                    }
+                )
+
+        result.append(
+            {
+                "id": progetto.id,
+                "upload_id": progetto.upload_id,
+                "upload_id_progetto_files": progetto.upload_id_progetto_files,
+                "tecnico": progetto.tecnico,
+                "stato": progetto.stato,
+                "commerciale": progetto.commerciale,
+                "azienda": progetto.azienda,
+                "note": progetto.note,
+                "centro_di_costo": progetto.centro_di_costo,
+                "cliente_id": progetto.cliente_id,
+                "data_cambiamento_stato": progetto.data_cambiamento_stato,
+                "data_creazione": progetto.data_creazione,
+                "importo": progetto.importo,
+                "importo_parz": progetto.importo_parz,
+                "cliente": cliente_dict,
+                "fornitori": fornitori_list,
+            }
+        )
+
+    return {
+            "items": result,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": ceil(total / page_size),
+        }
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"] # DO NOT CHANGE
