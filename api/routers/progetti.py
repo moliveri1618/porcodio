@@ -29,6 +29,30 @@ def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
     return db.exec(select(Fornitore.id).where(Fornitore.id == fornitore_id)).first() is not None
 
 
+def has_any_file(arr):
+    return bool(arr) and any((x.file_name or "").strip() for x in arr)
+
+
+def compute_status_percent(progetto: ProgettiCreate) -> int:
+    fornitori = progetto.fornitori or []
+    n = len(fornitori)
+
+    # Project-level
+    rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
+    contratto_done = 1 if (progetto.upload_id_progetto_files or "").strip() else 0
+    project_part = (rilievo_done + contratto_done) * 12.5
+
+    # Supplier-level
+    orders_done = sum(1 for f in fornitori if has_any_file(f.contratti))
+    ordini_part = (orders_done / n) * 50 if n > 0 else 0
+
+    conferme_done = sum(1 for f in fornitori if has_any_file(f.rilievi_misure))
+    conferme_part = (conferme_done / n) * 25 if n > 0 else 0
+
+    total = project_part + ordini_part + conferme_part
+    return max(0, min(100, round(total)))
+
+
 def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
     # delete existing links
     db.query(ProgettoFornitoreLink).filter(
@@ -116,7 +140,8 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         importo=progetto.importo,
         importo_parz=calc_importo_parz,
         upload_id=progetto.upload_id,
-        upload_id_progetto_files=progetto.upload_id_progetto_files
+        upload_id_progetto_files=progetto.upload_id_progetto_files,
+        status_percent = compute_status_percent(progetto)
     )
     db.add(db_progetto)
     db.commit()
@@ -264,6 +289,9 @@ def read_progettiV2(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
+    include_completed: bool = False,
+    include_suspended: bool = False,
+    tecnico: str | None = None
 ):
 
     # separate count query
@@ -287,21 +315,30 @@ def read_progettiV2(
         else_=999,
     )
 
-    # Eager load cliente and links with their fornitori in one go
-    stmt = (
-        select(Progetti)
-        .options(
-            selectinload(Progetti.cliente),
-            selectinload(Progetti.fornitori_links).selectinload(
-                ProgettoFornitoreLink.fornitore
-            ),
+    # base query
+    stmt = select(Progetti).options(
+        selectinload(Progetti.cliente),
+        selectinload(Progetti.fornitori_links).selectinload(
+            ProgettoFornitoreLink.fornitore
+        ),
+    )
+
+    # filtro tecnico
+    if tecnico and tecnico.strip().lower() != "generali":
+        stmt = stmt.where(
+            func.lower(func.coalesce(Progetti.tecnico, "")).contains(
+                tecnico.strip().lower()
+            )
         )
-        .order_by(
-            stato_priority.asc(),
-            Progetti.data_creazione.asc().nullslast(),
-        )
-        .offset(offset)
-        .limit(page_size)
+
+    # filtro sospesi
+    if not include_suspended:
+        stmt = stmt.where(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
+
+    # sorting
+    stmt = stmt.order_by(
+        stato_priority.asc(),
+        Progetti.data_creazione.asc().nullslast(),
     )
     progetti = db.exec(stmt).all()
 
@@ -345,6 +382,54 @@ def read_progettiV2(
                     }
                 )
 
+        # completed logic
+        n = len(fornitori_list)
+
+        rilievo_done = (
+            1 if (progetto.upload_id and str(progetto.upload_id).strip()) else 0
+        )
+        contratto_done = (
+            1
+            if (
+                progetto.upload_id_progetto_files
+                and str(progetto.upload_id_progetto_files).strip()
+            )
+            else 0
+        )
+        project_part = (rilievo_done + contratto_done) * 12.5
+
+        orders_done = sum(
+            1
+            for f in fornitori_list
+            if isinstance(f.get("contratti"), list)
+            and any(
+                c.get("file_name") and str(c["file_name"]).strip()
+                for c in f["contratti"]
+            )
+        )
+        ordini_part = (orders_done / n) * 50 if n > 0 else 0
+
+        conferme_done = sum(
+            1
+            for f in fornitori_list
+            if isinstance(f.get("rilievi_misure"), list)
+            and any(
+                r.get("file_name") and str(r["file_name"]).strip()
+                for r in f["rilievi_misure"]
+            )
+        )
+        conferme_part = (conferme_done / n) * 25 if n > 0 else 0
+
+        status_percent = max(
+            0,
+            min(100, round(project_part + ordini_part + conferme_part)),
+        )
+
+        is_completed = (
+            status_percent == 100
+            and str(progetto.stato or "").strip().upper() == "VALIDATO"
+        )
+
         result.append(
             {
                 "id": progetto.id,
@@ -363,8 +448,19 @@ def read_progettiV2(
                 "importo_parz": progetto.importo_parz,
                 "cliente": cliente_dict,
                 "fornitori": fornitori_list,
+                "status_percent": status_percent,
+                "is_completed": is_completed,
             }
         )
+
+    # filter completed
+    if not include_completed:
+        result = [item for item in result if not item["is_completed"]]
+
+    # paginate AFTER filters
+    total = len(result)
+    offset = (page - 1) * page_size
+    paged_result = result[offset : offset + page_size]
 
     return {
             "items": result,

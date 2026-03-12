@@ -25,12 +25,13 @@ class Progetti(SQLModel, table=True):
     importo_parz: float = Field(..., nullable=True)
     note: Optional[str] = Field(default=None, nullable=True) 
     data_cambiamento_stato: Optional[str] = Field(default="", nullable=True)
+    status_percent: Optional[float] = Field(default=None, nullable=True, index=True)
     fornitori: List["Fornitore"] = Relationship( # Relationship to Fornitore through ProgettoFornitoreLink, not physical column
         back_populates="progetti",
         link_model=ProgettoFornitoreLink
     )
     upload_id: Optional[str] = Field(default=None,nullable=True,index=True)
     upload_id_progetto_files: Optional[str] = Field(default=None,nullable=True,index=True)
-    
+
     cliente: Optional["Cliente"] = Relationship(back_populates="progetti")    
     fornitori_links: List["ProgettoFornitoreLink"] = Relationship(back_populates="progetto")

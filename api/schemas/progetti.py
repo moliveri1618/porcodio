@@ -11,7 +11,7 @@ class FileInfo(BaseModel):
     file_name: str
     folder_path: str
     full_key: str
-    
+
 class FornitoreLinkData(BaseModel):
     fornitore_id: int
     contratti: Optional[List[FileInfo]] = []
@@ -34,6 +34,7 @@ class ProgettiCreate(BaseModel):
     data_cambiamento_stato: Optional[str] = ""
     cliente_id: int
     fornitori: List[FornitoreLinkData]  
+    status_percent: Optional[float] = None
     upload_id: Optional[str] = None
     upload_id_progetto_files: Optional[str] = None
 
@@ -48,6 +49,7 @@ class FornitoreInProgetto(BaseModel):
 
 class ProgettiRead(ProgettiCreate):
     id: int
+    status_percent: Optional[int] = None
     fornitori: Optional[List[FornitoreInProgetto]] = None  
 
 
@@ -63,8 +65,8 @@ class ProgettiUpdate(BaseModel):
     importo: Optional[float] = None
     importo_parz: Optional[float] = None
     note: Optional[str] = None 
+    status_percent: Optional[float] = None
     cliente_id: Optional[int] = None
     fornitori: Optional[List[FornitoreLinkData]] = None
     upload_id: Optional[str] = None
     upload_id_progetto_files: Optional[str] = None
-
