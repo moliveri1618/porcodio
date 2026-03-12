@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 import sys
 import os
 from sqlmodel import Session, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload, load_only
 from sqlalchemy import func, case, nulls_last
 from fastapi.responses import ORJSONResponse
 import time
@@ -472,6 +472,321 @@ def read_progettiV2(
     # ------------------------------------------------------------
     # 8) Return already-paginated data
     # ------------------------------------------------------------
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": ceil(total / page_size),
+    }
+
+
+@router.get("/v3")
+def read_progettiV3(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    include_completed: bool = False,
+    include_suspended: bool = False,
+    tecnico: str | None = None,
+):
+    offset = (page - 1) * page_size
+
+    stato_priority = case(
+        (func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO", 1),
+        (func.upper(func.coalesce(Progetti.stato, "")) == "INVIATO", 2),
+        (func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "SOSPESO"]), 3),
+        else_=999,
+    )
+
+    is_completed_expr = and_(
+        func.coalesce(Progetti.status_percent, 0) == 100,
+        func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO",
+    )
+
+    filters: list = []
+    if tecnico and tecnico.strip().lower() != "generali":
+        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+    if not include_suspended:
+        filters.append(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
+    if not include_completed:
+        filters.append(~is_completed_expr)
+
+    total = db.exec(
+        select(func.count()).select_from(Progetti).where(*filters)
+    ).one()
+    if total == 0:
+        return {
+            "items": [],
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 0,
+        }
+
+    stmt = (
+        select(Progetti)
+        .where(*filters)
+        .options(
+            selectinload(Progetti.cliente),
+            selectinload(Progetti.fornitori_links).selectinload(
+                ProgettoFornitoreLink.fornitore
+            ),
+        )
+        .order_by(stato_priority.asc(), Progetti.data_creazione.asc().nullslast())
+        .offset(offset)
+        .limit(page_size)
+    )
+    progetti = db.exec(stmt).all()
+
+    def _p_dict(p: Progetti) -> dict:
+        c = p.cliente
+        cliente_dict = (
+            {
+                "id": c.id,
+                "nome_cliente": c.nome_cliente,
+                "citta": c.citta,
+                "indirizzo": c.indirizzo,
+                "numero_tel": c.numero_tel,
+                "centro_di_costo": c.centro_di_costo,
+                "contatti": c.contatti,
+                "note": c.note,
+                "data_creazione_cliente": c.data_creazione,
+            }
+            if c
+            else {}
+        )
+
+        fornitori_list = [
+            {
+                "id": f.fornitore.id,
+                "nome_fornitore": f.fornitore.nome_cliente,
+                "indirizzo": f.fornitore.indirizzo,
+                "citta": f.fornitore.citta,
+                "numero_tel": f.fornitore.numero_tel,
+                "sito": f.fornitore.sito,
+                "contatti": f.fornitore.contatti,
+                "data_creazione_fornitore": f.fornitore.data_creazione,
+                "contratti": f.contratti,
+                "rilievi_misure": f.rilievi_misure,
+                "prodotti_fornitore": f.prodotti_fornitore,
+                "note": f.note,
+            }
+            for f in p.fornitori_links
+            if f.fornitore
+        ]
+
+        status_percent = int(p.status_percent or 0)
+        is_completed = (
+            status_percent == 100 and str(p.stato or "").strip().upper() == "VALIDATO"
+        )
+
+        return {
+            "id": p.id,
+            "upload_id": p.upload_id,
+            "upload_id_progetto_files": p.upload_id_progetto_files,
+            "tecnico": p.tecnico,
+            "stato": p.stato,
+            "commerciale": p.commerciale,
+            "azienda": p.azienda,
+            "note": p.note,
+            "centro_di_costo": p.centro_di_costo,
+            "cliente_id": p.cliente_id,
+            "data_cambiamento_stato": p.data_cambiamento_stato,
+            "data_creazione": p.data_creazione,
+            "importo": p.importo,
+            "importo_parz": p.importo_parz,
+            "cliente": cliente_dict,
+            "fornitori": fornitori_list,
+            "status_percent": status_percent,
+            "is_completed": is_completed,
+        }
+
+    items = [_p_dict(p) for p in progetti]
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size,
+    }
+
+
+@router.get("/v4")
+def read_progettiV4(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    include_completed: bool = False,
+    include_suspended: bool = False,
+    tecnico: str | None = None,
+):
+    offset = (page - 1) * page_size
+
+    stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
+
+    stato_priority = case(
+        (stato_upper == "VALIDATO", 1),
+        (stato_upper == "INVIATO", 2),
+        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 3),
+        else_=999,
+    )
+
+    is_completed_expr = and_(
+        func.coalesce(Progetti.status_percent, 0) == 100,
+        stato_upper == "VALIDATO",
+    )
+
+    filters = []
+
+    if tecnico and tecnico.strip().lower() != "generali":
+        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+
+    if not include_suspended:
+        filters.append(stato_upper != "SOSPESO")
+
+    if not include_completed:
+        filters.append(~is_completed_expr)
+
+    # FAST COUNT
+    total_stmt = select(func.count(Progetti.id))
+    if filters:
+        total_stmt = total_stmt.where(*filters)
+
+    total = db.exec(total_stmt).one()
+
+    if total == 0:
+        return {
+            "items": [],
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 0,
+        }
+
+    stmt = (
+        select(Progetti)
+        .where(*filters)
+        .options(
+            # Only columns needed from Progetti
+            load_only(
+                Progetti.id,
+                Progetti.upload_id,
+                Progetti.upload_id_progetto_files,
+                Progetti.tecnico,
+                Progetti.stato,
+                Progetti.commerciale,
+                Progetti.azienda,
+                Progetti.note,
+                Progetti.centro_di_costo,
+                Progetti.cliente_id,
+                Progetti.data_cambiamento_stato,
+                Progetti.data_creazione,
+                Progetti.importo,
+                Progetti.importo_parz,
+                Progetti.status_percent,
+            ),
+            # cliente (1-to-1 → joinedload faster)
+            joinedload(Progetti.cliente).load_only(
+                Cliente.id,
+                Cliente.nome_cliente,
+                Cliente.citta,
+                Cliente.indirizzo,
+                Cliente.numero_tel,
+                Cliente.centro_di_costo,
+                Cliente.contatti,
+                Cliente.note,
+                Cliente.data_creazione,
+            ),
+            # fornitori
+            selectinload(Progetti.fornitori_links)
+            .selectinload(ProgettoFornitoreLink.fornitore)
+            .load_only(
+                Fornitore.id,
+                Fornitore.nome_cliente,
+                Fornitore.indirizzo,
+                Fornitore.citta,
+                Fornitore.numero_tel,
+                Fornitore.sito,
+                Fornitore.contatti,
+                Fornitore.data_creazione,
+            )
+        )
+        .order_by(
+            stato_priority.asc(),
+            Progetti.data_creazione.asc().nullslast(),
+        )
+        .offset(offset)
+        .limit(page_size)
+    )
+
+    progetti = db.exec(stmt).all()
+
+    items = []
+
+    for p in progetti:
+
+        cliente = p.cliente
+        cliente_dict = None
+        if cliente:
+            cliente_dict = {
+                "id": cliente.id,
+                "nome_cliente": cliente.nome_cliente,
+                "citta": cliente.citta,
+                "indirizzo": cliente.indirizzo,
+                "numero_tel": cliente.numero_tel,
+                "centro_di_costo": cliente.centro_di_costo,
+                "contatti": cliente.contatti,
+                "note": cliente.note,
+                "data_creazione_cliente": cliente.data_creazione,
+            }
+
+        fornitori = [
+            {
+                "id": f.fornitore.id,
+                "nome_fornitore": f.fornitore.nome_cliente,
+                "indirizzo": f.fornitore.indirizzo,
+                "citta": f.fornitore.citta,
+                "numero_tel": f.fornitore.numero_tel,
+                "sito": f.fornitore.sito,
+                "contatti": f.fornitore.contatti,
+                "data_creazione_fornitore": f.fornitore.data_creazione,
+                "contratti": f.contratti,
+                "rilievi_misure": f.rilievi_misure,
+                "prodotti_fornitore": f.prodotti_fornitore,
+                "note": f.note,
+            }
+            for f in p.fornitori_links
+            if f.fornitore
+        ]
+
+        status_percent = int(p.status_percent or 0)
+        is_completed = status_percent == 100 and (p.stato or "").upper() == "VALIDATO"
+
+        items.append(
+            {
+                "id": p.id,
+                "upload_id": p.upload_id,
+                "upload_id_progetto_files": p.upload_id_progetto_files,
+                "tecnico": p.tecnico,
+                "stato": p.stato,
+                "commerciale": p.commerciale,
+                "azienda": p.azienda,
+                "note": p.note,
+                "centro_di_costo": p.centro_di_costo,
+                "cliente_id": p.cliente_id,
+                "data_cambiamento_stato": p.data_cambiamento_stato,
+                "data_creazione": p.data_creazione,
+                "importo": p.importo,
+                "importo_parz": p.importo_parz,
+                "cliente": cliente_dict,
+                "fornitori": fornitori,
+                "status_percent": status_percent,
+                "is_completed": is_completed,
+            }
+        )
+
     return {
         "items": items,
         "total": total,
