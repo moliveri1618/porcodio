@@ -9,9 +9,11 @@ from sqlalchemy import func, case, nulls_last
 from fastapi.responses import ORJSONResponse
 import time
 from math import ceil
+
 # from pprint import pprint
 
-if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
+if os.getenv("GITHUB_ACTIONS"):
+    sys.path.append(os.path.dirname(__file__))
 from models.progetti import Progetti
 from models.clienti import Cliente
 from models.fornitori import Fornitore
@@ -23,13 +25,19 @@ from dependecies import get_db
 
 router = APIRouter()
 
+
 def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
     if not fornitore_id or fornitore_id == 0:
         return False
-    return db.exec(select(Fornitore.id).where(Fornitore.id == fornitore_id)).first() is not None
+    return (
+        db.exec(select(Fornitore.id).where(Fornitore.id == fornitore_id)).first()
+        is not None
+    )
+
 
 def has_any_file(arr):
     return bool(arr) and any((x.file_name or "").strip() for x in arr)
+
 
 def compute_status_percent(progetto: ProgettiCreate) -> int:
     fornitori = progetto.fornitori or []
@@ -50,6 +58,7 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
     total = project_part + ordini_part + conferme_part
     return max(0, min(100, round(total)))
 
+
 def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
     # delete existing links
     db.query(ProgettoFornitoreLink).filter(
@@ -66,10 +75,19 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
                 progetto_id=progetto_pk,
                 fornitore_id=f.fornitore_id,
                 contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-                rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
-                prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else []
+                rilievi_misure=(
+                    [r.model_dump() for r in f.rilievi_misure]
+                    if f.rilievi_misure
+                    else []
+                ),
+                prodotti_fornitore=(
+                    [p.model_dump() for p in f.prodotti_fornitore]
+                    if f.prodotti_fornitore
+                    else []
+                ),
             )
             db.add(link)
+
 
 def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti:
     """
@@ -103,7 +121,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
         importo_parz=progetto.importo_parz,
         upload_id=progetto.upload_id,
         upload_id_progetto_files=progetto.upload_id_progetto_files,
-        status_percent=25
+        status_percent=25,
     )
     db.add(db_progetto)
     db.commit()
@@ -125,7 +143,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
     cdc = (progetto.centro_di_costo or "").strip().lower()
     aliquota = 0.042 if cdc == "genova" else 0.025
     calc_importo_parz = (progetto.importo or 0.0) * aliquota
-    
+
     # 1. Create the Progetto record
     db_progetto = Progetti(
         progetto_id=progetto.progetto_id,
@@ -140,7 +158,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         importo_parz=calc_importo_parz,
         upload_id=progetto.upload_id,
         upload_id_progetto_files=progetto.upload_id_progetto_files,
-        status_percent = compute_status_percent(progetto)
+        status_percent=compute_status_percent(progetto),
     )
     db.add(db_progetto)
     db.commit()
@@ -152,8 +170,14 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
             progetto_id=db_progetto.id,
             fornitore_id=f.fornitore_id,
             contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-            rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
-            prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else []  
+            rilievi_misure=(
+                [r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else []
+            ),
+            prodotti_fornitore=(
+                [p.model_dump() for p in f.prodotti_fornitore]
+                if f.prodotti_fornitore
+                else []
+            ),
         )
         db.add(link)
 
@@ -176,9 +200,11 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
     one_year_ago = current_date - timedelta(days=90)
 
     payload = [
-        project for project in payload
-        if project.get("Progetto", {}).get("data_primo_pagamento") and
-        datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d") >= one_year_ago
+        project
+        for project in payload
+        if project.get("Progetto", {}).get("data_primo_pagamento")
+        and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
+        >= one_year_ago
     ]
 
     payload = attach_file_links(payload)
@@ -512,9 +538,7 @@ def read_progettiV3(
     if not include_completed:
         filters.append(~is_completed_expr)
 
-    total = db.exec(
-        select(func.count()).select_from(Progetti).where(*filters)
-    ).one()
+    total = db.exec(select(func.count()).select_from(Progetti).where(*filters)).one()
     if total == 0:
         return {
             "items": [],
@@ -711,7 +735,7 @@ def read_progettiV4(
                 Fornitore.sito,
                 Fornitore.contatti,
                 Fornitore.data_creazione,
-            )
+            ),
         )
         .order_by(
             stato_priority.asc(),
@@ -725,10 +749,12 @@ def read_progettiV4(
 
     items = []
 
+
     for p in progetti:
 
         cliente = p.cliente
         cliente_dict = None
+
         if cliente:
             cliente_dict = {
                 "id": cliente.id,
@@ -742,24 +768,54 @@ def read_progettiV4(
                 "data_creazione_cliente": cliente.data_creazione,
             }
 
-        fornitori = [
-            {
-                "id": f.fornitore.id,
-                "nome_fornitore": f.fornitore.nome_cliente,
-                "indirizzo": f.fornitore.indirizzo,
-                "citta": f.fornitore.citta,
-                "numero_tel": f.fornitore.numero_tel,
-                "sito": f.fornitore.sito,
-                "contatti": f.fornitore.contatti,
-                "data_creazione_fornitore": f.fornitore.data_creazione,
-                "contratti": f.contratti,
-                "rilievi_misure": f.rilievi_misure,
-                "prodotti_fornitore": f.prodotti_fornitore,
-                "note": f.note,
-            }
-            for f in p.fornitori_links
-            if f.fornitore
-        ]
+        fornitori = []
+
+        for f in p.fornitori_links:
+            if not f.fornitore:
+                continue
+
+            prodotti = f.prodotti_fornitore or []
+
+            display_prodotti = (
+                ", ".join(f"{prod['nome']} ({prod['quantita']})" for prod in prodotti)
+                if prodotti
+                else "—"
+            )
+
+            fornitori.append(
+                {
+                    "id": f.fornitore.id,
+                    "nome_fornitore": f.fornitore.nome_cliente,
+                    "indirizzo": f.fornitore.indirizzo,
+                    "citta": f.fornitore.citta,
+                    "numero_tel": f.fornitore.numero_tel,
+                    "sito": f.fornitore.sito,
+                    "contatti": f.fornitore.contatti,
+                    "data_creazione_fornitore": f.fornitore.data_creazione,
+                    "contratti": f.contratti,
+                    "rilievi_misure": f.rilievi_misure,
+                    "prodotti_fornitore": prodotti,
+                    "display_prodotti": display_prodotti,
+                    "note": f.note,
+                }
+            )
+
+        supplier_names = ", ".join(f["nome_fornitore"] for f in fornitori)
+
+        # formatting helpers
+        display_date = p.data_creazione.strftime("%d %b %Y") if p.data_creazione else ""
+
+        display_importo = (
+            f"{p.importo:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            if p.importo is not None
+            else "0,00"
+        )
+
+        display_importo_parz = (
+            f"{p.importo_parz:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            if p.importo_parz is not None
+            else "0,00"
+        )
 
         status_percent = int(p.status_percent or 0)
         is_completed = status_percent == 100 and (p.stato or "").upper() == "VALIDATO"
@@ -780,13 +836,17 @@ def read_progettiV4(
                 "data_creazione": p.data_creazione,
                 "importo": p.importo,
                 "importo_parz": p.importo_parz,
+                # NEW DISPLAY FIELDS
+                "display_date": display_date,
+                "display_importo": display_importo,
+                "display_importo_parz": display_importo_parz,
+                "supplier_names": supplier_names,
                 "cliente": cliente_dict,
                 "fornitori": fornitori,
                 "status_percent": status_percent,
                 "is_completed": is_completed,
             }
         )
-
     return {
         "items": items,
         "total": total,
@@ -796,7 +856,9 @@ def read_progettiV4(
     }
 
 
-ALLOWED_FIELDS = ["note", "data_cambiamento_stato"] # DO NOT CHANGE
+ALLOWED_FIELDS = ["note", "data_cambiamento_stato"]  # DO NOT CHANGE
+
+
 @router.put("/{progetto_id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
     progetto_id: int,
@@ -812,18 +874,20 @@ def update_single_progetto_field(
     if field not in ALLOWED_FIELDS:
         raise HTTPException(
             status_code=400,
-            detail=f"Field '{field}' is not allowed to be updated. Allowed fields: {ALLOWED_FIELDS}"
+            detail=f"Field '{field}' is not allowed to be updated. Allowed fields: {ALLOWED_FIELDS}",
         )
 
     try:
         setattr(progetto, field, value)
     except AttributeError:
-        raise HTTPException(status_code=400, detail=f"Field '{field}' not found on model")
+        raise HTTPException(
+            status_code=400, detail=f"Field '{field}' not found on model"
+        )
 
     db.add(progetto)
     db.commit()
     db.refresh(progetto)
-    
+
     return progetto
 
 
@@ -836,42 +900,50 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
 
     # Fetch cliente
     cliente = db.get(Cliente, progetto.cliente_id)
-    cliente_dict = {
-        "id": cliente.id,
-        "upload_id": progetto.upload_id,
-        "upload_id_progetto_files": progetto.upload_id_progetto_files,
-        "nome_cliente": cliente.nome_cliente,
-        "citta": cliente.citta,
-        "indirizzo": cliente.indirizzo,
-        "numero_tel": cliente.numero_tel,
-        "centro_di_costo": cliente.centro_di_costo,
-        "contatti": cliente.contatti,
-        "note": cliente.note,
-        "data_creazione_cliente": cliente.data_creazione,
-    } if cliente else {}
+    cliente_dict = (
+        {
+            "id": cliente.id,
+            "upload_id": progetto.upload_id,
+            "upload_id_progetto_files": progetto.upload_id_progetto_files,
+            "nome_cliente": cliente.nome_cliente,
+            "citta": cliente.citta,
+            "indirizzo": cliente.indirizzo,
+            "numero_tel": cliente.numero_tel,
+            "centro_di_costo": cliente.centro_di_costo,
+            "contatti": cliente.contatti,
+            "note": cliente.note,
+            "data_creazione_cliente": cliente.data_creazione,
+        }
+        if cliente
+        else {}
+    )
 
     # Fetch linked fornitori
     links = db.exec(
-        select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto_id)
+        select(ProgettoFornitoreLink).where(
+            ProgettoFornitoreLink.progetto_id == progetto_id
+        )
     ).all()
 
     fornitori_data = []
     for link in links:
         fornitore = db.get(Fornitore, link.fornitore_id)
         if fornitore:
-            fornitori_data.append({
-                "id": fornitore.id,
-                "nome_fornitore": fornitore.nome_cliente,
-                "indirizzo": fornitore.indirizzo,
-                "citta": fornitore.citta,
-                "numero_tel": fornitore.numero_tel,
-                "sito": fornitore.sito,
-                "contatti": fornitore.contatti,
-                "data_creazione_fornitore": fornitore.data_creazione,
-                "contratti": link.contratti,
-                "rilievi_misure": link.rilievi_misure,
-                "prodotti_fornitore": link.prodotti_fornitore,
-            })
+            fornitori_data.append(
+                {
+                    "id": fornitore.id,
+                    "nome_fornitore": fornitore.nome_cliente,
+                    "indirizzo": fornitore.indirizzo,
+                    "citta": fornitore.citta,
+                    "numero_tel": fornitore.numero_tel,
+                    "sito": fornitore.sito,
+                    "contatti": fornitore.contatti,
+                    "data_creazione_fornitore": fornitore.data_creazione,
+                    "contratti": link.contratti,
+                    "rilievi_misure": link.rilievi_misure,
+                    "prodotti_fornitore": link.prodotti_fornitore,
+                }
+            )
 
     return {
         "id": progetto.id,
@@ -884,13 +956,15 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "importo": progetto.importo,
         "importo_parz": progetto.importo_parz,
         "cliente": cliente_dict,
-        "fornitori": fornitori_data
+        "fornitori": fornitori_data,
     }
 
 
 # Modify one
 @router.put("/{progetto_id}", response_model=ProgettiRead)
-def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Session = Depends(get_db)):
+def update_progetto(
+    progetto_id: int, progetto_update: ProgettiUpdate, db: Session = Depends(get_db)
+):
     progetto = db.get(Progetti, progetto_id)
     if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
@@ -905,7 +979,9 @@ def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Sessi
     if progetto_update.fornitori is not None:
         # Remove existing links
         existing_links = db.exec(
-            select(ProgettoFornitoreLink).where(ProgettoFornitoreLink.progetto_id == progetto_id)
+            select(ProgettoFornitoreLink).where(
+                ProgettoFornitoreLink.progetto_id == progetto_id
+            )
         ).all()
         for link in existing_links:
             db.delete(link)
@@ -916,8 +992,16 @@ def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Sessi
                 progetto_id=progetto_id,
                 fornitore_id=f.fornitore_id,
                 contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-                rilievi_misure=[r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else [],
-                prodotti_fornitore=[p.model_dump() for p in f.prodotti_fornitore] if f.prodotti_fornitore else [] 
+                rilievi_misure=(
+                    [r.model_dump() for r in f.rilievi_misure]
+                    if f.rilievi_misure
+                    else []
+                ),
+                prodotti_fornitore=(
+                    [p.model_dump() for p in f.prodotti_fornitore]
+                    if f.prodotti_fornitore
+                    else []
+                ),
             )
             db.add(new_link)
 
