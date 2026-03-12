@@ -3,11 +3,14 @@ from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 from sqlalchemy import JSON, Column
 from sqlalchemy import Integer
+from typing import Optional, List, TYPE_CHECKING
 
 import sys
 import os
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
+if TYPE_CHECKING:
+    from models.progetti import Progetti
 
 
 class Cliente(SQLModel, table=True):
