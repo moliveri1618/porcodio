@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import nulls_last  
 from fastapi.responses import ORJSONResponse
 import time
-#from pprint import pprint
+# from pprint import pprint
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
@@ -169,21 +169,24 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
 
     
     return created
-    
+
 
 # Get all
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
-    #start_time = time.perf_counter() 
-    
+    # start_time = time.perf_counter()
+
     # Eager load cliente and links with their fornitori in one go
     stmt = (
         select(Progetti)
         .options(
             selectinload(Progetti.cliente),
-            selectinload(Progetti.fornitori_links).selectinload(ProgettoFornitoreLink.fornitore)
+            selectinload(Progetti.fornitori_links).selectinload(
+                ProgettoFornitoreLink.fornitore
+            ),
         )
         .order_by(nulls_last(Progetti.data_creazione.desc()))
+        .limit(25)
     )
     progetti = db.exec(stmt).all()
 
@@ -243,7 +246,7 @@ def read_progetti(db: Session = Depends(get_db)):
             "fornitori": fornitori_list,
         })
 
-    #elapsed = time.perf_counter() - start_time      
+    # elapsed = time.perf_counter() - start_time
     return result
 
 
@@ -339,7 +342,7 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
     }
 
 
-# Modify one 
+# Modify one
 @router.put("/{progetto_id}", response_model=ProgettiRead)
 def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Session = Depends(get_db)):
     progetto = db.get(Progetti, progetto_id)
@@ -375,7 +378,6 @@ def update_progetto(progetto_id: int, progetto_update: ProgettiUpdate, db: Sessi
     db.commit()
     db.refresh(progetto)
     return progetto
-
 
 
 @router.post("/recalc_importo_parz")
