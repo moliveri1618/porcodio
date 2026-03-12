@@ -6,9 +6,10 @@ from sqlalchemy.dialects.postgresql import JSON
 import sys
 import os
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
-from models.progetto_fornitore_link import ProgettoFornitoreLink  # real class import
+from models.progetto_fornitore_link import ProgettoFornitoreLink  
+from models.clienti import Cliente
 if TYPE_CHECKING:
-    from models.fornitori import Fornitore  # type-only import
+    from models.fornitori import Fornitore 
 
 class Progetti(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
