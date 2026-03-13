@@ -43,10 +43,6 @@ def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
 def has_any_file(arr):
     return bool(arr) and any((x.file_name or "").strip() for x in arr)
 
-def _has_any_file_dict(arr):
-    return bool(arr) and any(
-        isinstance(x, dict) and str(x.get("file_name") or "").strip() for x in arr
-    )
 
 def compute_status_percent(progetto: ProgettiCreate) -> int:
     fornitori = progetto.fornitori or []
@@ -146,24 +142,20 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
 
 def compute_status_percent_db(progetto: Progetti) -> int:
     links = progetto.fornitori_links or []
-    n = len(links)
+    total_expected_docs = len(links) * 2
 
-    # project-level
-    rilievo_done = 1 if str(progetto.upload_id or "").strip() else 0
-    contratto_done = 1 if str(progetto.upload_id_progetto_files or "").strip() else 0
-    project_part = (rilievo_done + contratto_done) * 12.5
+    if total_expected_docs == 0:
+        return 25
 
-    # supplier-level
-    orders_done = sum(1 for link in links if _has_any_file_dict(link.contratti or []))
-    ordini_part = (orders_done / n) * 50 if n > 0 else 0
+    completed_docs = 0
+    for link in links:
+        if link.contratti:
+            completed_docs += 1
+        if link.rilievi_misure:
+            completed_docs += 1
 
-    conferme_done = sum(
-        1 for link in links if _has_any_file_dict(link.rilievi_misure or [])
-    )
-    conferme_part = (conferme_done / n) * 25 if n > 0 else 0
-
-    total = project_part + ordini_part + conferme_part
-    return max(0, min(100, round(total)))
+    supplier_part = (completed_docs / total_expected_docs) * 75
+    return round(25 + supplier_part)
 
 
 # Create
@@ -1251,7 +1243,7 @@ def delete_progetto(
     project_id: int,
     db: Session = Depends(get_db),
 ):
-    
+
     try:
         # Optional existence check
         exists = db.exec(select(Progetti.id).where(Progetti.id == project_id)).first()
@@ -1333,31 +1325,18 @@ def recalc_status_percent(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No progetti found")
 
     updated = 0
-    details = []
 
     for p in progetti:
-        old_status_percent = p.status_percent or 0
         new_status_percent = compute_status_percent_db(p)
 
-        changed = old_status_percent != new_status_percent
-        if changed:
+        if (p.status_percent or 0) != new_status_percent:
             p.status_percent = new_status_percent
             db.add(p)
             updated += 1
-
-        details.append(
-            {
-                "id": p.id,
-                "old_status_percent": old_status_percent,
-                "new_status_percent": new_status_percent,
-                "changed": changed,
-            }
-        )
 
     db.commit()
 
     return {
         "total": len(progetti),
         "updated": updated,
-        "details": details,
     }
