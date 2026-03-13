@@ -1275,45 +1275,45 @@ def delete_progetto(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @router.post("/recalc_importo_parz")
-# def recalc_importo_parz(db: Session = Depends(get_db)):
-#     # Fetch all progetti
-#     progetti = db.exec(select(Progetti)).all()
-#     if not progetti:
-#         raise HTTPException(status_code=404, detail="No progetti found")
+@router.post("/recalc_importo_parz")
+def recalc_importo_parz(db: Session = Depends(get_db)):
+    # Fetch all progetti
+    progetti = db.exec(select(Progetti)).all()
+    if not progetti:
+        raise HTTPException(status_code=404, detail="No progetti found")
 
-#     updated = 0
-#     details = []
+    updated = 0
+    details = []
 
-#     for p in progetti:
-#         cdc = (p.centro_di_costo or "").strip().lower()
-#         aliquota = 0.042 if cdc == "genova" else 0.025
-#         new_importo_parz = (p.importo or 0.0) * aliquota
+    for p in progetti:
+        cdc = (p.centro_di_costo or "").strip().lower()
+        aliquota = 0.042 if cdc == "genova" else 0.025
+        new_importo_parz = (p.importo or 0.0) * aliquota
 
-#         old_importo_parz = p.importo_parz or 0.0
+        old_importo_parz = p.importo_parz or 0.0
 
-#         # update only if changed (tolerance avoids float noise)
-#         if abs(old_importo_parz - new_importo_parz) > 1e-9:
-#             p.importo_parz = new_importo_parz
-#             db.add(p)
-#             updated += 1
+        # update only if changed (tolerance avoids float noise)
+        if abs(old_importo_parz - new_importo_parz) > 1e-9:
+            p.importo_parz = new_importo_parz
+            db.add(p)
+            updated += 1
 
-#         details.append({
-#             "id": p.id,
-#             "centro_di_costo": p.centro_di_costo,
-#             "importo": p.importo,
-#             "old_importo_parz": old_importo_parz,
-#             "new_importo_parz": new_importo_parz,
-#             "changed": abs(old_importo_parz - new_importo_parz) > 1e-9,
-#         })
+        details.append({
+            "id": p.id,
+            "centro_di_costo": p.centro_di_costo,
+            "importo": p.importo,
+            "old_importo_parz": old_importo_parz,
+            "new_importo_parz": new_importo_parz,
+            "changed": abs(old_importo_parz - new_importo_parz) > 1e-9,
+        })
 
-#     db.commit()
+    db.commit()
 
-#     return {
-#         "total": len(progetti),
-#         "updated": updated,
-#         "details": details,
-#     }
+    return {
+        "total": len(progetti),
+        "updated": updated,
+        "details": details,
+    }
 
 
 @router.post("/recalc_status_percent")
