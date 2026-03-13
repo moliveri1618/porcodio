@@ -1316,7 +1316,7 @@ def delete_progetto(
 #     }
 
 
-# @router.post("/recalc_status_percent")
+@router.post("/recalc_status_percent")
 def recalc_status_percent(db: Session = Depends(get_db)):
     stmt = select(Progetti).options(selectinload(Progetti.fornitori_links))
     progetti = db.exec(stmt).all()
@@ -1338,5 +1338,34 @@ def recalc_status_percent(db: Session = Depends(get_db)):
 
     return {
         "total": len(progetti),
+        "updated": updated,
+    }
+
+
+@router.post("/recalc_status_percent/{project_id}")
+def recalc_status_percent_one(project_id: int, db: Session = Depends(get_db)):
+    stmt = (
+        select(Progetti)
+        .where(Progetti.id == project_id)
+        .options(selectinload(Progetti.fornitori_links))
+    )
+
+    progetto = db.exec(stmt).first()
+
+    if not progetto:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    new_status_percent = compute_status_percent_db(progetto)
+
+    updated = False
+    if (progetto.status_percent or 0) != new_status_percent:
+        progetto.status_percent = new_status_percent
+        updated = True
+
+    db.commit()
+
+    return {
+        "project_id": project_id,
+        "status_percent": new_status_percent,
         "updated": updated,
     }
