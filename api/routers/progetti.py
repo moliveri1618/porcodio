@@ -1,15 +1,20 @@
 # Defines API routes and endpoints related to progetti
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    HTTPException,
+    Response,
+    status,
+)
 import sys
 import os
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload, joinedload, load_only
-from sqlalchemy import func, case, nulls_last
-from fastapi.responses import ORJSONResponse
-import time
+from sqlalchemy import delete, and_, case, func
 from math import ceil
-
 # from pprint import pprint
 
 if os.getenv("GITHUB_ACTIONS"):
@@ -38,6 +43,10 @@ def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
 def has_any_file(arr):
     return bool(arr) and any((x.file_name or "").strip() for x in arr)
 
+def _has_any_file_dict(arr):
+    return bool(arr) and any(
+        isinstance(x, dict) and str(x.get("file_name") or "").strip() for x in arr
+    )
 
 def compute_status_percent(progetto: ProgettiCreate) -> int:
     fornitori = progetto.fornitori or []
@@ -133,6 +142,28 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     db.commit()
     db.refresh(db_progetto)
     return db_progetto
+
+
+def compute_status_percent_db(progetto: Progetti) -> int:
+    links = progetto.fornitori_links or []
+    n = len(links)
+
+    # project-level
+    rilievo_done = 1 if str(progetto.upload_id or "").strip() else 0
+    contratto_done = 1 if str(progetto.upload_id_progetto_files or "").strip() else 0
+    project_part = (rilievo_done + contratto_done) * 12.5
+
+    # supplier-level
+    orders_done = sum(1 for link in links if _has_any_file_dict(link.contratti or []))
+    ordini_part = (orders_done / n) * 50 if n > 0 else 0
+
+    conferme_done = sum(
+        1 for link in links if _has_any_file_dict(link.rilievi_misure or [])
+    )
+    conferme_part = (conferme_done / n) * 25 if n > 0 else 0
+
+    total = project_part + ordini_part + conferme_part
+    return max(0, min(100, round(total)))
 
 
 # Create
@@ -309,18 +340,14 @@ def read_progetti(db: Session = Depends(get_db)):
 
 
 # Get all
-from math import ceil
 
-from fastapi import Depends, Query
-from sqlalchemy import and_, case, func
-from sqlalchemy.orm import selectinload
-from sqlmodel import Session, select
 
 # assuming these are already imported in your file:
 # from dependecies import get_db
 # from models.progetti import Progetti, ProgettoFornitoreLink
 
-#actually v2
+
+# actually v2
 @router.get("/v5")
 def read_progettiV5(
     db: Session = Depends(get_db),
@@ -811,7 +838,9 @@ def read_progettiV4(
         )
 
         display_importo_parz = (
-            f"{p.importo_parz:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            f"{p.importo_parz:,.2f}".replace(",", "X")
+            .replace(".", ",")
+            .replace("X", ".")
             if p.importo_parz is not None
             else "0,00"
         )
@@ -1195,6 +1224,65 @@ def update_progetto(
     return progetto
 
 
+# Delete one
+@router.delete("/v1/{progetto_id}")
+def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
+    progetto = db.get(Progetti, progetto_id)
+    if not progetto:
+        raise HTTPException(status_code=404, detail="Progetto not found")
+
+    # Bulk delete associated links
+    db.exec(
+        delete(ProgettoFornitoreLink).where(
+            ProgettoFornitoreLink.progetto_id == progetto_id
+        )
+    )
+
+    # Delete the progetto
+    db.delete(progetto)
+    db.commit()
+
+    return {"message": f"Progetto {progetto_id} deleted successfully"}
+
+
+# Delete one
+@router.delete("/v2/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_progetto(
+    project_id: int,
+    db: Session = Depends(get_db),
+):
+    
+    try:
+        # Optional existence check
+        exists = db.exec(select(Progetti.id).where(Progetti.id == project_id)).first()
+
+        if not exists:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # 1) delete link rows first
+        db.execute(
+            delete(ProgettoFornitoreLink).where(
+                ProgettoFornitoreLink.progetto_id == project_id
+            )
+        )
+
+        # 2) delete project
+        result = db.execute(delete(Progetti).where(Progetti.id == project_id))
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # @router.post("/recalc_importo_parz")
 # def recalc_importo_parz(db: Session = Depends(get_db)):
 #     # Fetch all progetti
@@ -1236,68 +1324,40 @@ def update_progetto(
 #     }
 
 
-# def _has_any_file_dict(arr):
-#     return bool(arr) and any(
-#         isinstance(x, dict) and str(x.get("file_name") or "").strip() for x in arr
-#     )
-
-
-# def compute_status_percent_db(progetto: Progetti) -> int:
-#     links = progetto.fornitori_links or []
-#     n = len(links)
-
-#     # project-level
-#     rilievo_done = 1 if str(progetto.upload_id or "").strip() else 0
-#     contratto_done = 1 if str(progetto.upload_id_progetto_files or "").strip() else 0
-#     project_part = (rilievo_done + contratto_done) * 12.5
-
-#     # supplier-level
-#     orders_done = sum(1 for link in links if _has_any_file_dict(link.contratti or []))
-#     ordini_part = (orders_done / n) * 50 if n > 0 else 0
-
-#     conferme_done = sum(
-#         1 for link in links if _has_any_file_dict(link.rilievi_misure or [])
-#     )
-#     conferme_part = (conferme_done / n) * 25 if n > 0 else 0
-
-#     total = project_part + ordini_part + conferme_part
-#     return max(0, min(100, round(total)))
-
-
 # @router.post("/recalc_status_percent")
-# def recalc_status_percent(db: Session = Depends(get_db)):
-#     stmt = select(Progetti).options(selectinload(Progetti.fornitori_links))
-#     progetti = db.exec(stmt).all()
+def recalc_status_percent(db: Session = Depends(get_db)):
+    stmt = select(Progetti).options(selectinload(Progetti.fornitori_links))
+    progetti = db.exec(stmt).all()
 
-#     if not progetti:
-#         raise HTTPException(status_code=404, detail="No progetti found")
+    if not progetti:
+        raise HTTPException(status_code=404, detail="No progetti found")
 
-#     updated = 0
-#     details = []
+    updated = 0
+    details = []
 
-#     for p in progetti:
-#         old_status_percent = p.status_percent or 0
-#         new_status_percent = compute_status_percent_db(p)
+    for p in progetti:
+        old_status_percent = p.status_percent or 0
+        new_status_percent = compute_status_percent_db(p)
 
-#         changed = old_status_percent != new_status_percent
-#         if changed:
-#             p.status_percent = new_status_percent
-#             db.add(p)
-#             updated += 1
+        changed = old_status_percent != new_status_percent
+        if changed:
+            p.status_percent = new_status_percent
+            db.add(p)
+            updated += 1
 
-#         details.append(
-#             {
-#                 "id": p.id,
-#                 "old_status_percent": old_status_percent,
-#                 "new_status_percent": new_status_percent,
-#                 "changed": changed,
-#             }
-#         )
+        details.append(
+            {
+                "id": p.id,
+                "old_status_percent": old_status_percent,
+                "new_status_percent": new_status_percent,
+                "changed": changed,
+            }
+        )
 
-#     db.commit()
+    db.commit()
 
-#     return {
-#         "total": len(progetti),
-#         "updated": updated,
-#         "details": details,
-#     }
+    return {
+        "total": len(progetti),
+        "updated": updated,
+        "details": details,
+    }

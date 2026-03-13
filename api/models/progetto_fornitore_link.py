@@ -1,6 +1,16 @@
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, JSON
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
+
+import sys
+import os
+if os.getenv("GITHUB_ACTIONS"):
+    sys.path.append(os.path.dirname(__file__))
+
+if TYPE_CHECKING:
+    from models.fornitori import Fornitore
+    from models.progetti import Progetti
+
 
 class ProdottoFornitore(SQLModel):
     nome: str

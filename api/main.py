@@ -83,11 +83,6 @@ app.include_router(
     tags=["notePrivate"]
 )
 
-
-@app.get("/")
-async def root(current_user: dict = Depends(verify_cognito_token)):
-    return {"message": "Hello"}
-
 @app.get("/")
 def root():
     return {"message": "FastAPI test client is running"}
