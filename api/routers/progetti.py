@@ -48,19 +48,26 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
     fornitori = progetto.fornitori or []
     n = len(fornitori)
 
-    # Project-level
+    # Project-level = 25 total
     rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
     contratto_done = 1 if (progetto.upload_id_progetto_files or "").strip() else 0
     project_part = (rilievo_done + contratto_done) * 12.5
 
+    if n == 0:
+        return max(0, min(100, round(project_part)))
+
     # Supplier-level
-    orders_done = sum(1 for f in fornitori if has_any_file(f.contratti))
-    ordini_part = (orders_done / n) * 50 if n > 0 else 0
+    contratti_per_link = 50 / n
+    rilievi_per_link = 25 / n
 
-    conferme_done = sum(1 for f in fornitori if has_any_file(f.rilievi_misure))
-    conferme_part = (conferme_done / n) * 25 if n > 0 else 0
+    total = project_part
 
-    total = project_part + ordini_part + conferme_part
+    for f in fornitori:
+        if has_any_file(f.contratti):
+            total += contratti_per_link
+        if has_any_file(f.rilievi_misure):
+            total += rilievi_per_link
+
     return max(0, min(100, round(total)))
 
 
