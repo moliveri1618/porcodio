@@ -140,7 +140,6 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     return db_progetto
 
 
-
 def compute_status_percent_db(progetto: Progetti) -> int:
     links = progetto.fornitori_links or []
     n = len(links)
