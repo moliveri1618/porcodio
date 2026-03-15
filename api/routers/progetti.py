@@ -142,20 +142,22 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
 
 def compute_status_percent_db(progetto: Progetti) -> int:
     links = progetto.fornitori_links or []
-    total_expected_docs = len(links) * 2
+    n = len(links)
 
-    if total_expected_docs == 0:
+    if n == 0:
         return 25
 
-    completed_docs = 0
+    total = 25
+    contratti_per_link = 50 / n
+    rilievi_per_link = 25 / n
+
     for link in links:
         if link.contratti:
-            completed_docs += 1
+            total += contratti_per_link
         if link.rilievi_misure:
-            completed_docs += 1
+            total += rilievi_per_link
 
-    supplier_part = (completed_docs / total_expected_docs) * 75
-    return round(25 + supplier_part)
+    return max(0, min(100, round(total)))
 
 
 # Create
