@@ -58,34 +58,6 @@ def has_any_file_V2(arr):
 
     return False
 
-
-def compute_status_percent(progetto: ProgettiCreate) -> int:
-    fornitori = progetto.fornitori or []
-    n = len(fornitori)
-
-    # Project-level = 25 total
-    rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
-    contratto_done = 1 if (progetto.upload_id_progetto_files or "").strip() else 0
-    project_part = (rilievo_done + contratto_done) * 12.5
-
-    if n == 0:
-        return max(0, min(100, round(project_part)))
-
-    # Supplier-level
-    contratti_per_link = 50 / n
-    rilievi_per_link = 25 / n
-
-    total = project_part
-
-    for f in fornitori:
-        if has_any_file(f.contratti):
-            total += contratti_per_link
-        if has_any_file(f.rilievi_misure):
-            total += rilievi_per_link
-
-    return max(0, min(100, round(total)))
-
-
 def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
     # delete existing links
     db.query(ProgettoFornitoreLink).filter(
@@ -181,6 +153,31 @@ def compute_status_percent_db(progetto: Progetti) -> int:
 
     return max(0, min(100, round(total)))
 
+def compute_status_percent(progetto: ProgettiCreate) -> int:
+    fornitori = progetto.fornitori or []
+    n = len(fornitori)
+
+    # Project-level = 25 total
+    rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
+    contratto_done = 1 if (progetto.upload_id_progetto_files or "").strip() else 0
+    project_part = (rilievo_done + contratto_done) * 12.5
+
+    if n == 0:
+        return max(0, min(100, round(project_part)))
+
+    # Supplier-level
+    contratti_per_link = 50 / n
+    rilievi_per_link = 25 / n
+
+    total = project_part
+
+    for f in fornitori:
+        if has_any_file(f.contratti):
+            total += contratti_per_link
+        if has_any_file(f.rilievi_misure):
+            total += rilievi_per_link
+
+    return max(0, min(100, round(total)))
 
 def compute_status_percent_db_edit(progetto: Progetti) -> int:
     links = progetto.fornitori_links or []
