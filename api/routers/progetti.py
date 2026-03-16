@@ -44,6 +44,21 @@ def has_any_file(arr):
     return bool(arr) and any((x.file_name or "").strip() for x in arr)
 
 
+def has_any_file_V2(arr):
+    if not arr:
+        return False
+
+    for x in arr:
+        if isinstance(x, dict):
+            if str(x.get("file_name") or "").strip():
+                return True
+        else:
+            if str(getattr(x, "file_name", "") or "").strip():
+                return True
+
+    return False
+
+
 def compute_status_percent(progetto: ProgettiCreate) -> int:
     fornitori = progetto.fornitori or []
     n = len(fornitori)
@@ -186,9 +201,9 @@ def compute_status_percent_db_edit(progetto: Progetti) -> int:
     total = project_part
 
     for link in links:
-        if has_any_file(link.contratti):
+        if has_any_file_V2(link.contratti):
             total += contratti_per_link
-        if has_any_file(link.rilievi_misure):
+        if has_any_file_V2(link.rilievi_misure):
             total += rilievi_per_link
 
     return max(0, min(100, round(total)))
@@ -1247,12 +1262,20 @@ def update_progetto(
             )
             db.add(new_link)
 
-    db.commit()
+    db.flush()
     db.refresh(progetto)
 
-    # recompute status_percent with updated project + updated links
+    progetto = db.exec(
+        select(Progetti)
+        .where(Progetti.id == progetto_id)
+        .options(selectinload(Progetti.fornitori_links))
+    ).first()
+
     progetto.status_percent = compute_status_percent_db_edit(progetto)
     db.add(progetto)
+
+    db.commit()
+    db.refresh(progetto)
 
     return progetto
 
