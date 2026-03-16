@@ -167,6 +167,33 @@ def compute_status_percent_db(progetto: Progetti) -> int:
     return max(0, min(100, round(total)))
 
 
+def compute_status_percent_db_edit(progetto: Progetti) -> int:
+    links = progetto.fornitori_links or []
+    n = len(links)
+
+    # Project-level = 25 total
+    rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
+    contratto_done = 1 if (progetto.upload_id_progetto_files or "").strip() else 0
+    project_part = (rilievo_done + contratto_done) * 12.5
+
+    if n == 0:
+        return max(0, min(100, round(project_part)))
+
+    # Supplier-level
+    contratti_per_link = 50 / n
+    rilievi_per_link = 25 / n
+
+    total = project_part
+
+    for link in links:
+        if has_any_file(link.contratti):
+            total += contratti_per_link
+        if has_any_file(link.rilievi_misure):
+            total += rilievi_per_link
+
+    return max(0, min(100, round(total)))
+
+
 # Create
 @router.post("", response_model=ProgettiRead)
 def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
@@ -1222,6 +1249,11 @@ def update_progetto(
 
     db.commit()
     db.refresh(progetto)
+
+    # recompute status_percent with updated project + updated links
+    progetto.status_percent = compute_status_percent_db_edit(progetto)
+    db.add(progetto)
+
     return progetto
 
 
