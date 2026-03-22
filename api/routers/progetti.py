@@ -932,6 +932,7 @@ def read_progettiV2(
     include_completed: bool = False,
     include_suspended: bool = False,
     tecnico: str | None = None,
+    cliente_nome: str | None = None,
 ):
     offset = (page - 1) * page_size
 
@@ -956,8 +957,15 @@ def read_progettiV2(
         filters.append(stato_upper != "SOSPESO")
     if not include_completed:
         filters.append(~is_completed_expr)
+    if cliente_nome and cliente_nome.strip():
+        filters.append(Cliente.nome_cliente.ilike(f"%{cliente_nome.strip()}%"))
 
-    total = db.exec(select(func.count(Progetti.id)).where(*filters)).one()
+    total = db.exec(
+        select(func.count(Progetti.id))
+        .select_from(Progetti)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .where(*filters)
+    ).one()
     if total == 0:
         return {
             "items": [],
@@ -969,6 +977,7 @@ def read_progettiV2(
 
     stmt = (
         select(Progetti)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*filters)
         .options(
             load_only(
