@@ -973,6 +973,7 @@ def read_progettiV2(
         .options(
             load_only(
                 Progetti.id,
+                Progetti.progetto_id,
                 Progetti.upload_id,
                 Progetti.upload_id_progetto_files,
                 Progetti.tecnico,
@@ -1012,7 +1013,7 @@ def read_progettiV2(
                 Fornitore.data_creazione,
             ),
         )
-        .order_by(stato_priority.asc(), Progetti.data_creazione.asc().nullslast())
+        .order_by(stato_priority.asc(), Progetti.data_creazione.desc().nullslast())
         .offset(offset)
         .limit(page_size)
     )
@@ -1075,6 +1076,7 @@ def read_progettiV2(
         items.append(
             {
                 "id": p.id,
+                "progetto": p.progetto_id,
                 "upload_id": p.upload_id,
                 "upload_id_progetto_files": p.upload_id_progetto_files,
                 "tecnico": p.tecnico,
