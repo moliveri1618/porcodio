@@ -418,7 +418,12 @@ def sum_importo_filtrato(
     conditions = []
 
     if stato and stato.strip():
-        conditions.append(func.upper(Progetti.stato) == stato.strip().upper())
+        stato_clean = stato.strip().upper()
+
+        if stato_clean == "VAL+INV":
+            conditions.append(func.upper(Progetti.stato).in_(["VALIDATO", "INVIATO"]))
+        else:
+            conditions.append(func.upper(Progetti.stato) == stato_clean)
 
     if data_da and data_da.strip():
         dt_da = datetime.strptime(data_da, "%Y-%m-%d")
