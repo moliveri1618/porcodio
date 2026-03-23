@@ -379,12 +379,24 @@ def read_progetti(db: Session = Depends(get_db)):
     return result
 
 
-# Get all
+@router.get("/sum-importo-parz")
+def sum_importo_parz(
+    n: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    rows = db.exec(
+        select(Progetti.importo_parz)
+        .where(func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "INVIATO"]))
+        .order_by(Progetti.id.asc())
+        .limit(n)
+    ).all()
 
+    total = sum(x or 0 for x in rows)
 
-# assuming these are already imported in your file:
-# from dependecies import get_db
-# from models.progetti import Progetti, ProgettoFornitoreLink
+    return {
+        "n": n,
+        "sum_importo_parz": total,
+    }
 
 
 # actually v2
@@ -1413,7 +1425,6 @@ def recalc_status_percent(db: Session = Depends(get_db)):
         "updated": updated,
     }
 
-
 @router.post("/recalc_status_percent/{project_id}")
 def recalc_status_percent_one(project_id: int, db: Session = Depends(get_db)):
     stmt = (
@@ -1440,24 +1451,4 @@ def recalc_status_percent_one(project_id: int, db: Session = Depends(get_db)):
         "project_id": project_id,
         "status_percent": new_status_percent,
         "updated": updated,
-    }
-
-
-@router.get("/sum-importo-parz")
-def sum_importo_parz(
-    n: int = Query(..., ge=1),
-    db: Session = Depends(get_db),
-):
-    rows = db.exec(
-        select(Progetti.importo_parz)
-        .where(func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "INVIATO"]))
-        .order_by(Progetti.id.asc())
-        .limit(n)
-    ).all()
-
-    total = sum(x or 0 for x in rows)
-
-    return {
-        "n": n,
-        "sum_importo_parz": total,
     }
