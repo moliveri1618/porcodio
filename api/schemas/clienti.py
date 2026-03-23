@@ -9,6 +9,7 @@ class ClienteCreate(BaseModel):
     indirizzo: str
     numero_tel: str  # Updated field
     centro_di_costo: str
+    email: Optional[str] = None  
     contatti: Optional[dict] = None  # New field for contact details (JSON)
     note: Optional[str] = None  # New field for notes
     data_creazione: datetime
@@ -25,3 +26,4 @@ class ClienteUpdate(BaseModel):
     contatti: Optional[dict] = None
     note: Optional[str] = None
     data_creazione: Optional[datetime] = None
+    email: Optional[str] = None

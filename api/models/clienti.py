@@ -25,6 +25,7 @@ class Cliente(SQLModel, table=True):
         sa_column=Column(JSON, nullable=True)
     )
     note: Optional[str] = Field(default=None, nullable=True)  # New field for "note"
+    email: Optional[str] = Field(default=None, nullable=True)
     data_creazione: datetime = Field(..., nullable=False)  # "data_creazione" remains the same
 
     progetti: List["Progetti"] = Relationship(back_populates="cliente")
