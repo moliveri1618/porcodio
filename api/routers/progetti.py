@@ -40,10 +40,8 @@ def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
         is not None
     )
 
-
 def has_any_file(arr):
     return bool(arr) and any((x.file_name or "").strip() for x in arr)
-
 
 def has_any_file_V2(arr):
     if not arr:
@@ -87,7 +85,6 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
                 ),
             )
             db.add(link)
-
 
 def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti:
     """
@@ -133,7 +130,6 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     db.commit()
     db.refresh(db_progetto)
     return db_progetto
-
 
 def compute_status_percent_db(progetto: Progetti) -> int:
     links = progetto.fornitori_links or []
@@ -206,6 +202,9 @@ def compute_status_percent_db_edit(progetto: Progetti) -> int:
 
     return max(0, min(100, round(total)))
 
+
+def format_it(number: float) -> str:
+    return f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # Create
 @router.post("", response_model=ProgettiRead)
