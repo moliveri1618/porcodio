@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload, joinedload, load_only
 from sqlalchemy import delete, and_, case, func
 from math import ceil
+from typing import Optional
 # from pprint import pprint
 
 if os.getenv("GITHUB_ACTIONS"):
@@ -378,7 +379,6 @@ def read_progetti(db: Session = Depends(get_db)):
     # elapsed = time.perf_counter() - start_time
     return result
 
-
 @router.get("/sum-importo-parz")
 def sum_importo_parz(
     n: int = Query(..., ge=1),
@@ -386,7 +386,7 @@ def sum_importo_parz(
 ):
     rows = db.exec(
         select(Progetti.importo_parz)
-        .where(func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "INVIATO"]))
+        .where(func.upper(func.coalesce(Progetti.stato, "")) != "INVIATO")
         .order_by(Progetti.id.asc())
         .limit(n)
     ).all()
@@ -398,6 +398,46 @@ def sum_importo_parz(
         "sum_importo_parz": total,
     }
 
+
+@router.get("/sum-importo-mensile-filtrato")
+def sum_importo_filtrato(
+    tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
+    stato: Optional[str] = Query(None),
+    data_da: Optional[str] = Query(None),  # format: YYYY-MM-DD
+    data_a: Optional[str] = Query(None),  # format: YYYY-MM-DD
+    db: Session = Depends(get_db),
+):
+    # choose column
+    colonna_importo = (
+        Progetti.importo_parz
+        if tipo_importo.lower() == "parziale"
+        else Progetti.importo
+    )
+
+    query = select(func.coalesce(func.sum(colonna_importo), 0))
+
+    conditions = []
+
+    if stato and stato.strip():
+        conditions.append(func.upper(Progetti.stato) == stato.strip().upper())
+
+    if data_da and data_da.strip():
+        dt_da = datetime.strptime(data_da, "%Y-%m-%d")
+        conditions.append(Progetti.data_creazione >= dt_da)
+
+    if data_a and data_a.strip():
+        # include full day
+        dt_a = datetime.strptime(data_a, "%Y-%m-%d").replace(
+            hour=23, minute=59, second=59
+        )
+        conditions.append(Progetti.data_creazione <= dt_a)
+
+    if conditions:
+        query = query.where(*conditions)
+
+    totale = db.exec(query).one()
+
+    return totale
 
 # actually v2
 @router.get("/v5")
