@@ -1441,3 +1441,23 @@ def recalc_status_percent_one(project_id: int, db: Session = Depends(get_db)):
         "status_percent": new_status_percent,
         "updated": updated,
     }
+
+
+@router.get("/sum-importo-parz")
+def sum_importo_parz(
+    n: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    rows = db.exec(
+        select(Progetti.importo_parz)
+        .where(func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "INVIATO"]))
+        .order_by(Progetti.id.asc())
+        .limit(n)
+    ).all()
+
+    total = sum(x or 0 for x in rows)
+
+    return {
+        "n": n,
+        "sum_importo_parz": total,
+    }
