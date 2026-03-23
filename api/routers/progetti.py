@@ -1022,7 +1022,7 @@ def read_progettiV2(
                 Fornitore.data_creazione,
             ),
         )
-        .order_by(stato_priority.asc(), Progetti.data_creazione.desc().nullslast())
+        .order_by(stato_priority.asc(), Progetti.data_creazione.asc().nullslast())
         .offset(offset)
         .limit(page_size)
     )
