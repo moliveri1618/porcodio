@@ -989,6 +989,7 @@ def read_progettiV2(
     include_suspended: bool = False,
     tecnico: str | None = None,
     cliente_nome: str | None = None,
+    sort_tecnico: bool = False,  
 ):
     offset = (page - 1) * page_size
 
@@ -1030,6 +1031,26 @@ def read_progettiV2(
             "page_size": page_size,
             "total_pages": 0,
         }
+
+    if sort_tecnico:
+        tecnico_empty_first = case(
+            (
+                func.trim(func.coalesce(Progetti.tecnico, "")) == "",
+                0,
+            ),
+            else_=1,
+        )
+
+        order_by_clause = [
+            tecnico_empty_first.asc(),                  # empty/null first
+            func.lower(func.coalesce(Progetti.tecnico, "")).asc(),  # alphabetical
+            Progetti.data_creazione.asc().nullslast(),  # tie-breaker
+        ]
+    else:
+        order_by_clause = [
+            stato_priority.asc(),
+            Progetti.data_creazione.asc().nullslast(),
+        ]
 
     stmt = (
         select(Progetti)
@@ -1078,7 +1099,7 @@ def read_progettiV2(
                 Fornitore.data_creazione,
             ),
         )
-        .order_by(stato_priority.asc(), Progetti.data_creazione.asc().nullslast())
+        .order_by(*order_by_clause)
         .offset(offset)
         .limit(page_size)
     )
