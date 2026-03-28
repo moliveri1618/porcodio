@@ -997,8 +997,8 @@ def read_progettiV2(
 
     stato_priority = case(
         (stato_upper == "VALIDATO", 1),
-        (stato_upper == "ATTESA", 2),
-        (stato_upper == "INVIATO", 3),
+        (stato_upper == "INVIATO", 2),
+        (stato_upper == "ATTESA", 3),
         (stato_upper.in_(["ATTIVO", "SOSPESO"]), 4),
         else_=999,
     )
