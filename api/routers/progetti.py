@@ -485,10 +485,10 @@ def sum_importo_filtrato(
 
     # date
     if data_da:
-        conditions.append(Progetti.data_cambiamento_stato >= data_da)
+        conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
 
     if data_a:
-        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a} 23:59:59")
+        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
 
     query = query.where(*conditions)
 
