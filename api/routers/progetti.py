@@ -485,15 +485,10 @@ def sum_importo_filtrato(
 
     # date
     if data_da:
-        conditions.append(
-            Progetti.data_cambiamento_stato >= datetime.strptime(data_da, "%Y-%m-%d")
-        )
+        conditions.append(Progetti.data_cambiamento_stato >= data_da)
 
     if data_a:
-        dt_a = datetime.strptime(data_a, "%Y-%m-%d").replace(
-            hour=23, minute=59, second=59
-        )
-        conditions.append(Progetti.data_cambiamento_stato <= dt_a)
+        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a} 23:59:59")
 
     query = query.where(*conditions)
 
