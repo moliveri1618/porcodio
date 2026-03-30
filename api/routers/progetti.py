@@ -114,6 +114,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
         commerciale=progetto.commerciale,
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
+        data_cambiamento_stato=progetto.data_cambiamento_stato,
         importo=progetto.importo,
         importo_parz=progetto.importo_parz,
         upload_id=progetto.upload_id,

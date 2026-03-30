@@ -262,6 +262,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
             "stato": stato,
             "progetto_id": progetto_id,
             "data_creazione": data_creazione,
+            "data_cambiamento_stato": data_creazione,
             "importo": importo,
             "importo_parz": importo_parz,
             "commerciale": commerciale,
