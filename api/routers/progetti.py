@@ -496,6 +496,7 @@ def sum_importo_filtrato(
     return totale
 
 
+
 # actually v2
 @router.get("/v5")
 def read_progettiV5(
