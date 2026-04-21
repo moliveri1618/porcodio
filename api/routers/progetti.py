@@ -34,7 +34,8 @@ from io import BytesIO
 from openpyxl import Workbook
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
-
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.utils import get_column_letter
 
 router = APIRouter()
 
@@ -483,67 +484,97 @@ def export_progetti_excel(
         conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
 
     query = (
-        select(Progetti)
-        # .join(Cliente, Progetti.cliente_id == Cliente.id)
-        .where(*conditions).order_by(Progetti.data_cambiamento_stato.desc())
+        select(Progetti, Cliente.nome_cliente)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .where(*conditions)
+        .order_by(Progetti.data_cambiamento_stato.desc())
     )
 
     rows = db.exec(query).all()
-    print(rows)
 
-    return rows
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Progetti"
 
-    # wb = Workbook()
-    # ws = wb.active
-    # ws.title = "Progetti"
+    headers = [
+        "Committente",
+        "Tecnico",
+        "Commerciale",
+        "Città",
+        "Azienda",
+        "Stato",
+        "data_creazione",
+        "importo",
+        "importo_parz",
+    ]
+    ws.append(headers)
 
-    # headers = [
-    #     "cliente_nome",
-    #     "tecnico",
-    #     "centro_di_costo",
-    #     "commerciale",
-    #     "azienda",
-    #     "stato",
-    #     "status_percent",
-    #     "importo",
-    #     "importo_parz",
-    #     "importo_usato",
-    #     "data_creazione",
-    # ]
-    # ws.append(headers)
+    totale_importo = 0
+    totale_importo_parz = 0
+    for progetto, cliente_nome in rows:
+        totale_importo += progetto.importo or 0
+        totale_importo_parz += progetto.importo_parz or 0
 
-    # for progetto, cliente_nome in rows:
-    #     importo_usato = (
-    #         progetto.importo_parz
-    #         if tipo_importo.lower() == "parziale"
-    #         else progetto.importo
-    #     )
+        ws.append(
+            [
+                cliente_nome,
+                progetto.tecnico,
+                progetto.commerciale,
+                progetto.centro_di_costo,
+                progetto.azienda,
+                progetto.stato,
+                str(progetto.data_creazione) if progetto.data_creazione else None,
+                progetto.importo,
+                progetto.importo_parz,
+            ]
+        )
 
-    #     ws.append(
-    #         [
-    #             cliente_nome,
-    #             progetto.tecnico,
-    #             progetto.centro_di_costo,
-    #             progetto.commerciale,
-    #             progetto.azienda,
-    #             progetto.stato,
-    #             progetto.status_percent,
-    #             progetto.importo,
-    #             progetto.importo_parz,
-    #             importo_usato,
-    #             str(progetto.data_creazione) if progetto.data_creazione else None,
-    #         ]
-    #     )
+    # empty row
+    ws.append([])
 
-    # output = BytesIO()
-    # wb.save(output)
-    # output.seek(0)
+    # total row
+    ws.append(["", "", "", "", "", "", "Totale imponibile", totale_importo, ""])
 
-    # return StreamingResponse(
-    #     output,
-    #     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    #     headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
-    # )
+    # Totale entrate → goes under importo_parz (I)
+    ws.append(
+        [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Totale entrate",
+            "",  # leave importo empty
+            totale_importo_parz,
+        ]
+    )
+
+    last_row = ws.max_row
+    last_col = ws.max_column
+    last_col_letter = get_column_letter(last_col)
+
+    table = Table(displayName="ProgettiTable", ref=f"A1:{last_col_letter}{last_row}")
+
+    table.tableStyleInfo = TableStyleInfo(
+        name="TableStyleMedium2",
+        showFirstColumn=False,
+        showLastColumn=False,
+        showRowStripes=True,
+        showColumnStripes=False,
+    )
+
+    ws.add_table(table)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
+    )
 
 
 # actually v2
