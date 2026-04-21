@@ -33,8 +33,7 @@ from sqlalchemy import nulls_last
 from io import BytesIO
 from openpyxl import Workbook
 from fastapi.responses import StreamingResponse
-from openpyxl.worksheet.table import Table, TableStyleInfo
-from openpyxl.utils import get_column_letter
+
 
 router = APIRouter()
 
@@ -501,7 +500,7 @@ def export_progetti_excel(
         "Commerciale",
         "Città",
         "Azienda",
-        "Stato",
+        "stato",
         "data_creazione",
         "importo",
         "importo_parz",
@@ -540,32 +539,12 @@ def export_progetti_excel(
         ""
     ])
 
-    # Totale entrate → goes under importo_parz (I)
     ws.append([
         "", "", "", "", "", "",
         "Totale entrate",
-        "",                # leave importo empty
-        totale_importo_parz
+        totale_importo_parz,
+        ""
     ])
-
-    last_row = ws.max_row
-    last_col = ws.max_column
-    last_col_letter = get_column_letter(last_col)
-
-    table = Table(
-        displayName="ProgettiTable",
-        ref=f"A1:{last_col_letter}{last_row}"
-    )
-
-    table.tableStyleInfo = TableStyleInfo(
-        name="TableStyleMedium2",
-        showFirstColumn=False,
-        showLastColumn=False,
-        showRowStripes=True,
-        showColumnStripes=False,
-    )
-
-    ws.add_table(table)
 
     output = BytesIO()
     wb.save(output)
