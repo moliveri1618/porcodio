@@ -33,7 +33,8 @@ from sqlalchemy import nulls_last
 from io import BytesIO
 from openpyxl import Workbook
 from fastapi.responses import StreamingResponse
-
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.utils import get_column_letter
 
 router = APIRouter()
 
@@ -495,42 +496,76 @@ def export_progetti_excel(
     ws.title = "Progetti"
 
     headers = [
-        "cliente_nome",
-        "tecnico",
-        "centro_di_costo",
-        "commerciale",
-        "azienda",
-        "stato",
-        "status_percent",
+        "Committente",
+        "Tecnico",
+        "Commerciale",
+        "Città",
+        "Azienda",
+        "Stato",
+        "data_creazione",
         "importo",
         "importo_parz",
-        "importo_usato",
-        "data_creazione",
     ]
     ws.append(headers)
 
+    totale_importo = 0
+    totale_importo_parz = 0
     for progetto, cliente_nome in rows:
-        importo_usato = (
-            progetto.importo_parz
-            if tipo_importo.lower() == "parziale"
-            else progetto.importo
-        )
+        totale_importo += progetto.importo or 0
+        totale_importo_parz += progetto.importo_parz or 0
+
 
         ws.append(
             [
                 cliente_nome,
                 progetto.tecnico,
-                progetto.centro_di_costo,
                 progetto.commerciale,
+                progetto.centro_di_costo,
                 progetto.azienda,
                 progetto.stato,
-                progetto.status_percent,
+                str(progetto.data_creazione) if progetto.data_creazione else None,
                 progetto.importo,
                 progetto.importo_parz,
-                importo_usato,
-                str(progetto.data_creazione) if progetto.data_creazione else None,
             ]
         )
+
+    # empty row
+    ws.append([])
+
+    # total row
+    ws.append([
+        "", "", "", "", "", "",
+        "Totale imponibile",
+        totale_importo,
+        ""
+    ])
+
+    # Totale entrate → goes under importo_parz (I)
+    ws.append([
+        "", "", "", "", "", "",
+        "Totale entrate",
+        "",                # leave importo empty
+        totale_importo_parz
+    ])
+
+    last_row = ws.max_row
+    last_col = ws.max_column
+    last_col_letter = get_column_letter(last_col)
+
+    table = Table(
+        displayName="ProgettiTable",
+        ref=f"A1:{last_col_letter}{last_row}"
+    )
+
+    table.tableStyleInfo = TableStyleInfo(
+        name="TableStyleMedium2",
+        showFirstColumn=False,
+        showLastColumn=False,
+        showRowStripes=True,
+        showColumnStripes=False,
+    )
+
+    ws.add_table(table)
 
     output = BytesIO()
     wb.save(output)
