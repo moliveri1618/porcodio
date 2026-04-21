@@ -33,6 +33,7 @@ from sqlalchemy import nulls_last
 from io import BytesIO
 from openpyxl import Workbook
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
 
 
 router = APIRouter()
@@ -476,10 +477,12 @@ def export_progetti_excel(
 
     # date - EXACTLY like top endpoint
     if data_da:
-        conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
+        conditions.append(
+            text(f"data_cambiamento_stato::timestamp >= '{data_da} 00:00:00'")
+        )
 
     if data_a:
-        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
+        conditions.append(text(f"data_cambiamento_stato::timestamp <= '{data_a} 23:59:59'"))
 
     query = (
         select(Progetti, Cliente.nome_cliente)
@@ -489,58 +492,61 @@ def export_progetti_excel(
     )
 
     rows = db.exec(query).all()
+    print(rows)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Progetti"
+    return rows
 
-    headers = [
-        "cliente_nome",
-        "tecnico",
-        "centro_di_costo",
-        "commerciale",
-        "azienda",
-        "stato",
-        "status_percent",
-        "importo",
-        "importo_parz",
-        "importo_usato",
-        "data_creazione",
-    ]
-    ws.append(headers)
+    # wb = Workbook()
+    # ws = wb.active
+    # ws.title = "Progetti"
 
-    for progetto, cliente_nome in rows:
-        importo_usato = (
-            progetto.importo_parz
-            if tipo_importo.lower() == "parziale"
-            else progetto.importo
-        )
+    # headers = [
+    #     "cliente_nome",
+    #     "tecnico",
+    #     "centro_di_costo",
+    #     "commerciale",
+    #     "azienda",
+    #     "stato",
+    #     "status_percent",
+    #     "importo",
+    #     "importo_parz",
+    #     "importo_usato",
+    #     "data_creazione",
+    # ]
+    # ws.append(headers)
 
-        ws.append(
-            [
-                cliente_nome,
-                progetto.tecnico,
-                progetto.centro_di_costo,
-                progetto.commerciale,
-                progetto.azienda,
-                progetto.stato,
-                progetto.status_percent,
-                progetto.importo,
-                progetto.importo_parz,
-                importo_usato,
-                str(progetto.data_creazione) if progetto.data_creazione else None,
-            ]
-        )
+    # for progetto, cliente_nome in rows:
+    #     importo_usato = (
+    #         progetto.importo_parz
+    #         if tipo_importo.lower() == "parziale"
+    #         else progetto.importo
+    #     )
 
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    #     ws.append(
+    #         [
+    #             cliente_nome,
+    #             progetto.tecnico,
+    #             progetto.centro_di_costo,
+    #             progetto.commerciale,
+    #             progetto.azienda,
+    #             progetto.stato,
+    #             progetto.status_percent,
+    #             progetto.importo,
+    #             progetto.importo_parz,
+    #             importo_usato,
+    #             str(progetto.data_creazione) if progetto.data_creazione else None,
+    #         ]
+    #     )
 
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
-    )
+    # output = BytesIO()
+    # wb.save(output)
+    # output.seek(0)
+
+    # return StreamingResponse(
+    #     output,
+    #     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    #     headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
+    # )
 
 
 # actually v2
