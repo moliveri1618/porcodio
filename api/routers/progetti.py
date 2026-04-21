@@ -449,64 +449,7 @@ def sum_importo_filtrato(
     return totale
 
 
-@router.get("/pdf-progetti-filtrati")
-def get_progetti_filtrati(
-    tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
-    stato: Optional[str] = Query(None),
-    data_da: Optional[str] = Query(None),
-    data_a: Optional[str] = Query(None),
-    tecnico: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    colonna_importo = (
-        Progetti.importo_parz
-        if tipo_importo.lower() == "parziale"
-        else Progetti.importo
-    )
-
-    conditions = []
-
-    # tecnico
-    if tecnico and tecnico.strip() and tecnico.lower() != "generali":
-        conditions.append(Progetti.tecnico == tecnico.strip())
-
-    # stato
-    if stato and stato.strip():
-        stato_clean = stato.strip().upper()
-
-        if stato_clean == "VAL+INV":
-            conditions.append(Progetti.stato.in_(["VALIDATO", "INVIATO"]))
-        else:
-            conditions.append(Progetti.stato == stato_clean)
-
-    # date
-    if data_da:
-        conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
-
-    if data_a:
-        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
-
-    query = (
-        select(Progetti).where(*conditions).order_by(Progetti.data_cambiamento_stato.desc())
-    )
-
-    righe = db.exec(query).all()
-
-    return {
-        "tipo_importo": tipo_importo,
-        "count": len(righe),
-        "totale_importo_filtrato": sum(
-            float(
-                getattr(r, "importo_parz" if tipo_importo == "parziale" else "importo")
-                or 0
-            )
-            for r in righe
-        ),
-        "rows": righe,
-    }
-
-
-@router.get("/progetti/export-excel")
+@router.get("/export-excel-importo-mensile")
 def export_progetti_excel(
     tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
     stato: Optional[str] = Query(None),
@@ -515,11 +458,6 @@ def export_progetti_excel(
     tecnico: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    colonna_importo = (
-        Progetti.importo_parz
-        if tipo_importo.lower() == "parziale"
-        else Progetti.importo
-    )
 
     conditions = []
 
@@ -544,7 +482,8 @@ def export_progetti_excel(
         conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
 
     query = (
-        select(Progetti)
+        select(Progetti, Cliente.nome_cliente)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*conditions)
         .order_by(Progetti.data_cambiamento_stato.desc())
     )
@@ -556,9 +495,7 @@ def export_progetti_excel(
     ws.title = "Progetti"
 
     headers = [
-        "id",
-        "progetto_id",
-        "cliente_id",
+        "cliente_nome",
         "tecnico",
         "centro_di_costo",
         "commerciale",
@@ -569,37 +506,29 @@ def export_progetti_excel(
         "importo_parz",
         "importo_usato",
         "data_creazione",
-        "data_cambiamento_stato",
-        "note",
-        "upload_id",
-        "upload_id_progetto_files",
     ]
     ws.append(headers)
 
-    for r in rows:
+    for progetto, cliente_nome in rows:
         importo_usato = (
-            r.importo_parz if tipo_importo.lower() == "parziale" else r.importo
+            progetto.importo_parz
+            if tipo_importo.lower() == "parziale"
+            else progetto.importo
         )
 
         ws.append(
             [
-                r.id,
-                r.progetto_id,
-                r.cliente_id,
-                r.tecnico,
-                r.centro_di_costo,
-                r.commerciale,
-                r.azienda,
-                r.stato,
-                r.status_percent,
-                r.importo,
-                r.importo_parz,
+                cliente_nome,
+                progetto.tecnico,
+                progetto.centro_di_costo,
+                progetto.commerciale,
+                progetto.azienda,
+                progetto.stato,
+                progetto.status_percent,
+                progetto.importo,
+                progetto.importo_parz,
                 importo_usato,
-                str(r.data_creazione) if r.data_creazione else None,
-                str(r.data_cambiamento_stato) if r.data_cambiamento_stato else None,
-                r.note,
-                r.upload_id,
-                r.upload_id_progetto_files,
+                str(progetto.data_creazione) if progetto.data_creazione else None,
             ]
         )
 
