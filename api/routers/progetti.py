@@ -401,59 +401,6 @@ def sum_importo_parz(
     }
 
 
-# @router.get("/sum-importo-mensile-filtrato")
-# def sum_importo_filtrato(
-#     tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
-#     stato: Optional[str] = Query(None),
-#     data_da: Optional[str] = Query(None),  # format: YYYY-MM-DD
-#     data_a: Optional[str] = Query(None),  # format: YYYY-MM-DD
-#     tecnico: Optional[str] = Query(None),
-#     db: Session = Depends(get_db),
-# ):
-#     # choose column
-#     colonna_importo = (
-#         Progetti.importo_parz
-#         if tipo_importo.lower() == "parziale"
-#         else Progetti.importo
-#     )
-
-#     query = select(func.coalesce(func.sum(colonna_importo), 0))
-
-#     conditions = []
-
-#     if tecnico and tecnico.strip():
-#         tecnico_clean = tecnico.strip().lower()
-
-#         if tecnico_clean != "generali":
-#             conditions.append(func.upper(Progetti.tecnico) == tecnico_clean.upper())
-
-#     if stato and stato.strip():
-#         stato_clean = stato.strip().upper()
-
-#         if stato_clean == "VAL+INV":
-#             conditions.append(func.upper(Progetti.stato).in_(["VALIDATO", "INVIATO"]))
-#         else:
-#             conditions.append(func.upper(Progetti.stato) == stato_clean)
-
-#     if data_da and data_da.strip():
-#         dt_da = datetime.strptime(data_da, "%Y-%m-%d")
-#         conditions.append(Progetti.data_creazione >= dt_da)
-
-#     if data_a and data_a.strip():
-#         # include full day
-#         dt_a = datetime.strptime(data_a, "%Y-%m-%d").replace(
-#             hour=23, minute=59, second=59
-#         )
-#         conditions.append(Progetti.data_creazione <= dt_a)
-
-#     if conditions:
-#         query = query.where(*conditions)
-
-#     totale = db.exec(query).one()
-
-#     return totale
-
-
 @router.get("/sum-importo-mensile-filtrato")
 def sum_importo_filtrato(
     tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
@@ -496,6 +443,63 @@ def sum_importo_filtrato(
 
     totale = db.exec(query).first()
     return totale
+
+
+@router.get("/pdf-progetti-filtrati")
+def get_progetti_filtrati(
+    tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
+    stato: Optional[str] = Query(None),
+    data_da: Optional[str] = Query(None),
+    data_a: Optional[str] = Query(None),
+    tecnico: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    colonna_importo = (
+        Progetti.importo_parz
+        if tipo_importo.lower() == "parziale"
+        else Progetti.importo
+    )
+
+    conditions = []
+
+    # tecnico
+    if tecnico and tecnico.strip() and tecnico.lower() != "generali":
+        conditions.append(Progetti.tecnico == tecnico.strip())
+
+    # stato
+    if stato and stato.strip():
+        stato_clean = stato.strip().upper()
+
+        if stato_clean == "VAL+INV":
+            conditions.append(Progetti.stato.in_(["VALIDATO", "INVIATO"]))
+        else:
+            conditions.append(Progetti.stato == stato_clean)
+
+    # date
+    if data_da:
+        conditions.append(Progetti.data_cambiamento >= f"{data_da}T00:00:00.000Z")
+
+    if data_a:
+        conditions.append(Progetti.data_cambiamento <= f"{data_a}T23:59:59.999Z")
+
+    query = (
+        select(Progetti).where(*conditions).order_by(Progetti.data_cambiamento.desc())
+    )
+
+    righe = db.exec(query).all()
+
+    return {
+        "tipo_importo": tipo_importo,
+        "count": len(righe),
+        "totale_importo_filtrato": sum(
+            float(
+                getattr(r, "importo_parz" if tipo_importo == "parziale" else "importo")
+                or 0
+            )
+            for r in righe
+        ),
+        "rows": righe,
+    }
 
 
 # actually v2
