@@ -30,6 +30,10 @@ from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from routers.utils import *
 from dependecies import get_db
 from sqlalchemy import nulls_last
+from io import BytesIO
+from openpyxl import Workbook
+from fastapi.responses import StreamingResponse
+
 
 router = APIRouter()
 
@@ -500,6 +504,114 @@ def get_progetti_filtrati(
         ),
         "rows": righe,
     }
+
+
+@router.get("/progetti/export-excel")
+def export_progetti_excel(
+    tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
+    stato: Optional[str] = Query(None),
+    data_da: Optional[str] = Query(None),
+    data_a: Optional[str] = Query(None),
+    tecnico: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    colonna_importo = (
+        Progetti.importo_parz
+        if tipo_importo.lower() == "parziale"
+        else Progetti.importo
+    )
+
+    conditions = []
+
+    # tecnico
+    if tecnico and tecnico.strip() and tecnico.lower() != "generali":
+        conditions.append(Progetti.tecnico == tecnico.strip())
+
+    # stato
+    if stato and stato.strip():
+        stato_clean = stato.strip().upper()
+
+        if stato_clean == "VAL+INV":
+            conditions.append(Progetti.stato.in_(["VALIDATO", "INVIATO"]))
+        else:
+            conditions.append(Progetti.stato == stato_clean)
+
+    # date - EXACTLY like top endpoint
+    if data_da:
+        conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
+
+    if data_a:
+        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
+
+    query = (
+        select(Progetti)
+        .where(*conditions)
+        .order_by(Progetti.data_cambiamento_stato.desc())
+    )
+
+    rows = db.exec(query).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Progetti"
+
+    headers = [
+        "id",
+        "progetto_id",
+        "cliente_id",
+        "tecnico",
+        "centro_di_costo",
+        "commerciale",
+        "azienda",
+        "stato",
+        "status_percent",
+        "importo",
+        "importo_parz",
+        "importo_usato",
+        "data_creazione",
+        "data_cambiamento_stato",
+        "note",
+        "upload_id",
+        "upload_id_progetto_files",
+    ]
+    ws.append(headers)
+
+    for r in rows:
+        importo_usato = (
+            r.importo_parz if tipo_importo.lower() == "parziale" else r.importo
+        )
+
+        ws.append(
+            [
+                r.id,
+                r.progetto_id,
+                r.cliente_id,
+                r.tecnico,
+                r.centro_di_costo,
+                r.commerciale,
+                r.azienda,
+                r.stato,
+                r.status_percent,
+                r.importo,
+                r.importo_parz,
+                importo_usato,
+                str(r.data_creazione) if r.data_creazione else None,
+                str(r.data_cambiamento_stato) if r.data_cambiamento_stato else None,
+                r.note,
+                r.upload_id,
+                r.upload_id_progetto_files,
+            ]
+        )
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
+    )
 
 
 # actually v2
