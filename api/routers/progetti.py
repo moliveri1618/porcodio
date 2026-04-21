@@ -477,13 +477,13 @@ def get_progetti_filtrati(
 
     # date
     if data_da:
-        conditions.append(Progetti.data_cambiamento >= f"{data_da}T00:00:00.000Z")
+        conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
 
     if data_a:
-        conditions.append(Progetti.data_cambiamento <= f"{data_a}T23:59:59.999Z")
+        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
 
     query = (
-        select(Progetti).where(*conditions).order_by(Progetti.data_cambiamento.desc())
+        select(Progetti).where(*conditions).order_by(Progetti.data_cambiamento_stato.desc())
     )
 
     righe = db.exec(query).all()
