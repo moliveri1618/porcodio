@@ -458,14 +458,11 @@ def export_progetti_excel(
     tecnico: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-
     conditions = []
 
-    # tecnico
     if tecnico and tecnico.strip() and tecnico.lower() != "generali":
         conditions.append(Progetti.tecnico == tecnico.strip())
 
-    # stato
     if stato and stato.strip():
         stato_clean = stato.strip().upper()
 
@@ -474,7 +471,6 @@ def export_progetti_excel(
         else:
             conditions.append(Progetti.stato == stato_clean)
 
-    # date - EXACTLY like top endpoint
     if data_da:
         conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
 
@@ -483,7 +479,7 @@ def export_progetti_excel(
 
     query = (
         select(Progetti, Cliente.nome_cliente)
-        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .outerjoin(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*conditions)
         .order_by(Progetti.data_cambiamento_stato.desc())
     )
@@ -500,23 +496,17 @@ def export_progetti_excel(
         "Commerciale",
         "Città",
         "Azienda",
-        "stato",
-        "data_creazione",
-        "importo",
-        "importo_parz",
+        "Stato",
+        "Data",
+        "Importo",
+        "Importo Parziale",
     ]
     ws.append(headers)
 
-    totale_importo = 0
-    totale_importo_parz = 0
     for progetto, cliente_nome in rows:
-        totale_importo += progetto.importo or 0
-        totale_importo_parz += progetto.importo_parz or 0
-
-
         ws.append(
             [
-                cliente_nome,
+                cliente_nome or "",
                 progetto.tecnico,
                 progetto.commerciale,
                 progetto.centro_di_costo,
@@ -527,24 +517,6 @@ def export_progetti_excel(
                 progetto.importo_parz,
             ]
         )
-
-    # # empty row
-    # ws.append([])
-
-    # # total row
-    # ws.append([
-    #     "", "", "", "", "", "",
-    #     "Totale imponibile",
-    #     totale_importo,
-    #     ""
-    # ])
-
-    # ws.append([
-    #     "", "", "", "", "", "",
-    #     "Totale entrate",
-    #     totale_importo_parz,
-    #     ""
-    # ])
 
     output = BytesIO()
     wb.save(output)
