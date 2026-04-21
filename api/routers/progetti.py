@@ -528,23 +528,23 @@ def export_progetti_excel(
             ]
         )
 
-    # empty row
-    ws.append([])
+    # # empty row
+    # ws.append([])
 
-    # total row
-    ws.append([
-        "", "", "", "", "", "",
-        "Totale imponibile",
-        totale_importo,
-        ""
-    ])
+    # # total row
+    # ws.append([
+    #     "", "", "", "", "", "",
+    #     "Totale imponibile",
+    #     totale_importo,
+    #     ""
+    # ])
 
-    ws.append([
-        "", "", "", "", "", "",
-        "Totale entrate",
-        totale_importo_parz,
-        ""
-    ])
+    # ws.append([
+    #     "", "", "", "", "", "",
+    #     "Totale entrate",
+    #     totale_importo_parz,
+    #     ""
+    # ])
 
     output = BytesIO()
     wb.save(output)
