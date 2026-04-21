@@ -485,10 +485,10 @@ def export_progetti_excel(
         conditions.append(text(f"data_cambiamento_stato::timestamp <= '{data_a} 23:59:59'"))
 
     query = (
-        select(Progetti, Cliente.nome_cliente)
-        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        select(Progetti)
+        # .join(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*conditions)
-        .order_by(Progetti.data_cambiamento_stato.desc())
+        .order_by(Progetti.data_creazione.desc())
     )
 
     rows = db.exec(query).all()
