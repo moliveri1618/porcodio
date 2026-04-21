@@ -503,9 +503,9 @@ def export_progetti_excel(
         "Città",
         "Azienda",
         "Stato",
-        "data_creazione",
-        "importo",
-        "importo_parz",
+        "Data",
+        "Importo",
+        "Importo Parziale",
     ]
     ws.append(headers)
 
@@ -553,8 +553,12 @@ def export_progetti_excel(
     last_row = ws.max_row
     last_col = ws.max_column
     last_col_letter = get_column_letter(last_col)
+    data_last_row = 1 + len(rows)  # header + data only
 
-    table = Table(displayName="ProgettiTable", ref=f"A1:{last_col_letter}{last_row}")
+    table = Table(
+        displayName="ProgettiTable",
+        ref=f"A1:{last_col_letter}{data_last_row}"
+    )
 
     table.tableStyleInfo = TableStyleInfo(
         name="TableStyleMedium2",
