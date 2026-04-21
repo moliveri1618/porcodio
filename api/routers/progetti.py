@@ -477,18 +477,15 @@ def export_progetti_excel(
 
     # date - EXACTLY like top endpoint
     if data_da:
-        conditions.append(
-            text(f"data_cambiamento_stato::timestamp >= '{data_da} 00:00:00'")
-        )
+        conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
 
     if data_a:
-        conditions.append(text(f"data_cambiamento_stato::timestamp <= '{data_a} 23:59:59'"))
+        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
 
     query = (
         select(Progetti)
         # .join(Cliente, Progetti.cliente_id == Cliente.id)
-        .where(*conditions)
-        .order_by(Progetti.data_creazione.desc())
+        .where(*conditions).order_by(Progetti.data_cambiamento_stato.desc())
     )
 
     rows = db.exec(query).all()
