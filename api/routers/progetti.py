@@ -28,6 +28,7 @@ from models.progetto_fornitore_link import ProgettoFornitoreLink
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from routers.utils import *
 from dependecies import get_db
+from sqlalchemy import nulls_last
 
 router = APIRouter()
 
@@ -494,7 +495,6 @@ def sum_importo_filtrato(
 
     totale = db.exec(query).first()
     return totale
-
 
 
 # actually v2
