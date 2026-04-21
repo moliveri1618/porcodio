@@ -36,6 +36,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, PatternFill
 
 router = APIRouter()
 
@@ -535,6 +536,30 @@ def export_progetti_excel(
     # total row
     ws.append(["", "", "", "", "", "", "Totale imponibile", totale_importo, ""])
 
+    header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+
+    # Header
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+
+    # Totals (last 2 rows)
+    total_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+    total_font = Font(bold=True)
+
+    for row in ws.iter_rows(min_row=ws.max_row-1, max_row=ws.max_row):
+        for cell in row:
+            cell.fill = total_fill
+            cell.font = total_font
+
+
+    # 👉 THEN create table
+    table = Table(
+        displayName="ProgettiTable",
+        ref=f"A1:{last_col_letter}{data_last_row}"
+    )
+
     # Totale entrate → goes under importo_parz (I)
     ws.append(
         [
@@ -564,7 +589,7 @@ def export_progetti_excel(
         name="TableStyleMedium2",
         showFirstColumn=False,
         showLastColumn=False,
-        showRowStripes=True,
+        showRowStripes=False,   
         showColumnStripes=False,
     )
 
