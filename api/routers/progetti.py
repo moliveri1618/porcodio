@@ -591,541 +591,541 @@ def export_progetti_excel(
     )
 
 
-# actually v2
-@router.get("/v5")
-def read_progettiV5(
-    db: Session = Depends(get_db),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
-    include_completed: bool = False,
-    include_suspended: bool = False,
-    tecnico: str | None = None,
-):
-    # ------------------------------------------------------------
-    # 1) Compute pagination offset once
-    # ------------------------------------------------------------
-    offset = (page - 1) * page_size
+# # actually v2
+# @router.get("/v5")
+# def read_progettiV5(
+#     db: Session = Depends(get_db),
+#     page: int = Query(1, ge=1),
+#     page_size: int = Query(25, ge=1, le=100),
+#     include_completed: bool = False,
+#     include_suspended: bool = False,
+#     tecnico: str | None = None,
+# ):
+#     # ------------------------------------------------------------
+#     # 1) Compute pagination offset once
+#     # ------------------------------------------------------------
+#     offset = (page - 1) * page_size
 
-    # ------------------------------------------------------------
-    # 2) Custom priority for sorting "stato"
-    #    Lower number = comes first
-    # ------------------------------------------------------------
-    stato_priority = case(
-        (func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO", 1),
-        (func.upper(func.coalesce(Progetti.stato, "")) == "INVIATO", 2),
-        (func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "SOSPESO"]), 3),
-        else_=999,
-    )
+#     # ------------------------------------------------------------
+#     # 2) Custom priority for sorting "stato"
+#     #    Lower number = comes first
+#     # ------------------------------------------------------------
+#     stato_priority = case(
+#         (func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO", 1),
+#         (func.upper(func.coalesce(Progetti.stato, "")) == "INVIATO", 2),
+#         (func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "SOSPESO"]), 3),
+#         else_=999,
+#     )
 
-    # ------------------------------------------------------------
-    # 3) Define SQL expression for "completed"
-    #    This lets DB filter it directly instead of Python doing it
-    # ------------------------------------------------------------
-    is_completed_expr = and_(
-        func.coalesce(Progetti.status_percent, 0) == 100,
-        func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO",
-    )
+#     # ------------------------------------------------------------
+#     # 3) Define SQL expression for "completed"
+#     #    This lets DB filter it directly instead of Python doing it
+#     # ------------------------------------------------------------
+#     is_completed_expr = and_(
+#         func.coalesce(Progetti.status_percent, 0) == 100,
+#         func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO",
+#     )
 
-    # ------------------------------------------------------------
-    # 4) Build all WHERE filters once
-    # ------------------------------------------------------------
-    filters = []
+#     # ------------------------------------------------------------
+#     # 4) Build all WHERE filters once
+#     # ------------------------------------------------------------
+#     filters = []
 
-    # Filter by tecnico unless it is empty or "generali"
-    if tecnico and tecnico.strip().lower() != "generali":
-        tecnico_value = tecnico.strip()
-        filters.append(Progetti.tecnico.ilike(f"%{tecnico_value}%"))
+#     # Filter by tecnico unless it is empty or "generali"
+#     if tecnico and tecnico.strip().lower() != "generali":
+#         tecnico_value = tecnico.strip()
+#         filters.append(Progetti.tecnico.ilike(f"%{tecnico_value}%"))
 
-    # Exclude suspended unless explicitly included
-    if not include_suspended:
-        filters.append(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
+#     # Exclude suspended unless explicitly included
+#     if not include_suspended:
+#         filters.append(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
 
-    # Exclude completed unless explicitly included
-    if not include_completed:
-        filters.append(~is_completed_expr)
+#     # Exclude completed unless explicitly included
+#     if not include_completed:
+#         filters.append(~is_completed_expr)
 
-    # ------------------------------------------------------------
-    # 5) Count query:
-    #    count ONLY rows that match the real filters
-    # ------------------------------------------------------------
-    total_stmt = select(func.count()).select_from(Progetti)
-    if filters:
-        total_stmt = total_stmt.where(*filters)
+#     # ------------------------------------------------------------
+#     # 5) Count query:
+#     #    count ONLY rows that match the real filters
+#     # ------------------------------------------------------------
+#     total_stmt = select(func.count()).select_from(Progetti)
+#     if filters:
+#         total_stmt = total_stmt.where(*filters)
 
-    total = db.exec(total_stmt).one()
+#     total = db.exec(total_stmt).one()
 
-    # Early return if nothing found
-    if total == 0:
-        return {
-            "items": [],
-            "total": 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": 0,
-        }
+#     # Early return if nothing found
+#     if total == 0:
+#         return {
+#             "items": [],
+#             "total": 0,
+#             "page": page,
+#             "page_size": page_size,
+#             "total_pages": 0,
+#         }
 
-    # ------------------------------------------------------------
-    # 6) Main query:
-    #    IMPORTANT: apply filters + order + offset + limit in SQL
-    #    so database returns only the requested page
-    # ------------------------------------------------------------
-    stmt = (
-        select(Progetti)
-        .where(*filters)
-        .options(
-            # Load related client in one extra query, not N queries
-            selectinload(Progetti.cliente),
-            # Load supplier links and linked supplier data efficiently
-            selectinload(Progetti.fornitori_links).selectinload(
-                ProgettoFornitoreLink.fornitore
-            ),
-        )
-        .order_by(
-            stato_priority.asc(),
-            Progetti.data_creazione.asc().nullslast(),
-        )
-        .offset(offset)
-        .limit(page_size)
-    )
+#     # ------------------------------------------------------------
+#     # 6) Main query:
+#     #    IMPORTANT: apply filters + order + offset + limit in SQL
+#     #    so database returns only the requested page
+#     # ------------------------------------------------------------
+#     stmt = (
+#         select(Progetti)
+#         .where(*filters)
+#         .options(
+#             # Load related client in one extra query, not N queries
+#             selectinload(Progetti.cliente),
+#             # Load supplier links and linked supplier data efficiently
+#             selectinload(Progetti.fornitori_links).selectinload(
+#                 ProgettoFornitoreLink.fornitore
+#             ),
+#         )
+#         .order_by(
+#             stato_priority.asc(),
+#             Progetti.data_creazione.asc().nullslast(),
+#         )
+#         .offset(offset)
+#         .limit(page_size)
+#     )
 
-    progetti = db.exec(stmt).all()
+#     progetti = db.exec(stmt).all()
 
-    # ------------------------------------------------------------
-    # 7) Build API response only for current page rows
-    # ------------------------------------------------------------
-    items = []
+#     # ------------------------------------------------------------
+#     # 7) Build API response only for current page rows
+#     # ------------------------------------------------------------
+#     items = []
 
-    for progetto in progetti:
-        cliente = progetto.cliente
+#     for progetto in progetti:
+#         cliente = progetto.cliente
 
-        cliente_dict = (
-            {
-                "id": cliente.id,
-                "nome_cliente": cliente.nome_cliente,
-                "citta": cliente.citta,
-                "indirizzo": cliente.indirizzo,
-                "numero_tel": cliente.numero_tel,
-                "centro_di_costo": cliente.centro_di_costo,
-                "contatti": cliente.contatti,
-                "note": cliente.note,
-                "data_creazione_cliente": cliente.data_creazione,
-            }
-            if cliente
-            else {}
-        )
+#         cliente_dict = (
+#             {
+#                 "id": cliente.id,
+#                 "nome_cliente": cliente.nome_cliente,
+#                 "citta": cliente.citta,
+#                 "indirizzo": cliente.indirizzo,
+#                 "numero_tel": cliente.numero_tel,
+#                 "centro_di_costo": cliente.centro_di_costo,
+#                 "contatti": cliente.contatti,
+#                 "note": cliente.note,
+#                 "data_creazione_cliente": cliente.data_creazione,
+#             }
+#             if cliente
+#             else {}
+#         )
 
-        fornitori_list = []
-        for link in progetto.fornitori_links:
-            fornitore = link.fornitore
-            if not fornitore:
-                continue
+#         fornitori_list = []
+#         for link in progetto.fornitori_links:
+#             fornitore = link.fornitore
+#             if not fornitore:
+#                 continue
 
-            fornitori_list.append(
-                {
-                    "id": fornitore.id,
-                    "nome_fornitore": fornitore.nome_cliente,
-                    "indirizzo": fornitore.indirizzo,
-                    "citta": fornitore.citta,
-                    "numero_tel": fornitore.numero_tel,
-                    "sito": fornitore.sito,
-                    "contatti": fornitore.contatti,
-                    "data_creazione_fornitore": fornitore.data_creazione,
-                    "contratti": link.contratti,
-                    "rilievi_misure": link.rilievi_misure,
-                    "prodotti_fornitore": link.prodotti_fornitore,
-                    "note": link.note,
-                }
-            )
+#             fornitori_list.append(
+#                 {
+#                     "id": fornitore.id,
+#                     "nome_fornitore": fornitore.nome_cliente,
+#                     "indirizzo": fornitore.indirizzo,
+#                     "citta": fornitore.citta,
+#                     "numero_tel": fornitore.numero_tel,
+#                     "sito": fornitore.sito,
+#                     "contatti": fornitore.contatti,
+#                     "data_creazione_fornitore": fornitore.data_creazione,
+#                     "contratti": link.contratti,
+#                     "rilievi_misure": link.rilievi_misure,
+#                     "prodotti_fornitore": link.prodotti_fornitore,
+#                     "note": link.note,
+#                 }
+#             )
 
-        status_percent = int(progetto.status_percent or 0)
-        is_completed = (
-            status_percent == 100
-            and str(progetto.stato or "").strip().upper() == "VALIDATO"
-        )
+#         status_percent = int(progetto.status_percent or 0)
+#         is_completed = (
+#             status_percent == 100
+#             and str(progetto.stato or "").strip().upper() == "VALIDATO"
+#         )
 
-        items.append(
-            {
-                "id": progetto.id,
-                "upload_id": progetto.upload_id,
-                "upload_id_progetto_files": progetto.upload_id_progetto_files,
-                "tecnico": progetto.tecnico,
-                "stato": progetto.stato,
-                "commerciale": progetto.commerciale,
-                "azienda": progetto.azienda,
-                "note": progetto.note,
-                "centro_di_costo": progetto.centro_di_costo,
-                "cliente_id": progetto.cliente_id,
-                "data_cambiamento_stato": progetto.data_cambiamento_stato,
-                "data_creazione": progetto.data_creazione,
-                "importo": progetto.importo,
-                "importo_parz": progetto.importo_parz,
-                "cliente": cliente_dict,
-                "fornitori": fornitori_list,
-                "status_percent": status_percent,
-                "is_completed": is_completed,
-            }
-        )
+#         items.append(
+#             {
+#                 "id": progetto.id,
+#                 "upload_id": progetto.upload_id,
+#                 "upload_id_progetto_files": progetto.upload_id_progetto_files,
+#                 "tecnico": progetto.tecnico,
+#                 "stato": progetto.stato,
+#                 "commerciale": progetto.commerciale,
+#                 "azienda": progetto.azienda,
+#                 "note": progetto.note,
+#                 "centro_di_costo": progetto.centro_di_costo,
+#                 "cliente_id": progetto.cliente_id,
+#                 "data_cambiamento_stato": progetto.data_cambiamento_stato,
+#                 "data_creazione": progetto.data_creazione,
+#                 "importo": progetto.importo,
+#                 "importo_parz": progetto.importo_parz,
+#                 "cliente": cliente_dict,
+#                 "fornitori": fornitori_list,
+#                 "status_percent": status_percent,
+#                 "is_completed": is_completed,
+#             }
+#         )
 
-    # ------------------------------------------------------------
-    # 8) Return already-paginated data
-    # ------------------------------------------------------------
-    return {
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": ceil(total / page_size),
-    }
-
-
-@router.get("/v3")
-def read_progettiV3(
-    db: Session = Depends(get_db),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
-    include_completed: bool = False,
-    include_suspended: bool = False,
-    tecnico: str | None = None,
-):
-    offset = (page - 1) * page_size
-
-    stato_priority = case(
-        (func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO", 1),
-        (func.upper(func.coalesce(Progetti.stato, "")) == "INVIATO", 2),
-        (func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "SOSPESO"]), 3),
-        else_=999,
-    )
-
-    is_completed_expr = and_(
-        func.coalesce(Progetti.status_percent, 0) == 100,
-        func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO",
-    )
-
-    filters: list = []
-    if tecnico and tecnico.strip().lower() != "generali":
-        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
-    if not include_suspended:
-        filters.append(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
-    if not include_completed:
-        filters.append(~is_completed_expr)
-
-    total = db.exec(select(func.count()).select_from(Progetti).where(*filters)).one()
-    if total == 0:
-        return {
-            "items": [],
-            "total": 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": 0,
-        }
-
-    stmt = (
-        select(Progetti)
-        .where(*filters)
-        .options(
-            selectinload(Progetti.cliente),
-            selectinload(Progetti.fornitori_links).selectinload(
-                ProgettoFornitoreLink.fornitore
-            ),
-        )
-        .order_by(stato_priority.asc(), Progetti.data_creazione.asc().nullslast())
-        .offset(offset)
-        .limit(page_size)
-    )
-    progetti = db.exec(stmt).all()
-
-    def _p_dict(p: Progetti) -> dict:
-        c = p.cliente
-        cliente_dict = (
-            {
-                "id": c.id,
-                "nome_cliente": c.nome_cliente,
-                "citta": c.citta,
-                "indirizzo": c.indirizzo,
-                "numero_tel": c.numero_tel,
-                "centro_di_costo": c.centro_di_costo,
-                "contatti": c.contatti,
-                "note": c.note,
-                "data_creazione_cliente": c.data_creazione,
-            }
-            if c
-            else {}
-        )
-
-        fornitori_list = [
-            {
-                "id": f.fornitore.id,
-                "nome_fornitore": f.fornitore.nome_cliente,
-                "indirizzo": f.fornitore.indirizzo,
-                "citta": f.fornitore.citta,
-                "numero_tel": f.fornitore.numero_tel,
-                "sito": f.fornitore.sito,
-                "contatti": f.fornitore.contatti,
-                "data_creazione_fornitore": f.fornitore.data_creazione,
-                "contratti": f.contratti,
-                "rilievi_misure": f.rilievi_misure,
-                "prodotti_fornitore": f.prodotti_fornitore,
-                "note": f.note,
-            }
-            for f in p.fornitori_links
-            if f.fornitore
-        ]
-
-        status_percent = int(p.status_percent or 0)
-        is_completed = (
-            status_percent == 100 and str(p.stato or "").strip().upper() == "VALIDATO"
-        )
-
-        return {
-            "id": p.id,
-            "upload_id": p.upload_id,
-            "upload_id_progetto_files": p.upload_id_progetto_files,
-            "tecnico": p.tecnico,
-            "stato": p.stato,
-            "commerciale": p.commerciale,
-            "azienda": p.azienda,
-            "note": p.note,
-            "centro_di_costo": p.centro_di_costo,
-            "cliente_id": p.cliente_id,
-            "data_cambiamento_stato": p.data_cambiamento_stato,
-            "data_creazione": p.data_creazione,
-            "importo": p.importo,
-            "importo_parz": p.importo_parz,
-            "cliente": cliente_dict,
-            "fornitori": fornitori_list,
-            "status_percent": status_percent,
-            "is_completed": is_completed,
-        }
-
-    items = [_p_dict(p) for p in progetti]
-
-    return {
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size,
-    }
+#     # ------------------------------------------------------------
+#     # 8) Return already-paginated data
+#     # ------------------------------------------------------------
+#     return {
+#         "items": items,
+#         "total": total,
+#         "page": page,
+#         "page_size": page_size,
+#         "total_pages": ceil(total / page_size),
+#     }
 
 
-@router.get("/v4")
-def read_progettiV4(
-    db: Session = Depends(get_db),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
-    include_completed: bool = False,
-    include_suspended: bool = False,
-    tecnico: str | None = None,
-):
-    offset = (page - 1) * page_size
+# @router.get("/v3")
+# def read_progettiV3(
+#     db: Session = Depends(get_db),
+#     page: int = Query(1, ge=1),
+#     page_size: int = Query(25, ge=1, le=100),
+#     include_completed: bool = False,
+#     include_suspended: bool = False,
+#     tecnico: str | None = None,
+# ):
+#     offset = (page - 1) * page_size
 
-    stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
+#     stato_priority = case(
+#         (func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO", 1),
+#         (func.upper(func.coalesce(Progetti.stato, "")) == "INVIATO", 2),
+#         (func.upper(func.coalesce(Progetti.stato, "")).in_(["ATTIVO", "SOSPESO"]), 3),
+#         else_=999,
+#     )
 
-    stato_priority = case(
-        (stato_upper == "VALIDATO", 1),
-        (stato_upper == "INVIATO", 2),
-        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 3),
-        else_=999,
-    )
+#     is_completed_expr = and_(
+#         func.coalesce(Progetti.status_percent, 0) == 100,
+#         func.upper(func.coalesce(Progetti.stato, "")) == "VALIDATO",
+#     )
 
-    is_completed_expr = and_(
-        func.coalesce(Progetti.status_percent, 0) == 100,
-        stato_upper == "VALIDATO",
-    )
+#     filters: list = []
+#     if tecnico and tecnico.strip().lower() != "generali":
+#         filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+#     if not include_suspended:
+#         filters.append(func.upper(func.coalesce(Progetti.stato, "")) != "SOSPESO")
+#     if not include_completed:
+#         filters.append(~is_completed_expr)
 
-    filters = []
+#     total = db.exec(select(func.count()).select_from(Progetti).where(*filters)).one()
+#     if total == 0:
+#         return {
+#             "items": [],
+#             "total": 0,
+#             "page": page,
+#             "page_size": page_size,
+#             "total_pages": 0,
+#         }
 
-    if tecnico and tecnico.strip().lower() != "generali":
-        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+#     stmt = (
+#         select(Progetti)
+#         .where(*filters)
+#         .options(
+#             selectinload(Progetti.cliente),
+#             selectinload(Progetti.fornitori_links).selectinload(
+#                 ProgettoFornitoreLink.fornitore
+#             ),
+#         )
+#         .order_by(stato_priority.asc(), Progetti.data_creazione.asc().nullslast())
+#         .offset(offset)
+#         .limit(page_size)
+#     )
+#     progetti = db.exec(stmt).all()
 
-    if not include_suspended:
-        filters.append(stato_upper != "SOSPESO")
+#     def _p_dict(p: Progetti) -> dict:
+#         c = p.cliente
+#         cliente_dict = (
+#             {
+#                 "id": c.id,
+#                 "nome_cliente": c.nome_cliente,
+#                 "citta": c.citta,
+#                 "indirizzo": c.indirizzo,
+#                 "numero_tel": c.numero_tel,
+#                 "centro_di_costo": c.centro_di_costo,
+#                 "contatti": c.contatti,
+#                 "note": c.note,
+#                 "data_creazione_cliente": c.data_creazione,
+#             }
+#             if c
+#             else {}
+#         )
 
-    if not include_completed:
-        filters.append(~is_completed_expr)
+#         fornitori_list = [
+#             {
+#                 "id": f.fornitore.id,
+#                 "nome_fornitore": f.fornitore.nome_cliente,
+#                 "indirizzo": f.fornitore.indirizzo,
+#                 "citta": f.fornitore.citta,
+#                 "numero_tel": f.fornitore.numero_tel,
+#                 "sito": f.fornitore.sito,
+#                 "contatti": f.fornitore.contatti,
+#                 "data_creazione_fornitore": f.fornitore.data_creazione,
+#                 "contratti": f.contratti,
+#                 "rilievi_misure": f.rilievi_misure,
+#                 "prodotti_fornitore": f.prodotti_fornitore,
+#                 "note": f.note,
+#             }
+#             for f in p.fornitori_links
+#             if f.fornitore
+#         ]
 
-    # FAST COUNT
-    total_stmt = select(func.count(Progetti.id))
-    if filters:
-        total_stmt = total_stmt.where(*filters)
+#         status_percent = int(p.status_percent or 0)
+#         is_completed = (
+#             status_percent == 100 and str(p.stato or "").strip().upper() == "VALIDATO"
+#         )
 
-    total = db.exec(total_stmt).one()
+#         return {
+#             "id": p.id,
+#             "upload_id": p.upload_id,
+#             "upload_id_progetto_files": p.upload_id_progetto_files,
+#             "tecnico": p.tecnico,
+#             "stato": p.stato,
+#             "commerciale": p.commerciale,
+#             "azienda": p.azienda,
+#             "note": p.note,
+#             "centro_di_costo": p.centro_di_costo,
+#             "cliente_id": p.cliente_id,
+#             "data_cambiamento_stato": p.data_cambiamento_stato,
+#             "data_creazione": p.data_creazione,
+#             "importo": p.importo,
+#             "importo_parz": p.importo_parz,
+#             "cliente": cliente_dict,
+#             "fornitori": fornitori_list,
+#             "status_percent": status_percent,
+#             "is_completed": is_completed,
+#         }
 
-    if total == 0:
-        return {
-            "items": [],
-            "total": 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": 0,
-        }
+#     items = [_p_dict(p) for p in progetti]
 
-    stmt = (
-        select(Progetti)
-        .where(*filters)
-        .options(
-            # Only columns needed from Progetti
-            load_only(
-                Progetti.id,
-                Progetti.upload_id,
-                Progetti.upload_id_progetto_files,
-                Progetti.tecnico,
-                Progetti.stato,
-                Progetti.commerciale,
-                Progetti.azienda,
-                Progetti.note,
-                Progetti.centro_di_costo,
-                Progetti.cliente_id,
-                Progetti.data_cambiamento_stato,
-                Progetti.data_creazione,
-                Progetti.importo,
-                Progetti.importo_parz,
-                Progetti.status_percent,
-            ),
-            # cliente (1-to-1 → joinedload faster)
-            joinedload(Progetti.cliente).load_only(
-                Cliente.id,
-                Cliente.nome_cliente,
-                Cliente.citta,
-                Cliente.indirizzo,
-                Cliente.numero_tel,
-                Cliente.centro_di_costo,
-                Cliente.contatti,
-                Cliente.note,
-                Cliente.data_creazione,
-            ),
-            # fornitori
-            selectinload(Progetti.fornitori_links)
-            .selectinload(ProgettoFornitoreLink.fornitore)
-            .load_only(
-                Fornitore.id,
-                Fornitore.nome_cliente,
-                Fornitore.indirizzo,
-                Fornitore.citta,
-                Fornitore.numero_tel,
-                Fornitore.sito,
-                Fornitore.contatti,
-                Fornitore.data_creazione,
-            ),
-        )
-        .order_by(
-            stato_priority.asc(),
-            Progetti.data_creazione.asc().nullslast(),
-        )
-        .offset(offset)
-        .limit(page_size)
-    )
+#     return {
+#         "items": items,
+#         "total": total,
+#         "page": page,
+#         "page_size": page_size,
+#         "total_pages": (total + page_size - 1) // page_size,
+#     }
 
-    progetti = db.exec(stmt).all()
 
-    items = []
+# @router.get("/v4")
+# def read_progettiV4(
+#     db: Session = Depends(get_db),
+#     page: int = Query(1, ge=1),
+#     page_size: int = Query(25, ge=1, le=100),
+#     include_completed: bool = False,
+#     include_suspended: bool = False,
+#     tecnico: str | None = None,
+# ):
+#     offset = (page - 1) * page_size
 
-    for p in progetti:
+#     stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
 
-        cliente = p.cliente
-        cliente_dict = None
+#     stato_priority = case(
+#         (stato_upper == "VALIDATO", 1),
+#         (stato_upper == "INVIATO", 2),
+#         (stato_upper.in_(["ATTIVO", "SOSPESO"]), 3),
+#         else_=999,
+#     )
 
-        if cliente:
-            cliente_dict = {
-                "id": cliente.id,
-                "nome_cliente": cliente.nome_cliente,
-                "citta": cliente.citta,
-                "indirizzo": cliente.indirizzo,
-                "numero_tel": cliente.numero_tel,
-                "centro_di_costo": cliente.centro_di_costo,
-                "contatti": cliente.contatti,
-                "note": cliente.note,
-                "data_creazione_cliente": cliente.data_creazione,
-            }
+#     is_completed_expr = and_(
+#         func.coalesce(Progetti.status_percent, 0) == 100,
+#         stato_upper == "VALIDATO",
+#     )
 
-        fornitori = []
+#     filters = []
 
-        for f in p.fornitori_links:
-            if not f.fornitore:
-                continue
+#     if tecnico and tecnico.strip().lower() != "generali":
+#         filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
 
-            prodotti = f.prodotti_fornitore or []
+#     if not include_suspended:
+#         filters.append(stato_upper != "SOSPESO")
 
-            display_prodotti = (
-                ", ".join(f"{prod['nome']} ({prod['quantita']})" for prod in prodotti)
-                if prodotti
-                else "—"
-            )
+#     if not include_completed:
+#         filters.append(~is_completed_expr)
 
-            fornitori.append(
-                {
-                    "id": f.fornitore.id,
-                    "nome_fornitore": f.fornitore.nome_cliente,
-                    "indirizzo": f.fornitore.indirizzo,
-                    "citta": f.fornitore.citta,
-                    "numero_tel": f.fornitore.numero_tel,
-                    "sito": f.fornitore.sito,
-                    "contatti": f.fornitore.contatti,
-                    "data_creazione_fornitore": f.fornitore.data_creazione,
-                    "contratti": f.contratti,
-                    "rilievi_misure": f.rilievi_misure,
-                    "prodotti_fornitore": prodotti,
-                    "display_prodotti": display_prodotti,
-                    "note": f.note,
-                }
-            )
+#     # FAST COUNT
+#     total_stmt = select(func.count(Progetti.id))
+#     if filters:
+#         total_stmt = total_stmt.where(*filters)
 
-        supplier_names = ", ".join(f["nome_fornitore"] for f in fornitori)
+#     total = db.exec(total_stmt).one()
 
-        # formatting helpers
-        display_date = p.data_creazione.strftime("%d %b %Y") if p.data_creazione else ""
+#     if total == 0:
+#         return {
+#             "items": [],
+#             "total": 0,
+#             "page": page,
+#             "page_size": page_size,
+#             "total_pages": 0,
+#         }
 
-        display_importo = (
-            f"{p.importo:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            if p.importo is not None
-            else "0,00"
-        )
+#     stmt = (
+#         select(Progetti)
+#         .where(*filters)
+#         .options(
+#             # Only columns needed from Progetti
+#             load_only(
+#                 Progetti.id,
+#                 Progetti.upload_id,
+#                 Progetti.upload_id_progetto_files,
+#                 Progetti.tecnico,
+#                 Progetti.stato,
+#                 Progetti.commerciale,
+#                 Progetti.azienda,
+#                 Progetti.note,
+#                 Progetti.centro_di_costo,
+#                 Progetti.cliente_id,
+#                 Progetti.data_cambiamento_stato,
+#                 Progetti.data_creazione,
+#                 Progetti.importo,
+#                 Progetti.importo_parz,
+#                 Progetti.status_percent,
+#             ),
+#             # cliente (1-to-1 → joinedload faster)
+#             joinedload(Progetti.cliente).load_only(
+#                 Cliente.id,
+#                 Cliente.nome_cliente,
+#                 Cliente.citta,
+#                 Cliente.indirizzo,
+#                 Cliente.numero_tel,
+#                 Cliente.centro_di_costo,
+#                 Cliente.contatti,
+#                 Cliente.note,
+#                 Cliente.data_creazione,
+#             ),
+#             # fornitori
+#             selectinload(Progetti.fornitori_links)
+#             .selectinload(ProgettoFornitoreLink.fornitore)
+#             .load_only(
+#                 Fornitore.id,
+#                 Fornitore.nome_cliente,
+#                 Fornitore.indirizzo,
+#                 Fornitore.citta,
+#                 Fornitore.numero_tel,
+#                 Fornitore.sito,
+#                 Fornitore.contatti,
+#                 Fornitore.data_creazione,
+#             ),
+#         )
+#         .order_by(
+#             stato_priority.asc(),
+#             Progetti.data_creazione.asc().nullslast(),
+#         )
+#         .offset(offset)
+#         .limit(page_size)
+#     )
 
-        display_importo_parz = (
-            f"{p.importo_parz:,.2f}".replace(",", "X")
-            .replace(".", ",")
-            .replace("X", ".")
-            if p.importo_parz is not None
-            else "0,00"
-        )
+#     progetti = db.exec(stmt).all()
 
-        status_percent = int(p.status_percent or 0)
-        is_completed = status_percent == 100 and (p.stato or "").upper() == "VALIDATO"
+#     items = []
 
-        items.append(
-            {
-                "id": p.id,
-                "upload_id": p.upload_id,
-                "upload_id_progetto_files": p.upload_id_progetto_files,
-                "tecnico": p.tecnico,
-                "stato": p.stato,
-                "commerciale": p.commerciale,
-                "azienda": p.azienda,
-                "note": p.note,
-                "centro_di_costo": p.centro_di_costo,
-                "cliente_id": p.cliente_id,
-                "data_cambiamento_stato": p.data_cambiamento_stato,
-                "data_creazione": p.data_creazione,
-                "importo": p.importo,
-                "importo_parz": p.importo_parz,
-                # NEW DISPLAY FIELDS
-                "display_date": display_date,
-                "display_importo": display_importo,
-                "display_importo_parz": display_importo_parz,
-                "supplier_names": supplier_names,
-                "cliente": cliente_dict,
-                "fornitori": fornitori,
-                "status_percent": status_percent,
-                "is_completed": is_completed,
-            }
-        )
-    return {
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": ceil(total / page_size),
-    }
+#     for p in progetti:
+
+#         cliente = p.cliente
+#         cliente_dict = None
+
+#         if cliente:
+#             cliente_dict = {
+#                 "id": cliente.id,
+#                 "nome_cliente": cliente.nome_cliente,
+#                 "citta": cliente.citta,
+#                 "indirizzo": cliente.indirizzo,
+#                 "numero_tel": cliente.numero_tel,
+#                 "centro_di_costo": cliente.centro_di_costo,
+#                 "contatti": cliente.contatti,
+#                 "note": cliente.note,
+#                 "data_creazione_cliente": cliente.data_creazione,
+#             }
+
+#         fornitori = []
+
+#         for f in p.fornitori_links:
+#             if not f.fornitore:
+#                 continue
+
+#             prodotti = f.prodotti_fornitore or []
+
+#             display_prodotti = (
+#                 ", ".join(f"{prod['nome']} ({prod['quantita']})" for prod in prodotti)
+#                 if prodotti
+#                 else "—"
+#             )
+
+#             fornitori.append(
+#                 {
+#                     "id": f.fornitore.id,
+#                     "nome_fornitore": f.fornitore.nome_cliente,
+#                     "indirizzo": f.fornitore.indirizzo,
+#                     "citta": f.fornitore.citta,
+#                     "numero_tel": f.fornitore.numero_tel,
+#                     "sito": f.fornitore.sito,
+#                     "contatti": f.fornitore.contatti,
+#                     "data_creazione_fornitore": f.fornitore.data_creazione,
+#                     "contratti": f.contratti,
+#                     "rilievi_misure": f.rilievi_misure,
+#                     "prodotti_fornitore": prodotti,
+#                     "display_prodotti": display_prodotti,
+#                     "note": f.note,
+#                 }
+#             )
+
+#         supplier_names = ", ".join(f["nome_fornitore"] for f in fornitori)
+
+#         # formatting helpers
+#         display_date = p.data_creazione.strftime("%d %b %Y") if p.data_creazione else ""
+
+#         display_importo = (
+#             f"{p.importo:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+#             if p.importo is not None
+#             else "0,00"
+#         )
+
+#         display_importo_parz = (
+#             f"{p.importo_parz:,.2f}".replace(",", "X")
+#             .replace(".", ",")
+#             .replace("X", ".")
+#             if p.importo_parz is not None
+#             else "0,00"
+#         )
+
+#         status_percent = int(p.status_percent or 0)
+#         is_completed = status_percent == 100 and (p.stato or "").upper() == "VALIDATO"
+
+#         items.append(
+#             {
+#                 "id": p.id,
+#                 "upload_id": p.upload_id,
+#                 "upload_id_progetto_files": p.upload_id_progetto_files,
+#                 "tecnico": p.tecnico,
+#                 "stato": p.stato,
+#                 "commerciale": p.commerciale,
+#                 "azienda": p.azienda,
+#                 "note": p.note,
+#                 "centro_di_costo": p.centro_di_costo,
+#                 "cliente_id": p.cliente_id,
+#                 "data_cambiamento_stato": p.data_cambiamento_stato,
+#                 "data_creazione": p.data_creazione,
+#                 "importo": p.importo,
+#                 "importo_parz": p.importo_parz,
+#                 # NEW DISPLAY FIELDS
+#                 "display_date": display_date,
+#                 "display_importo": display_importo,
+#                 "display_importo_parz": display_importo_parz,
+#                 "supplier_names": supplier_names,
+#                 "cliente": cliente_dict,
+#                 "fornitori": fornitori,
+#                 "status_percent": status_percent,
+#                 "is_completed": is_completed,
+#             }
+#         )
+#     return {
+#         "items": items,
+#         "total": total,
+#         "page": page,
+#         "page_size": page_size,
+#         "total_pages": ceil(total / page_size),
+#     }
 
 
 @router.get("/v2")
@@ -1345,6 +1345,269 @@ def read_progettiV2(
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
     }
+
+
+@router.get("/v3")
+def read_progettiV3(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    include_completed: bool = False,
+    include_suspended: bool = False,
+    tecnico: str | None = None,
+    cliente_nome: str | None = None,
+    sort_tecnico: bool = False,
+    include_total: bool = True,
+):
+    offset = (page - 1) * page_size
+
+    stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
+
+    stato_priority = case(
+        (stato_upper == "VALIDATO", 1),
+        (stato_upper == "INVIATO", 2),
+        (stato_upper == "ATTESA", 3),
+        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 4),
+        else_=999,
+    )
+
+    is_completed_expr = and_(
+        func.coalesce(Progetti.status_percent, 0) == 100,
+        stato_upper == "VALIDATO",
+    )
+
+    filters = []
+
+    if tecnico and tecnico.strip().lower() != "generali":
+        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+
+    if not include_suspended:
+        filters.append(stato_upper != "SOSPESO")
+
+    if not include_completed:
+        filters.append(~is_completed_expr)
+
+    if cliente_nome and cliente_nome.strip():
+        filters.append(Cliente.nome_cliente.ilike(f"%{cliente_nome.strip()}%"))
+
+    if sort_tecnico:
+        tecnico_empty_first = case(
+            (func.trim(func.coalesce(Progetti.tecnico, "")) == "", 0),
+            else_=1,
+        )
+
+        order_by_clause = [
+            tecnico_empty_first.asc(),
+            func.lower(func.coalesce(Progetti.tecnico, "")).asc(),
+            Progetti.data_creazione.asc().nullslast(),
+            Progetti.id.asc(),
+        ]
+    else:
+        order_by_clause = [
+            stato_priority.asc(),
+            Progetti.data_creazione.asc().nullslast(),
+            Progetti.id.asc(),
+        ]
+
+    base_from = (
+        select(
+            Progetti.id.label("id"),
+            Progetti.progetto_id.label("progetto"),
+            Progetti.upload_id.label("upload_id"),
+            Progetti.upload_id_progetto_files.label("upload_id_progetto_files"),
+            Progetti.tecnico.label("tecnico"),
+            Progetti.stato.label("stato"),
+            Progetti.commerciale.label("commerciale"),
+            Progetti.azienda.label("azienda"),
+            Progetti.note.label("note"),
+            Progetti.centro_di_costo.label("centro_di_costo"),
+            Progetti.cliente_id.label("cliente_id"),
+            Progetti.data_cambiamento_stato.label("data_cambiamento_stato"),
+            Progetti.data_creazione.label("data_creazione"),
+            Progetti.importo.label("importo"),
+            Progetti.importo_parz.label("importo_parz"),
+            Progetti.status_percent.label("status_percent"),
+            Cliente.id.label("cliente_db_id"),
+            Cliente.nome_cliente.label("cliente_nome_cliente"),
+            Cliente.citta.label("cliente_citta"),
+            Cliente.indirizzo.label("cliente_indirizzo"),
+            Cliente.numero_tel.label("cliente_numero_tel"),
+            Cliente.centro_di_costo.label("cliente_centro_di_costo"),
+            Cliente.contatti.label("cliente_contatti"),
+            Cliente.note.label("cliente_note"),
+            Cliente.data_creazione.label("cliente_data_creazione"),
+        )
+        .select_from(Progetti)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .where(*filters)
+    )
+
+    total = None
+    total_pages = None
+
+    if include_total:
+        count_stmt = (
+            select(func.count(Progetti.id))
+            .select_from(Progetti)
+            .join(Cliente, Progetti.cliente_id == Cliente.id)
+            .where(*filters)
+        )
+        total = db.exec(count_stmt).one()
+
+        if total == 0:
+            return {
+                "items": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0,
+            }
+
+        total_pages = (total + page_size - 1) // page_size
+
+    stmt = base_from.order_by(*order_by_clause).offset(offset).limit(page_size)
+
+    rows = db.exec(stmt).all()
+
+    if not rows:
+        return {
+            "items": [],
+            "total": total if total is not None else 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages if total_pages is not None else 0,
+        }
+
+    project_ids = [row.id for row in rows]
+
+    supplier_stmt = (
+        select(
+            ProgettoFornitoreLink.progetto_id.label("progetto_id"),
+            ProgettoFornitoreLink.contratti.label("contratti"),
+            ProgettoFornitoreLink.rilievi_misure.label("rilievi_misure"),
+            ProgettoFornitoreLink.prodotti_fornitore.label("prodotti_fornitore"),
+            ProgettoFornitoreLink.note.label("link_note"),
+            Fornitore.id.label("fornitore_id"),
+            Fornitore.nome_cliente.label("fornitore_nome_cliente"),
+            Fornitore.indirizzo.label("fornitore_indirizzo"),
+            Fornitore.citta.label("fornitore_citta"),
+            Fornitore.numero_tel.label("fornitore_numero_tel"),
+            Fornitore.sito.label("fornitore_sito"),
+            Fornitore.contatti.label("fornitore_contatti"),
+            Fornitore.data_creazione.label("fornitore_data_creazione"),
+        )
+        .select_from(ProgettoFornitoreLink)
+        .join(Fornitore, ProgettoFornitoreLink.fornitore_id == Fornitore.id)
+        .where(ProgettoFornitoreLink.progetto_id.in_(project_ids))
+    )
+
+    supplier_rows = db.exec(supplier_stmt).all()
+
+    fornitori_map = defaultdict(list)
+
+    for s in supplier_rows:
+        prodotti_fornitore = s.prodotti_fornitore or []
+
+        display_prodotti = (
+            ", ".join(
+                f"{prod.get('nome', '')} ({prod.get('quantita', '')})"
+                for prod in prodotti_fornitore
+            )
+            or "—"
+        )
+
+        fornitori_map[s.progetto_id].append(
+            {
+                "id": s.fornitore_id,
+                "nome_fornitore": s.fornitore_nome_cliente,
+                "indirizzo": s.fornitore_indirizzo,
+                "citta": s.fornitore_citta,
+                "numero_tel": s.fornitore_numero_tel,
+                "sito": s.fornitore_sito,
+                "contatti": s.fornitore_contatti,
+                "data_creazione_fornitore": s.fornitore_data_creazione,
+                "contratti": s.contratti,
+                "rilievi_misure": s.rilievi_misure,
+                "prodotti_fornitore": prodotti_fornitore,
+                "display_prodotti": display_prodotti,
+                "note": s.link_note,
+            }
+        )
+
+    def _format_currency(val) -> str:
+        return (
+            f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            if val is not None
+            else "0,00"
+        )
+
+    items = []
+
+    for r in rows:
+        cliente_dict = (
+            {
+                "id": r.cliente_db_id,
+                "nome_cliente": r.cliente_nome_cliente,
+                "citta": r.cliente_citta,
+                "indirizzo": r.cliente_indirizzo,
+                "numero_tel": r.cliente_numero_tel,
+                "centro_di_costo": r.cliente_centro_di_costo,
+                "contatti": r.cliente_contatti,
+                "note": r.cliente_note,
+                "data_creazione_cliente": r.cliente_data_creazione,
+            }
+            if r.cliente_db_id is not None
+            else None
+        )
+
+        stato_upper_val = (r.stato or "").upper()
+        status_percent = int(r.status_percent or 0)
+        fornitori = fornitori_map.get(r.id, [])
+
+        items.append(
+            {
+                "id": r.id,
+                "progetto": r.progetto,
+                "upload_id": r.upload_id,
+                "upload_id_progetto_files": r.upload_id_progetto_files,
+                "tecnico": r.tecnico,
+                "stato": r.stato,
+                "commerciale": r.commerciale,
+                "azienda": r.azienda,
+                "note": r.note,
+                "centro_di_costo": r.centro_di_costo,
+                "cliente_id": r.cliente_id,
+                "data_cambiamento_stato": r.data_cambiamento_stato,
+                "data_creazione": r.data_creazione,
+                "importo": r.importo,
+                "importo_parz": r.importo_parz,
+                "display_date": (
+                    r.data_creazione.strftime("%d %b %Y") if r.data_creazione else ""
+                ),
+                "display_importo": _format_currency(r.importo),
+                "display_importo_parz": _format_currency(r.importo_parz),
+                "supplier_names": ", ".join(f["nome_fornitore"] for f in fornitori),
+                "cliente": cliente_dict,
+                "fornitori": fornitori,
+                "status_percent": status_percent,
+                "is_completed": status_percent == 100 and stato_upper_val == "VALIDATO",
+            }
+        )
+
+    response = {
+        "items": items,
+        "page": page,
+        "page_size": page_size,
+    }
+
+    if include_total:
+        response["total"] = total
+        response["total_pages"] = total_pages
+    else:
+        response["total"] = len(items)
+        response["total_pages"] = 1
+
+    return response
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"]  # DO NOT CHANGE
