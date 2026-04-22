@@ -37,7 +37,8 @@ from sqlalchemy import text
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill
-from sqlalchemy import or_
+from sqlalchemy import or_, cast, DateTime, String
+from datetime import datetime
 
 router = APIRouter()
 
@@ -1356,10 +1357,7 @@ def read_progettiV2(
 
 @router.get("/tecnici-workload")
 def get_tecnici_workload(db: Session = Depends(get_db)):
-    print("=== /tecnici-workload START ===")
-
     tecnici = ["Davide", "Matteo", "Mirko", "Lorenzo", "Silvia"]
-    print("tecnici:", tecnici)
 
     now = datetime.now()
     month_start = datetime(now.year, now.month, 1)
@@ -1369,106 +1367,87 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
     else:
         next_month_start = datetime(now.year, now.month + 1, 1)
 
-    print("now:", now.isoformat())
-    print("month_start:", month_start.isoformat())
-    print("next_month_start:", next_month_start.isoformat())
+    # Always normalize to text first, so it works whether DB column is text or timestamp
+    raw_date_text = func.trim(
+        func.coalesce(cast(Progetti.data_cambiamento_stato, String), "")
+    )
 
-    try:
-        stmt = (
-            select(
-                Progetti.tecnico.label("tecnico"),
-                func.count()
-                .filter(Progetti.stato.in_(["ATTIVO", "ATTESA"]))
-                .label("inCaricoCount"),
-                func.coalesce(
-                    func.sum(Progetti.importo).filter(
-                        Progetti.stato.in_(["ATTIVO", "ATTESA"])
-                    ),
-                    0,
-                ).label("inCaricoImporto"),
-                func.count()
-                .filter(
-                    and_(
-                        Progetti.stato == "INVIATO",
-                        Progetti.data_cambiamento_stato >= month_start,
-                        Progetti.data_cambiamento_stato < next_month_start,
-                    )
+    safe_data_cambiamento = case(
+        (
+            raw_date_text.op("~")(r"^\d{4}-\d{2}-\d{2}"),
+            cast(raw_date_text, DateTime()),
+        ),
+        else_=None,
+    )
+
+    stmt = (
+        select(
+            Progetti.tecnico.label("tecnico"),
+            func.count()
+            .filter(Progetti.stato.in_(["ATTIVO", "ATTESA"]))
+            .label("inCaricoCount"),
+            func.coalesce(
+                func.sum(Progetti.importo).filter(
+                    Progetti.stato.in_(["ATTIVO", "ATTESA"])
+                ),
+                0,
+            ).label("inCaricoImporto"),
+            func.count()
+            .filter(
+                and_(
+                    Progetti.stato == "INVIATO",
+                    safe_data_cambiamento >= month_start,
+                    safe_data_cambiamento < next_month_start,
                 )
-                .label("gestitiMeseCount"),
-                func.coalesce(
-                    func.sum(Progetti.importo).filter(
-                        and_(
-                            Progetti.stato == "VALIDATO",
-                            Progetti.data_cambiamento_stato >= month_start,
-                            Progetti.data_cambiamento_stato < next_month_start,
-                        )
-                    ),
-                    0,
-                ).label("validatiMeseImporto"),
             )
-            .where(Progetti.tecnico.in_(tecnici))
-            .group_by(Progetti.tecnico)
+            .label("gestitiMeseCount"),
+            func.coalesce(
+                func.sum(Progetti.importo).filter(
+                    and_(
+                        Progetti.stato == "VALIDATO",
+                        safe_data_cambiamento >= month_start,
+                        safe_data_cambiamento < next_month_start,
+                    )
+                ),
+                0,
+            ).label("validatiMeseImporto"),
         )
+        .where(Progetti.tecnico.in_(tecnici))
+        .group_by(Progetti.tecnico)
+    )
 
-        print("SQL statement built successfully")
-        print("stmt:", stmt)
+    rows = db.exec(stmt).all()
 
-        rows = db.exec(stmt).all()
-        print("query executed successfully")
-        print("rows count:", len(rows))
-        print("rows raw:", rows)
-
-        rows_map = {
-            row.tecnico: {
-                "tecnico": row.tecnico,
-                "inCaricoCount": int(row.inCaricoCount or 0),
-                "inCaricoImporto": float(row.inCaricoImporto or 0),
-                "gestitiMeseCount": int(row.gestitiMeseCount or 0),
-                "validatiMeseImporto": float(row.validatiMeseImporto or 0),
-            }
-            for row in rows
+    rows_map = {
+        row.tecnico: {
+            "tecnico": row.tecnico,
+            "inCaricoCount": int(row.inCaricoCount or 0),
+            "inCaricoImporto": float(row.inCaricoImporto or 0),
+            "gestitiMeseCount": int(row.gestitiMeseCount or 0),
+            "validatiMeseImporto": float(row.validatiMeseImporto or 0),
         }
+        for row in rows
+    }
 
-        print("rows_map built successfully")
-        print("rows_map:", rows_map)
+    items = [
+        rows_map.get(
+            tecnico,
+            {
+                "tecnico": tecnico,
+                "inCaricoCount": 0,
+                "inCaricoImporto": 0,
+                "gestitiMeseCount": 0,
+                "validatiMeseImporto": 0,
+            },
+        )
+        for tecnico in tecnici
+    ]
 
-        items = [
-            rows_map.get(
-                tecnico,
-                {
-                    "tecnico": tecnico,
-                    "inCaricoCount": 0,
-                    "inCaricoImporto": 0,
-                    "gestitiMeseCount": 0,
-                    "validatiMeseImporto": 0,
-                },
-            )
-            for tecnico in tecnici
-        ]
-
-        print("items built successfully")
-        print("items:", items)
-
-        response = {
-            "items": items,
-            "month": now.month,
-            "year": now.year,
-        }
-
-        print("response ready")
-        print("response:", response)
-        print("=== /tecnici-workload END OK ===")
-
-        return response
-
-    except Exception as e:
-        print("=== /tecnici-workload ERROR ===")
-        print("error type:", type(e).__name__)
-        print("error message:", str(e))
-        import traceback
-
-        print(traceback.format_exc())
-        raise
+    return {
+        "items": items,
+        "month": now.month,
+        "year": now.year,
+    }
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"]  # DO NOT CHANGE
