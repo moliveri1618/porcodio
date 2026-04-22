@@ -1356,7 +1356,10 @@ def read_progettiV2(
 
 @router.get("/tecnici-workload")
 def get_tecnici_workload(db: Session = Depends(get_db)):
+    print("=== /tecnici-workload START ===")
+
     tecnici = ["Davide", "Matteo", "Mirko", "Lorenzo", "Silvia"]
+    print("tecnici:", tecnici)
 
     now = datetime.now()
     month_start = datetime(now.year, now.month, 1)
@@ -1366,74 +1369,106 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
     else:
         next_month_start = datetime(now.year, now.month + 1, 1)
 
-    stmt = (
-        select(
-            Progetti.tecnico.label("tecnico"),
-            func.count()
-            .filter(Progetti.stato.in_(["ATTIVO", "ATTESA"]))
-            .label("inCaricoCount"),
-            func.coalesce(
-                func.sum(Progetti.importo).filter(
-                    Progetti.stato.in_(["ATTIVO", "ATTESA"])
-                ),
-                0,
-            ).label("inCaricoImporto"),
-            func.count()
-            .filter(
-                and_(
-                    Progetti.stato == "INVIATO",
-                    Progetti.data_cambiamento_stato >= month_start,
-                    Progetti.data_cambiamento_stato < next_month_start,
-                )
-            )
-            .label("gestitiMeseCount"),
-            func.coalesce(
-                func.sum(Progetti.importo).filter(
+    print("now:", now.isoformat())
+    print("month_start:", month_start.isoformat())
+    print("next_month_start:", next_month_start.isoformat())
+
+    try:
+        stmt = (
+            select(
+                Progetti.tecnico.label("tecnico"),
+                func.count()
+                .filter(Progetti.stato.in_(["ATTIVO", "ATTESA"]))
+                .label("inCaricoCount"),
+                func.coalesce(
+                    func.sum(Progetti.importo).filter(
+                        Progetti.stato.in_(["ATTIVO", "ATTESA"])
+                    ),
+                    0,
+                ).label("inCaricoImporto"),
+                func.count()
+                .filter(
                     and_(
-                        Progetti.stato == "VALIDATO",
+                        Progetti.stato == "INVIATO",
                         Progetti.data_cambiamento_stato >= month_start,
                         Progetti.data_cambiamento_stato < next_month_start,
                     )
-                ),
-                0,
-            ).label("validatiMeseImporto"),
+                )
+                .label("gestitiMeseCount"),
+                func.coalesce(
+                    func.sum(Progetti.importo).filter(
+                        and_(
+                            Progetti.stato == "VALIDATO",
+                            Progetti.data_cambiamento_stato >= month_start,
+                            Progetti.data_cambiamento_stato < next_month_start,
+                        )
+                    ),
+                    0,
+                ).label("validatiMeseImporto"),
+            )
+            .where(Progetti.tecnico.in_(tecnici))
+            .group_by(Progetti.tecnico)
         )
-        .where(Progetti.tecnico.in_(tecnici))
-        .group_by(Progetti.tecnico)
-    )
 
-    rows = db.exec(stmt).all()
+        print("SQL statement built successfully")
+        print("stmt:", stmt)
 
-    rows_map = {
-        row.tecnico: {
-            "tecnico": row.tecnico,
-            "inCaricoCount": int(row.inCaricoCount or 0),
-            "inCaricoImporto": float(row.inCaricoImporto or 0),
-            "gestitiMeseCount": int(row.gestitiMeseCount or 0),
-            "validatiMeseImporto": float(row.validatiMeseImporto or 0),
+        rows = db.exec(stmt).all()
+        print("query executed successfully")
+        print("rows count:", len(rows))
+        print("rows raw:", rows)
+
+        rows_map = {
+            row.tecnico: {
+                "tecnico": row.tecnico,
+                "inCaricoCount": int(row.inCaricoCount or 0),
+                "inCaricoImporto": float(row.inCaricoImporto or 0),
+                "gestitiMeseCount": int(row.gestitiMeseCount or 0),
+                "validatiMeseImporto": float(row.validatiMeseImporto or 0),
+            }
+            for row in rows
         }
-        for row in rows
-    }
 
-    items = [
-        rows_map.get(
-            tecnico,
-            {
-                "tecnico": tecnico,
-                "inCaricoCount": 0,
-                "inCaricoImporto": 0,
-                "gestitiMeseCount": 0,
-                "validatiMeseImporto": 0,
-            },
-        )
-        for tecnico in tecnici
-    ]
+        print("rows_map built successfully")
+        print("rows_map:", rows_map)
 
-    return {
-        "items": items,
-        "month": now.month,
-        "year": now.year,
-    }
+        items = [
+            rows_map.get(
+                tecnico,
+                {
+                    "tecnico": tecnico,
+                    "inCaricoCount": 0,
+                    "inCaricoImporto": 0,
+                    "gestitiMeseCount": 0,
+                    "validatiMeseImporto": 0,
+                },
+            )
+            for tecnico in tecnici
+        ]
+
+        print("items built successfully")
+        print("items:", items)
+
+        response = {
+            "items": items,
+            "month": now.month,
+            "year": now.year,
+        }
+
+        print("response ready")
+        print("response:", response)
+        print("=== /tecnici-workload END OK ===")
+
+        return response
+
+    except Exception as e:
+        print("=== /tecnici-workload ERROR ===")
+        print("error type:", type(e).__name__)
+        print("error message:", str(e))
+        import traceback
+
+        print(traceback.format_exc())
+        raise
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"]  # DO NOT CHANGE
