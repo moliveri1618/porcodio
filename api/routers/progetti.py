@@ -37,6 +37,7 @@ from sqlalchemy import text
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill
+from sqlalchemy import or_
 
 router = APIRouter()
 
@@ -1157,8 +1158,14 @@ def read_progettiV2(
     )
 
     filters = []
-    if tecnico and tecnico.strip().lower() != "generali":
-        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+    if tecnico:
+        tecnico_clean = tecnico.strip().lower()
+        if tecnico_clean == "nuovi-ordini":
+            filters.append(
+                or_(Progetti.tecnico.is_(None), func.trim(Progetti.tecnico) == "")
+            )
+        elif tecnico_clean != "generali":
+            filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
     if not include_suspended:
         filters.append(stato_upper != "SOSPESO")
     if not include_completed:
@@ -1345,269 +1352,6 @@ def read_progettiV2(
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
     }
-
-
-@router.get("/v3")
-def read_progettiV3(
-    db: Session = Depends(get_db),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
-    include_completed: bool = False,
-    include_suspended: bool = False,
-    tecnico: str | None = None,
-    cliente_nome: str | None = None,
-    sort_tecnico: bool = False,
-    include_total: bool = True,
-):
-    offset = (page - 1) * page_size
-
-    stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
-
-    stato_priority = case(
-        (stato_upper == "VALIDATO", 1),
-        (stato_upper == "INVIATO", 2),
-        (stato_upper == "ATTESA", 3),
-        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 4),
-        else_=999,
-    )
-
-    is_completed_expr = and_(
-        func.coalesce(Progetti.status_percent, 0) == 100,
-        stato_upper == "VALIDATO",
-    )
-
-    filters = []
-
-    if tecnico and tecnico.strip().lower() != "generali":
-        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
-
-    if not include_suspended:
-        filters.append(stato_upper != "SOSPESO")
-
-    if not include_completed:
-        filters.append(~is_completed_expr)
-
-    if cliente_nome and cliente_nome.strip():
-        filters.append(Cliente.nome_cliente.ilike(f"%{cliente_nome.strip()}%"))
-
-    if sort_tecnico:
-        tecnico_empty_first = case(
-            (func.trim(func.coalesce(Progetti.tecnico, "")) == "", 0),
-            else_=1,
-        )
-
-        order_by_clause = [
-            tecnico_empty_first.asc(),
-            func.lower(func.coalesce(Progetti.tecnico, "")).asc(),
-            Progetti.data_creazione.asc().nullslast(),
-            Progetti.id.asc(),
-        ]
-    else:
-        order_by_clause = [
-            stato_priority.asc(),
-            Progetti.data_creazione.asc().nullslast(),
-            Progetti.id.asc(),
-        ]
-
-    base_from = (
-        select(
-            Progetti.id.label("id"),
-            Progetti.progetto_id.label("progetto"),
-            Progetti.upload_id.label("upload_id"),
-            Progetti.upload_id_progetto_files.label("upload_id_progetto_files"),
-            Progetti.tecnico.label("tecnico"),
-            Progetti.stato.label("stato"),
-            Progetti.commerciale.label("commerciale"),
-            Progetti.azienda.label("azienda"),
-            Progetti.note.label("note"),
-            Progetti.centro_di_costo.label("centro_di_costo"),
-            Progetti.cliente_id.label("cliente_id"),
-            Progetti.data_cambiamento_stato.label("data_cambiamento_stato"),
-            Progetti.data_creazione.label("data_creazione"),
-            Progetti.importo.label("importo"),
-            Progetti.importo_parz.label("importo_parz"),
-            Progetti.status_percent.label("status_percent"),
-            Cliente.id.label("cliente_db_id"),
-            Cliente.nome_cliente.label("cliente_nome_cliente"),
-            Cliente.citta.label("cliente_citta"),
-            Cliente.indirizzo.label("cliente_indirizzo"),
-            Cliente.numero_tel.label("cliente_numero_tel"),
-            Cliente.centro_di_costo.label("cliente_centro_di_costo"),
-            Cliente.contatti.label("cliente_contatti"),
-            Cliente.note.label("cliente_note"),
-            Cliente.data_creazione.label("cliente_data_creazione"),
-        )
-        .select_from(Progetti)
-        .join(Cliente, Progetti.cliente_id == Cliente.id)
-        .where(*filters)
-    )
-
-    total = None
-    total_pages = None
-
-    if include_total:
-        count_stmt = (
-            select(func.count(Progetti.id))
-            .select_from(Progetti)
-            .join(Cliente, Progetti.cliente_id == Cliente.id)
-            .where(*filters)
-        )
-        total = db.exec(count_stmt).one()
-
-        if total == 0:
-            return {
-                "items": [],
-                "total": 0,
-                "page": page,
-                "page_size": page_size,
-                "total_pages": 0,
-            }
-
-        total_pages = (total + page_size - 1) // page_size
-
-    stmt = base_from.order_by(*order_by_clause).offset(offset).limit(page_size)
-
-    rows = db.exec(stmt).all()
-
-    if not rows:
-        return {
-            "items": [],
-            "total": total if total is not None else 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": total_pages if total_pages is not None else 0,
-        }
-
-    project_ids = [row.id for row in rows]
-
-    supplier_stmt = (
-        select(
-            ProgettoFornitoreLink.progetto_id.label("progetto_id"),
-            ProgettoFornitoreLink.contratti.label("contratti"),
-            ProgettoFornitoreLink.rilievi_misure.label("rilievi_misure"),
-            ProgettoFornitoreLink.prodotti_fornitore.label("prodotti_fornitore"),
-            ProgettoFornitoreLink.note.label("link_note"),
-            Fornitore.id.label("fornitore_id"),
-            Fornitore.nome_cliente.label("fornitore_nome_cliente"),
-            Fornitore.indirizzo.label("fornitore_indirizzo"),
-            Fornitore.citta.label("fornitore_citta"),
-            Fornitore.numero_tel.label("fornitore_numero_tel"),
-            Fornitore.sito.label("fornitore_sito"),
-            Fornitore.contatti.label("fornitore_contatti"),
-            Fornitore.data_creazione.label("fornitore_data_creazione"),
-        )
-        .select_from(ProgettoFornitoreLink)
-        .join(Fornitore, ProgettoFornitoreLink.fornitore_id == Fornitore.id)
-        .where(ProgettoFornitoreLink.progetto_id.in_(project_ids))
-    )
-
-    supplier_rows = db.exec(supplier_stmt).all()
-
-    fornitori_map = defaultdict(list)
-
-    for s in supplier_rows:
-        prodotti_fornitore = s.prodotti_fornitore or []
-
-        display_prodotti = (
-            ", ".join(
-                f"{prod.get('nome', '')} ({prod.get('quantita', '')})"
-                for prod in prodotti_fornitore
-            )
-            or "—"
-        )
-
-        fornitori_map[s.progetto_id].append(
-            {
-                "id": s.fornitore_id,
-                "nome_fornitore": s.fornitore_nome_cliente,
-                "indirizzo": s.fornitore_indirizzo,
-                "citta": s.fornitore_citta,
-                "numero_tel": s.fornitore_numero_tel,
-                "sito": s.fornitore_sito,
-                "contatti": s.fornitore_contatti,
-                "data_creazione_fornitore": s.fornitore_data_creazione,
-                "contratti": s.contratti,
-                "rilievi_misure": s.rilievi_misure,
-                "prodotti_fornitore": prodotti_fornitore,
-                "display_prodotti": display_prodotti,
-                "note": s.link_note,
-            }
-        )
-
-    def _format_currency(val) -> str:
-        return (
-            f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            if val is not None
-            else "0,00"
-        )
-
-    items = []
-
-    for r in rows:
-        cliente_dict = (
-            {
-                "id": r.cliente_db_id,
-                "nome_cliente": r.cliente_nome_cliente,
-                "citta": r.cliente_citta,
-                "indirizzo": r.cliente_indirizzo,
-                "numero_tel": r.cliente_numero_tel,
-                "centro_di_costo": r.cliente_centro_di_costo,
-                "contatti": r.cliente_contatti,
-                "note": r.cliente_note,
-                "data_creazione_cliente": r.cliente_data_creazione,
-            }
-            if r.cliente_db_id is not None
-            else None
-        )
-
-        stato_upper_val = (r.stato or "").upper()
-        status_percent = int(r.status_percent or 0)
-        fornitori = fornitori_map.get(r.id, [])
-
-        items.append(
-            {
-                "id": r.id,
-                "progetto": r.progetto,
-                "upload_id": r.upload_id,
-                "upload_id_progetto_files": r.upload_id_progetto_files,
-                "tecnico": r.tecnico,
-                "stato": r.stato,
-                "commerciale": r.commerciale,
-                "azienda": r.azienda,
-                "note": r.note,
-                "centro_di_costo": r.centro_di_costo,
-                "cliente_id": r.cliente_id,
-                "data_cambiamento_stato": r.data_cambiamento_stato,
-                "data_creazione": r.data_creazione,
-                "importo": r.importo,
-                "importo_parz": r.importo_parz,
-                "display_date": (
-                    r.data_creazione.strftime("%d %b %Y") if r.data_creazione else ""
-                ),
-                "display_importo": _format_currency(r.importo),
-                "display_importo_parz": _format_currency(r.importo_parz),
-                "supplier_names": ", ".join(f["nome_fornitore"] for f in fornitori),
-                "cliente": cliente_dict,
-                "fornitori": fornitori,
-                "status_percent": status_percent,
-                "is_completed": status_percent == 100 and stato_upper_val == "VALIDATO",
-            }
-        )
-
-    response = {
-        "items": items,
-        "page": page,
-        "page_size": page_size,
-    }
-
-    if include_total:
-        response["total"] = total
-        response["total_pages"] = total_pages
-    else:
-        response["total"] = len(items)
-        response["total_pages"] = 1
-
-    return response
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"]  # DO NOT CHANGE
