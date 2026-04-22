@@ -1354,9 +1354,99 @@ def read_progettiV2(
     }
 
 
+@router.get("/tecnici-workload")
+def get_tecnici_workload(db: Session = Depends(get_db)):
+    tecnici = ["Davide", "Matteo", "Mirko", "Lorenzo", "Silvia"]
+
+    stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
+    tecnico_clean = func.trim(func.coalesce(Progetti.tecnico, ""))
+
+    stmt = (
+        select(
+            tecnico_clean.label("tecnico"),
+            func.count(
+                case(
+                    (stato_upper.in_(["ATTIVO", "ATTESA"]), 1),
+                    else_=None,
+                )
+            ).label("inCaricoCount"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (stato_upper.in_(["ATTIVO", "ATTESA"]), Progetti.importo),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("inCaricoImporto"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            stato_upper == "INVIATO",
+                            func.date_trunc("month", Progetti.data_cambiamento_stato)
+                            == func.date_trunc("month", func.now()),
+                        ),
+                        1,
+                    ),
+                    else_=None,
+                )
+            ).label("gestitiMeseCount"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                stato_upper == "VALIDATO",
+                                func.date_trunc(
+                                    "month", Progetti.data_cambiamento_stato
+                                )
+                                == func.date_trunc("month", func.now()),
+                            ),
+                            Progetti.importo,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("validatiMeseImporto"),
+        )
+        .where(tecnico_clean.in_(tecnici))
+        .group_by(tecnico_clean)
+        .order_by(tecnico_clean.asc())
+    )
+
+    rows = db.exec(stmt).all()
+
+    rows_map = {
+        row.tecnico: {
+            "tecnico": row.tecnico,
+            "inCaricoCount": int(row.inCaricoCount or 0),
+            "inCaricoImporto": float(row.inCaricoImporto or 0),
+            "gestitiMeseCount": int(row.gestitiMeseCount or 0),
+            "validatiMeseImporto": float(row.validatiMeseImporto or 0),
+        }
+        for row in rows
+    }
+
+    items = [
+        rows_map.get(
+            tecnico,
+            {
+                "tecnico": tecnico,
+                "inCaricoCount": 0,
+                "inCaricoImporto": 0,
+                "gestitiMeseCount": 0,
+                "validatiMeseImporto": 0,
+            },
+        )
+        for tecnico in tecnici
+    ]
+
+    return {"items": items}
+
+
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"]  # DO NOT CHANGE
-
-
 @router.put("/{progetto_id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
     progetto_id: int,
