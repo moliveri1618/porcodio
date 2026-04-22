@@ -1358,62 +1358,48 @@ def read_progettiV2(
 def get_tecnici_workload(db: Session = Depends(get_db)):
     tecnici = ["Davide", "Matteo", "Mirko", "Lorenzo", "Silvia"]
 
-    stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
-    tecnico_clean = func.trim(func.coalesce(Progetti.tecnico, ""))
+    now = datetime.now()
+    month_start = datetime(now.year, now.month, 1)
+
+    if now.month == 12:
+        next_month_start = datetime(now.year + 1, 1, 1)
+    else:
+        next_month_start = datetime(now.year, now.month + 1, 1)
 
     stmt = (
         select(
-            tecnico_clean.label("tecnico"),
-            func.count(
-                case(
-                    (stato_upper.in_(["ATTIVO", "ATTESA"]), 1),
-                    else_=None,
-                )
-            ).label("inCaricoCount"),
+            Progetti.tecnico.label("tecnico"),
+            func.count()
+            .filter(Progetti.stato.in_(["ATTIVO", "ATTESA"]))
+            .label("inCaricoCount"),
             func.coalesce(
-                func.sum(
-                    case(
-                        (stato_upper.in_(["ATTIVO", "ATTESA"]), Progetti.importo),
-                        else_=0,
-                    )
+                func.sum(Progetti.importo).filter(
+                    Progetti.stato.in_(["ATTIVO", "ATTESA"])
                 ),
                 0,
             ).label("inCaricoImporto"),
-            func.count(
-                case(
-                    (
-                        and_(
-                            stato_upper == "INVIATO",
-                            func.date_trunc("month", Progetti.data_cambiamento_stato)
-                            == func.date_trunc("month", func.now()),
-                        ),
-                        1,
-                    ),
-                    else_=None,
+            func.count()
+            .filter(
+                and_(
+                    Progetti.stato == "INVIATO",
+                    Progetti.data_cambiamento_stato >= month_start,
+                    Progetti.data_cambiamento_stato < next_month_start,
                 )
-            ).label("gestitiMeseCount"),
+            )
+            .label("gestitiMeseCount"),
             func.coalesce(
-                func.sum(
-                    case(
-                        (
-                            and_(
-                                stato_upper == "VALIDATO",
-                                func.date_trunc(
-                                    "month", Progetti.data_cambiamento_stato
-                                )
-                                == func.date_trunc("month", func.now()),
-                            ),
-                            Progetti.importo,
-                        ),
-                        else_=0,
+                func.sum(Progetti.importo).filter(
+                    and_(
+                        Progetti.stato == "VALIDATO",
+                        Progetti.data_cambiamento_stato >= month_start,
+                        Progetti.data_cambiamento_stato < next_month_start,
                     )
                 ),
                 0,
             ).label("validatiMeseImporto"),
         )
-        .where(tecnico_clean.in_(tecnici))
-        .group_by(tecnico_clean)
-        .order_by(tecnico_clean.asc())
+        .where(Progetti.tecnico.in_(tecnici))
+        .group_by(Progetti.tecnico)
     )
 
     rows = db.exec(stmt).all()
@@ -1443,7 +1429,11 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
         for tecnico in tecnici
     ]
 
-    return {"items": items}
+    return {
+        "items": items,
+        "month": now.month,
+        "year": now.year,
+    }
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato"]  # DO NOT CHANGE
