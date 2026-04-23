@@ -1,5 +1,6 @@
 # Defines API routes and endpoints related to progetti
 
+
 from fastapi import (
     APIRouter,
     Depends,
