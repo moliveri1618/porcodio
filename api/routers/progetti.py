@@ -222,20 +222,24 @@ def format_it(number: float) -> str:
 
 @router.get("/pointing")
 def get_projects_pointing(db: Session = Depends(get_db)):
-    stmt = select(Progetti).options(
-        selectinload(Progetti.fornitori_links),
-        joinedload(Progetti.cliente),
+    stmt = (
+        select(Progetti)
+        .options(
+            selectinload(Progetti.fornitori_links),
+            joinedload(Progetti.cliente),
+        )
+        .order_by(Progetti.id.asc())
     )
 
     progetti = db.exec(stmt).all()
 
-    return [
-        {
-            "id": p.id,
+    return {
+        p.id: {
             "point_taglia": calculate_project_point_db(p)["point_taglia"],
+            "importo_parz": p.importo_parz,
         }
         for p in progetti
-    ]
+    }
 
 
 # Create
