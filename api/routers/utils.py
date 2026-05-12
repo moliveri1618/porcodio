@@ -1,4 +1,3 @@
-
 # utils/gesty.py
 
 import httpx
@@ -22,6 +21,196 @@ from sqlmodel import Session, select
 API_BASE = "https://www.tigulliocrm.it/api"
 API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
 BASE_URL = "https://fsvejdikpdhubuz3kxl7w3koiq0iyvyj.lambda-url.eu-north-1.on.aws".rstrip("/")
+
+
+from typing import Literal
+
+POINTING_SPEC_WEIGHTS = {
+    "falegnameria": 0.10,
+    "accessori_avvolgibile": 0.15,
+    "accessori_porta_blindata": 0.10,
+    "avvolgibile": 0.20,
+    "zanzariera": 0.20,
+    "motori": 0.20,
+    "cassonetto": 0.25,
+    "persiana": 0.30,
+    "grata": 0.35,
+    "porta_interna": 0.50,
+    "infisso": 0.55,
+    "porta_blindata": 4.50,
+}
+
+POINTING_SERVICE_PRODUCTS = {
+    "assistenza_programmata",
+    "servizi_accessori",
+    "estensione_garanzia",
+    "servizio",
+    "altro",
+}
+
+POINTING_FORM_VALUE_TO_SPEC = {
+    "infisso": "infisso",
+    "infisso_antirumore": "infisso",
+    "finestre": "infisso",
+    "avvolgibile": "avvolgibile",
+    "avvolgibili": "avvolgibile",
+    "avvolgibile_teknika": "avvolgibile",
+    "tende": "avvolgibile",
+    "tende_tecniche": "avvolgibile",
+    "cassettoni": "cassonetto",
+    "zanzariere": "zanzariera",
+    "persiane": "persiana",
+    "fermapersiana": "persiana",
+    "grate_di_sicurezza": "grata",
+    "porte_blindate": "porta_blindata",
+    "blindato": "porta_blindata",
+    "porte_interne": "porta_interna",
+    "porte_interne_ferrero_legno": "porta_interna",
+    "portoncino": "porta_interna",
+    "porta_da_cantiere": "porta_interna",
+    "motori": "motori",
+    "motori_22%": "motori",
+    "accessori": "accessori_avvolgibile",
+    "avvolgitore": "accessori_avvolgibile",
+    "celini": "accessori_avvolgibile",
+    "guide": "accessori_avvolgibile",
+    "guide_fisse": "accessori_avvolgibile",
+    "rulli": "accessori_avvolgibile",
+    "cinghia": "accessori_avvolgibile",
+    "thermoflex": "accessori_avvolgibile",
+    "angolare": "accessori_avvolgibile",
+    "coprifilo": "accessori_avvolgibile",
+    "smoove": "accessori_avvolgibile",
+    "situo_5_io_pure": "accessori_avvolgibile",
+    "tahoma": "accessori_avvolgibile",
+    "radiocomando_amy_1_io": "accessori_avvolgibile",
+    "telecomandi": "accessori_avvolgibile",
+    "apparecchio_a_sporgere": "accessori_avvolgibile",
+    "ariete": "accessori_porta_blindata",
+    "arietem": "accessori_porta_blindata",
+    "cilindro": "accessori_porta_blindata",
+    "spioncino_digitale": "accessori_porta_blindata",
+    "controtelaio": "falegnameria",
+    "listello": "falegnameria",
+    "scuretto": "falegnameria",
+    "profilo": "falegnameria",
+    "lamiera": "falegnameria",
+    "bancale": "falegnameria",
+    "pannello": "falegnameria",
+    "telaio": "falegnameria",
+    "vetro": "falegnameria",
+    "guarnizione": "falegnameria",
+    "ferramenta": "falegnameria",
+    "maniglia": "falegnameria",
+    "fermavetro": "falegnameria",
+    "piatto": "falegnameria",
+}
+
+POINTING_TAGLIA_MAP = [
+    {"taglia": "xs", "valore": 1, "min": 0},
+    {"taglia": "s", "valore": 3, "min": 2.0},
+    {"taglia": "m", "valore": 5, "min": 4.0},
+    {"taglia": "l", "valore": 8, "min": 6.5},
+    {"taglia": "xl", "valore": 13, "min": 10.5},
+    {"taglia": "xxl", "valore": 21, "min": 17.0},
+]
+
+
+def map_to_taglia(grezzo: float) -> dict:
+    result = POINTING_TAGLIA_MAP[0]
+
+    for entry in POINTING_TAGLIA_MAP:
+        if grezzo >= entry["min"]:
+            result = entry
+
+    return {
+        "point_taglia": result["taglia"],
+        "point_valore": result["valore"],
+    }
+
+
+def _get_product_name(product) -> str:
+    if isinstance(product, dict):
+        return str(product.get("nome") or "")
+    return str(getattr(product, "nome", "") or "")
+
+
+def _get_product_quantity(product) -> float:
+    if isinstance(product, dict):
+        return float(product.get("quantita") or 0)
+    return float(getattr(product, "quantita", 0) or 0)
+
+
+def _is_real_supplier(prodotti: list) -> bool:
+    for product in prodotti or []:
+        nome_key = _get_product_name(product).lower().strip()
+        if nome_key and nome_key not in POINTING_SERVICE_PRODUCTS:
+            return True
+    return False
+
+
+def calculate_project_point_db(progetto: Progetti) -> dict:
+    links = progetto.fornitori_links or []
+
+    real_links = [
+        link for link in links if _is_real_supplier(link.prodotti_fornitore or [])
+    ]
+
+    fornitori_factor = max(0, len(real_links) - 1) * 2
+
+    prodotti_factor = 0.0
+    warnings = []
+
+    for link in links:
+        for product in link.prodotti_fornitore or []:
+            nome = _get_product_name(product)
+            nome_key = nome.lower().strip()
+
+            if not nome_key:
+                continue
+
+            if nome_key in POINTING_SERVICE_PRODUCTS:
+                continue
+
+            spec_key = POINTING_FORM_VALUE_TO_SPEC.get(nome_key)
+
+            if not spec_key:
+                warnings.append(f'Tipo prodotto non riconosciuto: "{nome}"')
+                continue
+
+            peso = POINTING_SPEC_WEIGHTS.get(spec_key, 0)
+            quantita = _get_product_quantity(product)
+
+            prodotti_factor += quantita * peso
+
+    citta = (
+        progetto.centro_di_costo
+        or (progetto.cliente.citta if progetto.cliente else "")
+        or ""
+    )
+
+    genova_bonus = 1 if "genova" in citta.lower() else 0
+
+    point_grezzo = round(
+        fornitori_factor + prodotti_factor + genova_bonus,
+        2,
+    )
+
+    taglia_data = map_to_taglia(point_grezzo)
+
+    return {
+        "point_grezzo": point_grezzo,
+        "point_taglia": taglia_data["point_taglia"],
+        "point_valore": taglia_data["point_valore"],
+        "point_details": {
+            "fornitori_factor": fornitori_factor,
+            "prodotti_factor": round(prodotti_factor, 2),
+            "genova_bonus": genova_bonus,
+            "real_fornitori_count": len(real_links),
+            "warnings": warnings,
+        },
+    }
+
 
 def fetch_from_gesty(endpoint: str) -> dict:
     """

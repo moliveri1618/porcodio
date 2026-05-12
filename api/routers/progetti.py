@@ -219,6 +219,25 @@ def compute_status_percent_db_edit(progetto: Progetti) -> int:
 def format_it(number: float) -> str:
     return f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+
+@router.get("/pointing")
+def get_projects_pointing(db: Session = Depends(get_db)):
+    stmt = select(Progetti).options(
+        selectinload(Progetti.fornitori_links),
+        joinedload(Progetti.cliente),
+    )
+
+    progetti = db.exec(stmt).all()
+
+    return [
+        {
+            "id": p.id,
+            "point_taglia": calculate_project_point_db(p)["point_taglia"],
+        }
+        for p in progetti
+    ]
+
+
 # Create
 @router.post("", response_model=ProgettiRead)
 def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
