@@ -32,6 +32,7 @@ class ProgettiCreate(BaseModel):
     importo_parz: Optional[float] = None
     note: Optional[str] = None 
     data_cambiamento_stato: Optional[str] = ""
+    taglia_progetto: Optional[str] = ""
     cliente_id: int
     fornitori: List[FornitoreLinkData]  
     status_percent: Optional[float] = None
@@ -62,6 +63,7 @@ class ProgettiUpdate(BaseModel):
     commerciale: Optional[str] = None
     data_creazione: Optional[datetime] = None
     data_cambiamento_stato: Optional[str] = ""
+    taglia_progetto: Optional[str] = ""
     importo: Optional[float] = None
     importo_parz: Optional[float] = None
     note: Optional[str] = None 

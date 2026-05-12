@@ -132,6 +132,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
         upload_id=progetto.upload_id,
         upload_id_progetto_files=progetto.upload_id_progetto_files,
         status_percent=25,
+        taglia_progetto=None,
     )
     db.add(db_progetto)
     db.commit()
@@ -141,7 +142,22 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     _replace_fornitori_links(db, db_progetto.id, progetto.fornitori)
 
     db.commit()
+    db_progetto = db.exec(
+        select(Progetti)
+        .where(Progetti.id == db_progetto.id)
+        .options(
+            joinedload(Progetti.cliente),
+            selectinload(Progetti.fornitori_links),
+        )
+    ).first()
+
+    pointing = calculate_project_point_db(db_progetto)
+    db_progetto.taglia_progetto = pointing["point_taglia"]
+
+    db.add(db_progetto)
+    db.commit()
     db.refresh(db_progetto)
+
     return db_progetto
 
 def compute_status_percent_db(progetto: Progetti) -> int:
@@ -220,7 +236,7 @@ def format_it(number: float) -> str:
     return f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-@router.get("/pointing")
+@router.post("/calc-taglia-existing-projects")
 def get_projects_pointing(db: Session = Depends(get_db)):
     stmt = (
         select(Progetti)
@@ -233,13 +249,23 @@ def get_projects_pointing(db: Session = Depends(get_db)):
 
     progetti = db.exec(stmt).all()
 
-    return {
-        p.id: {
-            "point_taglia": calculate_project_point_db(p)["point_taglia"],
+    result = {}
+
+    for p in progetti:
+        point_taglia = calculate_project_point_db(p)["point_taglia"]
+
+        # save into DB
+        p.taglia_progetto = point_taglia
+        db.add(p)
+
+        result[p.id] = {
+            "point_taglia": point_taglia,
             "importo_parz": p.importo_parz,
         }
-        for p in progetti
-    }
+
+    db.commit()
+
+    return result
 
 
 # Create
@@ -289,7 +315,22 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         db.add(link)
 
     db.commit()
+    db_progetto = db.exec(
+        select(Progetti)
+        .where(Progetti.id == db_progetto.id)
+        .options(
+            joinedload(Progetti.cliente),
+            selectinload(Progetti.fornitori_links),
+        )
+    ).first()
+
+    pointing = calculate_project_point_db(db_progetto)
+    db_progetto.taglia_progetto = pointing["point_taglia"]
+
+    db.add(db_progetto)
+    db.commit()
     db.refresh(db_progetto)
+
     return db_progetto
 
 
@@ -1255,6 +1296,7 @@ def read_progettiV2(
                 Progetti.importo,
                 Progetti.importo_parz,
                 Progetti.status_percent,
+                Progetti.taglia_progetto
             ),
             joinedload(Progetti.cliente).load_only(
                 Cliente.id,
@@ -1355,6 +1397,7 @@ def read_progettiV2(
                 "cliente_id": p.cliente_id,
                 "data_cambiamento_stato": p.data_cambiamento_stato,
                 "data_creazione": p.data_creazione,
+                "taglia_progetto": p.taglia_progetto,
                 "importo": p.importo,
                 "importo_parz": p.importo_parz,
                 "display_date": (
