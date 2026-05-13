@@ -10,8 +10,69 @@ if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__))
 from models.clienti import Cliente  # Changed model name from Progetti to Cliente
 from schemas.clienti import ClienteCreate, ClienteRead, ClienteUpdate  # Updated schemas
 from dependecies import get_db
+from routers.utils import fetch_from_gesty
 
 router = APIRouter()
+
+
+# Get from gesty
+@router.get("/match_clienti_data_with_gesty")
+def fix_clienti_data_with_gesty(db: Session = Depends(get_db)):
+
+    payload = fetch_from_gesty("dip-tecnico")
+
+    if isinstance(payload, dict):
+        data = payload.get("data", [])
+    elif isinstance(payload, list):
+        data = payload
+    else:
+        data = []
+
+    updated_clients = 0
+    skipped_clients = 0
+
+    for item in data:
+        cliente_data = item.get("Cliente", {})
+
+        if not cliente_data.get("id"):
+            continue
+
+        cliente_id = int(cliente_data["id"])
+
+        existing_cliente = db.get(Cliente, cliente_id)
+
+        if not existing_cliente:
+            skipped_clients += 1
+            continue
+
+        # UPDATE ONLY THESE FIELDS
+        existing_cliente.nome_cliente = (
+            cliente_data.get("nome_cliente") or existing_cliente.nome_cliente
+        )
+
+        existing_cliente.citta = cliente_data.get("citta") or existing_cliente.citta
+
+        existing_cliente.indirizzo = (
+            cliente_data.get("indirizzo") or existing_cliente.indirizzo
+        )
+
+        existing_cliente.numero_tel = (
+            cliente_data.get("numero_tel") or existing_cliente.numero_tel
+        )
+
+        existing_cliente.email = cliente_data.get("email") or existing_cliente.email
+
+        updated_clients += 1
+
+    db.commit()
+
+    return {
+        "success": True,
+        "updated_clients": updated_clients,
+        "skipped_clients": skipped_clients,
+        "total_payload_clients": len(data),
+    }
+
 
 # Create
 @router.post("", response_model=ClienteRead)
@@ -82,7 +143,6 @@ def delete_cliente(cliente_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cliente not found")
     db.delete(cliente)
     db.commit()
-
 
 
 # ALLOWED_FIELDS_CLIENTE = ["centro_di_costo"]  # DO NOT CHANGE
