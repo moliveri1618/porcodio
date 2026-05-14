@@ -26,6 +26,7 @@ class Progetti(SQLModel, table=True):
     note: Optional[str] = Field(default=None, nullable=True) 
     data_cambiamento_stato: Optional[str] = Field(default="", nullable=True)
     taglia_progetto: Optional[str] = Field(default="", nullable=True)
+    note_taglia: Optional[str] = Field(default="", nullable=True)
     status_percent: Optional[float] = Field(default=None, nullable=True, index=True)
     fornitori: List["Fornitore"] = Relationship( # Relationship to Fornitore through ProgettoFornitoreLink, not physical column
         back_populates="progetti",

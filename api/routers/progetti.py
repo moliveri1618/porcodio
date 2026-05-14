@@ -1296,7 +1296,8 @@ def read_progettiV2(
                 Progetti.importo,
                 Progetti.importo_parz,
                 Progetti.status_percent,
-                Progetti.taglia_progetto
+                Progetti.taglia_progetto,
+                Progetti.note_taglia
             ),
             joinedload(Progetti.cliente).load_only(
                 Cliente.id,
@@ -1517,7 +1518,7 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
     }
 
 
-ALLOWED_FIELDS = ["note", "data_cambiamento_stato", "tecnico", "stato"]  # DO NOT CHANGE
+ALLOWED_FIELDS = ["note", "data_cambiamento_stato", "tecnico", "stato", "note_taglia"]
 @router.put("/{progetto_id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
     progetto_id: int,
