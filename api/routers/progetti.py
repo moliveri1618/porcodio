@@ -1399,6 +1399,7 @@ def read_progettiV2(
                 "data_cambiamento_stato": p.data_cambiamento_stato,
                 "data_creazione": p.data_creazione,
                 "taglia_progetto": p.taglia_progetto,
+                "note_taglia": p.note_taglia,
                 "importo": p.importo,
                 "importo_parz": p.importo_parz,
                 "display_date": (
