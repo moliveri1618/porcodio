@@ -1518,7 +1518,7 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
     }
 
 
-ALLOWED_FIELDS = ["note", "data_cambiamento_stato", "tecnico", "stato", "taglia", "note_taglia"]
+ALLOWED_FIELDS = ["note", "data_cambiamento_stato", "tecnico", "stato", "taglia_progetto", "note_taglia"]
 @router.put("/{progetto_id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
     progetto_id: int,

@@ -31,7 +31,7 @@ class ProgettiCreate(BaseModel):
     importo: float
     importo_parz: Optional[float] = None
     note: Optional[str] = None 
-    data_cambiamento_stato: Optional[str] = ""
+    data_cambiamento_stato: Optional[datetime] = None
     taglia_progetto: Optional[str] = ""
     note_taglia: Optional[str] = ""
     cliente_id: int
@@ -63,7 +63,7 @@ class ProgettiUpdate(BaseModel):
     stato: Optional[str] = None
     commerciale: Optional[str] = None
     data_creazione: Optional[datetime] = None
-    data_cambiamento_stato: Optional[str] = ""
+    data_cambiamento_stato: Optional[datetime] = None
     taglia_progetto: Optional[str] = ""
     note_taglia: Optional[str] = ""
     importo: Optional[float] = None
