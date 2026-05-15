@@ -1520,14 +1520,13 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
 
 
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato", "tecnico", "stato", "taglia_progetto", "note_taglia"]
-@router.put("/{progetto_id}/field", response_model=ProgettiRead)
+@router.put("/{id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
-    progetto_id: int,
-    field: str,
+    id: int,    field: str,
     value: str | None,
     db: Session = Depends(get_db),
 ):
-    progetto = db.get(Progetti, progetto_id)
+    progetto = db.get(Progetti, id) # manually created proj don't have progetto_id, but just id
     if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
 
