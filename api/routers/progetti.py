@@ -284,7 +284,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         azienda=progetto.azienda,
         centro_di_costo=progetto.centro_di_costo,
         stato=progetto.stato,
-        data_cambiamento_stato=progetto.data_cambiamento_stato,
+        data_cambiamento_stato=datetime.now(timezone.utc),
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,
@@ -293,6 +293,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         upload_id_progetto_files=progetto.upload_id_progetto_files,
         status_percent=compute_status_percent(progetto),
     )
+
     db.add(db_progetto)
     db.commit()
     db.refresh(db_progetto)
