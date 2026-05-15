@@ -1526,11 +1526,16 @@ def update_single_progetto_field(
     value: str | None,
     db: Session = Depends(get_db),
 ):
+
+    print("UPDATE FIELD:", id, field, value)
+
     progetto = db.get(Progetti, id) # manually created proj don't have progetto_id, but just id
     if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
 
-    # ✅ only allow fields in the whitelist
+    if not hasattr(Progetti, field):
+        raise HTTPException(status_code=400, detail=f"Field '{field}' not found on Progetti model")
+
     if field not in ALLOWED_FIELDS:
         raise HTTPException(
             status_code=400,
@@ -1539,14 +1544,14 @@ def update_single_progetto_field(
 
     try:
         setattr(progetto, field, value)
-    except AttributeError:
-        raise HTTPException(
-            status_code=400, detail=f"Field '{field}' not found on model"
-        )
-
-    db.add(progetto)
-    db.commit()
-    db.refresh(progetto)
+        db.add(progetto)
+        db.commit()
+        db.refresh(progetto)
+        return progetto
+    except Exception as e:
+        db.rollback()
+        print("UPDATE ERROR:", repr(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
     return progetto
 
