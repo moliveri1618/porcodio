@@ -277,18 +277,15 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
     aliquota = 0.042 if cdc == "genova" else 0.025
     calc_importo_parz = (progetto.importo or 0.0) * aliquota
 
-    # data_cambiamento_stato = progetto.data_cambiamento_stato
-    # if data_cambiamento_stato == "":
-    #     data_cambiamento_stato = None
-
     # 1. Create the Progetto record
+    data_cambiamento_stato = progetto.data_cambiamento_stato or None
     db_progetto = Progetti(
         progetto_id=progetto.progetto_id,
         tecnico=progetto.tecnico,
         azienda=progetto.azienda,
         centro_di_costo=progetto.centro_di_costo,
         stato=progetto.stato,
-        data_cambiamento_stato=progetto.data_cambiamento_stato,
+        data_cambiamento_stato=data_cambiamento_stato,
         cliente_id=progetto.cliente_id,
         data_creazione=progetto.data_creazione,
         importo=progetto.importo,

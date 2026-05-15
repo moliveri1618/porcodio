@@ -24,7 +24,7 @@ class Progetti(SQLModel, table=True):
     importo: float = Field(..., nullable=False)
     importo_parz: float = Field(..., nullable=True)
     note: Optional[str] = Field(default=None, nullable=True) 
-    data_cambiamento_stato: Optional[str] = Field(default="", nullable=True)
+    data_cambiamento_stato: Optional[datetime] = Field(default=None, nullable=True)    
     taglia_progetto: Optional[str] = Field(default="", nullable=True)
     note_taglia: Optional[str] = Field(default="", nullable=True)
     status_percent: Optional[float] = Field(default=None, nullable=True, index=True)
