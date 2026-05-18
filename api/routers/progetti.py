@@ -284,6 +284,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         tecnico=progetto.tecnico,
         azienda=progetto.azienda,
         centro_di_costo=progetto.centro_di_costo,
+        commerciale=progetto.commerciale,
         stato=progetto.stato,
         data_cambiamento_stato=data_cambiamento_stato,
         cliente_id=progetto.cliente_id,
@@ -1693,6 +1694,9 @@ def update_progetto(
 # Delete one
 @router.delete("/v1/{progetto_id}")
 def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
+
+    print("Deleting progetto", progetto_id)
+
     progetto = db.get(Progetti, progetto_id)
     if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
