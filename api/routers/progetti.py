@@ -70,12 +70,14 @@ def has_any_file_V2(arr):
     return False
 
 def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
+
     # delete existing links
     db.query(ProgettoFornitoreLink).filter(
         ProgettoFornitoreLink.progetto_id == progetto_pk
     ).delete(synchronize_session=False)
 
-    # insert new links
+    # insert new links 
+    # dati cantiere , id=2, must always be present
     fornitori_payload = list(fornitori_payload or [])
 
     if not any(int(f.fornitore_id) == 2 for f in fornitori_payload):
