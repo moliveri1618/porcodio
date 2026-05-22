@@ -76,26 +76,43 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
     ).delete(synchronize_session=False)
 
     # insert new links
+    fornitori_payload = list(fornitori_payload or [])
+
+    if not any(int(f.fornitore_id) == 2 for f in fornitori_payload):
+        fornitori_payload.insert(
+            0,
+            type(
+                "Tmp",
+                (),
+                {
+                    "fornitore_id": 2,
+                    "contratti": [],
+                    "rilievi_misure": [],
+                    "prodotti_fornitore": [],
+                },
+            )(),
+        )
+
     if fornitori_payload:
         for f in fornitori_payload:
             if not _fornitore_exists(db, f.fornitore_id):
                 # skip invalid supplier id
                 continue
             link = ProgettoFornitoreLink(
-                progetto_id=progetto_pk,
-                fornitore_id=f.fornitore_id,
-                contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-                rilievi_misure=(
-                    [r.model_dump() for r in f.rilievi_misure]
-                    if f.rilievi_misure
-                    else []
-                ),
-                prodotti_fornitore=(
-                    [p.model_dump() for p in f.prodotti_fornitore]
-                    if f.prodotti_fornitore
-                    else []
-                ),
-            )
+                    progetto_id=progetto_pk,
+                    fornitore_id=f.fornitore_id,
+                    contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
+                    rilievi_misure=(
+                        [r.model_dump() for r in f.rilievi_misure]
+                        if f.rilievi_misure
+                        else []
+                    ),
+                    prodotti_fornitore=(
+                        [p.model_dump() for p in f.prodotti_fornitore]
+                        if f.prodotti_fornitore
+                        else []
+                    ),
+                )
             db.add(link)
 
 def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti:
@@ -139,6 +156,15 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     db.refresh(db_progetto)
 
     # ✅ only add valid fornitori
+    default_link = ProgettoFornitoreLink(
+        progetto_id=db_progetto.id,
+        fornitore_id=2,
+        contratti=[],
+        rilievi_misure=[],
+        prodotti_fornitore=[],
+    )
+
+    db.add(default_link)
     _replace_fornitori_links(db, db_progetto.id, progetto.fornitori)
 
     db.commit()
