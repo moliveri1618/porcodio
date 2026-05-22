@@ -12,6 +12,7 @@ from schemas.progetto_fornitore_link import (
 )
 from dependecies import get_db
 from typing import List
+from models.progetti import Progetti
 
 router = APIRouter()
 
@@ -48,6 +49,40 @@ def update_link(link: ProgettoFornitoreLinkUpdate, progetto_id: int, fornitore_i
     db.commit()
     db.refresh(db_link)
     return db_link
+
+
+@router.post("/backfill/dati-cantiere")
+def add_dati_cantiere_to_all_progetti(db: Session = Depends(get_db)):
+    fornitore_id = 2
+
+    progetto_ids = db.exec(select(Progetti.id)).all()
+
+    created = 0
+    skipped = 0
+
+    for progetto_id in progetto_ids:
+        existing = db.get(ProgettoFornitoreLink, (progetto_id, fornitore_id))
+
+        if existing:
+            skipped += 1
+            continue
+
+        db_link = ProgettoFornitoreLink(
+            progetto_id=progetto_id,
+            fornitore_id=fornitore_id,
+        )
+
+        db.add(db_link)
+        created += 1
+
+    db.commit()
+
+    return {
+        "message": "Dati Cantiere added to all projects",
+        "created": created,
+        "skipped_existing": skipped,
+        "total_projects": len(progetto_ids),
+    }
 
 
 ALLOWED_FIELDS = ["note"]  # DO NOT CHANGE
