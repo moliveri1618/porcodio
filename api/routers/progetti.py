@@ -218,8 +218,13 @@ def compute_status_percent_db(progetto: Progetti) -> int:
 def compute_status_percent(progetto: ProgettiCreate) -> int:
 
     # exclude dati cantiere (id=2)
-    links = get_valid_supplier_links(progetto)
-    n = len(links)
+    fornitori = [
+        f
+        for f in (progetto.fornitori or [])
+        if f.fornitore_id != 2
+    ]
+
+    n = len(fornitori)
 
     # Project-level = 25 total
     rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
@@ -235,10 +240,10 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
 
     total = project_part
 
-    for link in links:
-        if has_any_file(link.contratti):
+    for f in fornitori:
+        if has_any_file(f.contratti):
             total += contratti_per_link
-        if has_any_file(link.rilievi_misure):
+        if has_any_file(f.rilievi_misure):
             total += rilievi_per_link
 
     return max(0, min(100, round(total)))
