@@ -9,9 +9,15 @@ from fastapi import (
 )
 from botocore.exceptions import ClientError
 import boto3
+import sys
+import os
+
+if os.getenv("GITHUB_ACTIONS"):
+    sys.path.append(os.path.dirname(__file__))
+from dotenv import load_dotenv
+load_dotenv()
 
 router = APIRouter()
-
 
 
 KB = 1024
@@ -23,10 +29,10 @@ SUPPORTED_FILE_TYPES = {
     "image/jpeg": "jpg",
     "application/pdf": "pdf",
 }
-AWS_BUCKET = "images1files1bucket"
-AWS_REGION = "eu-north-1"  # keep in sync with your bucket region
+AWS_BUCKET = os.getenv("AWS_BUCKET")
+AWS_REGION = os.getenv("AWS_REGION", "eu-north-1")
 s3_client = boto3.client("s3", region_name=AWS_REGION)
-ALLOWED_PREFIXES = ["Gestionale/", "iMax/"]
+ALLOWED_PREFIXES = ["Gestionale/"]
 
 
 #############################################
