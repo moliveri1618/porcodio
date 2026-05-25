@@ -87,51 +87,51 @@ async def presign_upload(
             "headers": {"Content-Type": content_type} if content_type else {},
         }
     except ClientError as e:
-        logger.error(f"Presign upload failed for {key}: {e}")
+        # logger.error(f"Presign upload failed for {key}: {e}")
         raise HTTPException(
             status_code=500, detail="Failed to generate pre-signed upload URL"
         )
 
 
-# @app.get("/presign-download")
-# async def presign_download(
-#     key: str,
-#     expires: int = 60,
-#     download_name: str | None = None,
-#     # current_user: dict = Depends(verify_cognito_token),
-# ):
-#     """
-#     Generate a pre-signed URL for downloading a file (HTTP GET) from S3.
-#     Example:
-#       GET /presign-download?key=Gestionale/Emails/A.pdf&expires=60&download_name=Allegato.pdf
-#     """
-#     if not _is_allowed_key(key):
-#         raise HTTPException(status_code=400, detail="Key not allowed")
+@router.get("/presign-download")
+async def presign_download(
+    key: str,
+    expires: int = 60,
+    download_name: str | None = None,
+    # current_user: dict = Depends(verify_cognito_token),
+):
+    """
+    Generate a pre-signed URL for downloading a file (HTTP GET) from S3.
+    Example:
+      GET /presign-download?key=Gestionale/Emails/A.pdf&expires=60&download_name=Allegato.pdf
+    """
+    if not _is_allowed_key(key):
+        raise HTTPException(status_code=400, detail="Key not allowed")
 
-#     params = {
-#         "Bucket": AWS_BUCKET,
-#         "Key": key,
-#     }
-#     if download_name:
-#         params["ResponseContentDisposition"] = f'attachment; filename="{download_name}"'
+    params = {
+        "Bucket": AWS_BUCKET,
+        "Key": key,
+    }
+    if download_name:
+        params["ResponseContentDisposition"] = f'attachment; filename="{download_name}"'
 
-#     try:
-#         url = s3_client.generate_presigned_url(
-#             ClientMethod="get_object",
-#             Params=params,
-#             ExpiresIn=_cap_expires(expires),
-#         )
-#         return {
-#             "url": url,
-#             "method": "GET",
-#             "key": key,
-#             "expires_in": _cap_expires(expires),
-#         }
-#     except ClientError as e:
-#         logger.error(f"Presign download failed for {key}: {e}")
-#         raise HTTPException(
-#             status_code=500, detail="Failed to generate pre-signed download URL"
-#         )
+    try:
+        url = s3_client.generate_presigned_url(
+            ClientMethod="get_object",
+            Params=params,
+            ExpiresIn=_cap_expires(expires),
+        )
+        return {
+            "url": url,
+            "method": "GET",
+            "key": key,
+            "expires_in": _cap_expires(expires),
+        }
+    except ClientError as e:
+        # logger.error(f"Presign download failed for {key}: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to generate pre-signed download URL"
+        )
 
 
 # @app.delete("/delete-file")
