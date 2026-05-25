@@ -35,6 +35,8 @@ s3_client = boto3.client("s3", region_name=AWS_REGION)
 ALLOWED_PREFIXES = ["Gestionale/"]
 
 
+
+
 #############################################
 ########## Generate PRE Signed URL ##########
 ########## Upload  ------ Download ##########
