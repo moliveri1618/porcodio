@@ -134,27 +134,27 @@ async def presign_download(
         )
 
 
-# @app.delete("/delete-file")
-# async def delete_file(
-#     key: str,
-#     # current_user: dict = Depends(verify_cognito_token),
-# ):
-#     """
-#     Delete a file directly from S3 (no pre-signed URL needed)
-#     """
-#     if not _is_allowed_key(key):
-#         raise HTTPException(status_code=400, detail="Key not allowed")
+@router.delete("/delete-file")
+async def delete_file(
+    key: str,
+    # current_user: dict = Depends(verify_cognito_token),
+):
+    """
+    Delete a file directly from S3 (no pre-signed URL needed)
+    """
+    if not _is_allowed_key(key):
+        raise HTTPException(status_code=400, detail="Key not allowed")
 
-#     try:
-#         s3_client.delete_object(Bucket=AWS_BUCKET, Key=key)
-#         return {
-#             "success": True,
-#             "message": f"File {key} deleted successfully",
-#             "key": key,
-#         }
-#     except ClientError as e:
-#         logger.error(f"Delete failed for {key}: {e}")
-#         raise HTTPException(status_code=500, detail="Failed to delete file")
+    try:
+        s3_client.delete_object(Bucket=AWS_BUCKET, Key=key)
+        return {
+            "success": True,
+            "message": f"File {key} deleted successfully",
+            "key": key,
+        }
+    except ClientError as e:
+        # logger.error(f"Delete failed for {key}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete file")
 
 
 # --- end block ----------------------------------------------------------------
