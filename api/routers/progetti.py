@@ -236,9 +236,9 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
     total = project_part
 
     for link in links:
-        if has_any_file_V2(link.contratti):
+        if has_any_file(link.contratti):
             total += contratti_per_link
-        if has_any_file_V2(link.rilievi_misure):
+        if has_any_file(link.rilievi_misure):
             total += rilievi_per_link
 
     return max(0, min(100, round(total)))
