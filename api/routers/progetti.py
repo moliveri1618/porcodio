@@ -234,7 +234,13 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
     return max(0, min(100, round(total)))
 
 def compute_status_percent_db_edit(progetto: Progetti) -> int:
-    links = progetto.fornitori_links or []
+    # exclude dati cantiere (id=2)
+    links = [
+        link
+        for link in (progetto.fornitori_links or [])
+        if link.fornitore_id != 2
+    ]
+
     n = len(links)
 
     # Project-level = 25 total
@@ -254,6 +260,7 @@ def compute_status_percent_db_edit(progetto: Progetti) -> int:
     for link in links:
         if has_any_file_V2(link.contratti):
             total += contratti_per_link
+
         if has_any_file_V2(link.rilievi_misure):
             total += rilievi_per_link
 
