@@ -43,6 +43,12 @@ from datetime import datetime
 
 router = APIRouter()
 
+def get_valid_supplier_links(progetto: Progetti):
+    return [
+        link
+        for link in (progetto.fornitori_links or [])
+        if link.fornitore_id != 2
+    ]
 
 def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
     if not fornitore_id or fornitore_id == 0:
@@ -189,7 +195,9 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     return db_progetto
 
 def compute_status_percent_db(progetto: Progetti) -> int:
-    links = progetto.fornitori_links or []
+
+    # exclude dati cantiere (id=2)
+    links = get_valid_supplier_links(progetto)
     n = len(links)
 
     if n == 0:
@@ -210,13 +218,8 @@ def compute_status_percent_db(progetto: Progetti) -> int:
 def compute_status_percent(progetto: ProgettiCreate) -> int:
 
     # exclude dati cantiere (id=2)
-    fornitori = [
-        f
-        for f in (progetto.fornitori or [])
-        if int(f.fornitore_id) != 2
-    ]
-
-    n = len(fornitori)
+    links = get_valid_supplier_links(progetto)
+    n = len(links)
 
     # Project-level = 25 total
     rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
@@ -232,23 +235,18 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
 
     total = project_part
 
-    for f in fornitori:
-        if has_any_file(f.contratti):
+    for link in links:
+        if has_any_file_V2(link.contratti):
             total += contratti_per_link
-        if has_any_file(f.rilievi_misure):
+        if has_any_file_V2(link.rilievi_misure):
             total += rilievi_per_link
 
     return max(0, min(100, round(total)))
 
 def compute_status_percent_db_edit(progetto: Progetti) -> int:
-    
-    # exclude dati cantiere (id=2)
-    links = [
-        link
-        for link in (progetto.fornitori_links or [])
-        if link.fornitore_id != 2
-    ]
 
+    # exclude dati cantiere (id=2)
+    links = get_valid_supplier_links(progetto)
     n = len(links)
 
     # Project-level = 25 total
