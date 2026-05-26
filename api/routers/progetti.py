@@ -200,12 +200,16 @@ def compute_status_percent_db(progetto: Progetti) -> int:
     links = get_valid_supplier_links(progetto)
     n = len(links)
 
+    rilievo_done = 1 if (progetto.upload_id or "").strip() else 0
+    contratto_done = 1 if (progetto.upload_id_progetto_files or "").strip() else 0
+    project_part = (rilievo_done + contratto_done) * 12.5
+
     if n == 0:
         return 25
 
-    total = 25
     contratti_per_link = 50 / n
     rilievi_per_link = 25 / n
+    total = project_part
 
     for link in links:
         if link.contratti:
