@@ -38,9 +38,13 @@ ALLOWED_PREFIXES = ["Gestionale/"]
 def _cap_expires(expires: int):
     return max(1, min(expires, MAX_EXPIRES))
 
-
 def _is_allowed_key(key: str):
     return any(key.startswith(prefix) for prefix in ALLOWED_PREFIXES)
+
+def normalize_legacy_key(key: str) -> str:
+    if key.startswith("uploads/Gestionale/"):
+        return key.removeprefix("uploads/")
+    return key
 
 
 #############################################
@@ -62,6 +66,8 @@ async def presign_upload(
       GET /presign-upload?key=Gestionale/Fornitori/file.pdf&expires=60&content_type=application/pdf
     Client then PUTs the file bytes to the returned URL.
     """
+
+    key = normalize_legacy_key(key)
     if not _is_allowed_key(key):
         raise HTTPException(status_code=400, detail="Key not allowed")
 
@@ -105,6 +111,8 @@ async def presign_download(
     Example:
       GET /presign-download?key=Gestionale/Emails/A.pdf&expires=60&download_name=Allegato.pdf
     """
+
+    key = normalize_legacy_key(key)
     if not _is_allowed_key(key):
         raise HTTPException(status_code=400, detail="Key not allowed")
 
@@ -142,6 +150,8 @@ async def delete_file(
     """
     Delete a file directly from S3 (no pre-signed URL needed)
     """
+
+    key = normalize_legacy_key(key)
     if not _is_allowed_key(key):
         raise HTTPException(status_code=400, detail="Key not allowed")
 
