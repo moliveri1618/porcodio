@@ -1,6 +1,22 @@
 import os
 import shutil
 from fastapi import UploadFile
+import fitz  # PyMuPDF
+
+
+def pdf_to_text(pdf_path: str, txt_path: str) -> None:
+    pdf_document = fitz.open(pdf_path)
+
+    text_content = ""
+
+    for page_num in range(len(pdf_document)):
+        page = pdf_document.load_page(page_num)
+        text_content += page.get_text()
+
+    with open(txt_path, "w", encoding="utf-8") as txt_file:
+        txt_file.write(text_content)
+
+    pdf_document.close()
 
 
 def save_pdf(file: UploadFile, folder_name: str) -> str:
@@ -25,3 +41,10 @@ def save_pdf(file: UploadFile, folder_name: str) -> str:
         shutil.copyfileobj(file.file, buffer)
 
     return file_path
+
+
+def define_txtfile_path(pdf_path: str, txt_file_name: str) -> str:
+    pdf_dir = os.path.dirname(pdf_path)
+    txt_path = os.path.join(pdf_dir, txt_file_name)
+
+    return txt_path
