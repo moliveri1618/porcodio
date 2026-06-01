@@ -8,18 +8,40 @@ from routers.utils_parsing import *
 
 router = APIRouter()
 
-
 @router.post("/pdf_compare_contratto_ordine/")
 async def pdf_compare_contratto_ordine(file: UploadFile = File(...)):
 
+    # Get text form pdf 
+    text_content = pdf_to_text_from_upload(file)
 
-    pdf_path = save_pdf(file, "Files_contratto_ordine")
-    txt_path = define_txtfile_path(pdf_path, "output1.txt")
-    pdf_to_text(pdf_path, txt_path)
+    ## Extract cliente info
+    cliente_info = extract_cliente_info(text_content)
+    print(cliente_info)
+    print('\n')
 
+    ## Extract progetto info
+    progetto_info = extract_progetto_info(text_content)
+    print(progetto_info)
+    print('\n')
 
+    ## Extract Fornitori Data
+    fornitori_data = pdf_rules2(text_content)
+    fornitori_data = build_fornitori_dict(fornitori_data)
+    print(fornitori_data)
+    print('\n')
+
+    # Merge fornitori into progetto
+    progetto_info["Progetto"]["fornitori"] = fornitori_data["fornitori"]
+    print(progetto_info)
+    print('\n')
+
+    ## Build result
+    result = {
+        "Cliente": cliente_info["Cliente"],
+        "Progetto": progetto_info["Progetto"],
+    }
     return {
-        "message": "PDF saved successfully",
-        "pdf_path": pdf_path,
-        "txt_path": txt_path
+        "message": "PDF parsed successfully",
+        "text_content": text_content,
+        "data": result,
     }
