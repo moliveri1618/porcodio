@@ -8,8 +8,8 @@ from routers.utils_parsing import *
 
 router = APIRouter()
 
-@router.post("/pdf_compare_contratto_ordine/")
-async def pdf_compare_contratto_ordine(file: UploadFile = File(...)):
+@router.post("/parse_contratto_pdf/")
+async def pdf_parse_contratto(file: UploadFile = File(...)):
 
     # Get text form pdf 
     text_content = pdf_to_text_from_upload(file)
@@ -21,14 +21,14 @@ async def pdf_compare_contratto_ordine(file: UploadFile = File(...)):
 
     ## Extract progetto info
     progetto_info = extract_progetto_info(text_content)
-    print(progetto_info)
-    print('\n')
+    # print(progetto_info)
+    # print('\n')
 
     ## Extract Fornitori Data
     fornitori_data = pdf_rules2(text_content)
     fornitori_data = build_fornitori_dict(fornitori_data)
-    print(fornitori_data)
-    print('\n')
+    # print(fornitori_data)
+    # print('\n')
 
     # Merge fornitori into progetto
     progetto_info["Progetto"]["fornitori"] = fornitori_data["fornitori"]
@@ -40,8 +40,4 @@ async def pdf_compare_contratto_ordine(file: UploadFile = File(...)):
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
     }
-    return {
-        "message": "PDF parsed successfully",
-        "text_content": text_content,
-        "data": result,
-    }
+    return result
