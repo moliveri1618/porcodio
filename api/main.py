@@ -22,6 +22,7 @@ from routers import (
     prodotti,
     notePrivate,
     img_S3,
+    progetti_parsing
 )
 
 # from routers import clienti
@@ -55,6 +56,12 @@ app.include_router(
     progetti.router, 
     prefix="/progetti", 
     tags=["progetti"]
+)
+
+app.include_router(
+    progetti_parsing.router, 
+    prefix="/progetti-parsing", 
+    tags=["progetti-parsing"]
 )
 
 app.include_router(
