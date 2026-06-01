@@ -1,22 +1,18 @@
 import os
 import shutil
 from fastapi import UploadFile
-import fitz  # PyMuPDF
+from pypdf import PdfReader
 
 
-def pdf_to_text(pdf_path: str, txt_path: str) -> None:
-    pdf_document = fitz.open(pdf_path)
+def pdf_to_text(pdf_path: str) -> str:
+    reader = PdfReader(pdf_path)
 
     text_content = ""
 
-    for page_num in range(len(pdf_document)):
-        page = pdf_document.load_page(page_num)
-        text_content += page.get_text()
+    for page in reader.pages:
+        text_content += page.extract_text() or ""
 
-    with open(txt_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write(text_content)
-
-    pdf_document.close()
+    return text_content
 
 
 def save_pdf(file: UploadFile, folder_name: str) -> str:
