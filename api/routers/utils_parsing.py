@@ -1,3 +1,4 @@
+from datetime import date
 import os
 import sys
 import shutil
@@ -289,27 +290,19 @@ def extract_progetto_info(text_content):
     lines = [line.strip() for line in text_content.split("\n")]
 
     progetto = {
-        "azienda": "",
-        "centro_di_costo": "",
+        "azienda": lines[0] if len(lines) > 0 else "",
+        "centro_di_costo": lines[1] if len(lines) > 1 else "",
         "commerciale": "",
         "importo": "",
+        "data_primo_pagamento": date.today().isoformat(),
     }
 
     for i, line in enumerate(lines):
 
-        if line == "Tigullio Design Srl":
-            progetto["azienda"] = line
-
-        elif "Via Struppa" in line:
-            progetto["centro_di_costo"] = line
-
-        elif line == "ADDETTO" and i + 1 < len(lines):
+        if line == "ADDETTO" and i + 1 < len(lines):
             progetto["commerciale"] = lines[i + 1]
 
-        elif line == "DATA" and i + 1 < len(lines):
-            progetto["data_primo_pagamento"] = lines[i + 1]
-
-        elif "TOTALE COMPLESSIVO" in line and i + 1 < len(lines):
+        elif "IMPONIBILE" in line and i + 1 < len(lines):
             progetto["importo"] = lines[i + 1]
 
     return {"Progetto": progetto}

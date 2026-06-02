@@ -11,8 +11,10 @@ router = APIRouter()
 @router.post("/parse_contratto_pdf/")
 async def pdf_parse_contratto(file: UploadFile = File(...)):
 
-    # Get text form pdf 
+    # Get text from pdf 
     text_content = pdf_to_text_from_upload(file)
+    print(text_content)
+    print('\n')
 
     ## Extract cliente info
     cliente_info = extract_cliente_info(text_content)
@@ -31,11 +33,11 @@ async def pdf_parse_contratto(file: UploadFile = File(...)):
     # print('\n')
 
     # Merge fornitori into progetto
-    progetto_info["Progetto"]["fornitori"] = fornitori_data["fornitori"]
-    print(progetto_info)
-    print('\n')
+    # progetto_info["Progetto"]["fornitori"] = fornitori_data["fornitori"]
+    # print(progetto_info)
+    # print('\n')
 
-    ## Build result
+
     result = {
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
