@@ -13,13 +13,13 @@ async def pdf_parse_contratto(file: UploadFile = File(...)):
 
     # Get text from pdf 
     text_content = pdf_to_text_from_upload(file)
-    print(text_content)
-    print('\n')
+    # print(text_content)
+    # print('\n')
 
     ## Extract cliente info
     cliente_info = extract_cliente_info(text_content)
-    print(cliente_info)
-    print('\n')
+    # print(cliente_info)
+    # print('\n')
 
     ## Extract progetto info
     progetto_info = extract_progetto_info(text_content)
