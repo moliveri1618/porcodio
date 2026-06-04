@@ -5,10 +5,13 @@ import shutil
 from fastapi import UploadFile
 from pypdf import PdfReader
 import re
+from sqlmodel import Session, select
+from sqlalchemy import func
 
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
 from routers.utils_parsing_models import *
+from models.clienti import Cliente
 
 ############################################
 ########### DEFINER FUNCTIONS ##############
@@ -248,7 +251,8 @@ def pdf_rules2(context2):
 ########### CLIENTE PROJ PARSING ###########
 ############################################
 
-def extract_cliente_info(text_content):
+
+def extract_cliente_info(text_content, db: Session):
     lines = [line.strip() for line in text_content.split("\n")]
 
     cliente = {
@@ -256,13 +260,13 @@ def extract_cliente_info(text_content):
         "citta": "",
         "indirizzo": "",
         "numero_tel": "",
-        "email": "",
+        "centro_di_costo": "",
     }
 
     for i, line in enumerate(lines):
 
         if line == "COMMITTENTE" and i + 1 < len(lines):
-            cliente["nome"] = lines[i + 1]
+            cliente["nome_cliente"] = lines[i + 1]
 
         elif line == "INDIRIZZO" and i + 1 < len(lines):
             cliente["indirizzo"] = lines[i + 1]
@@ -278,13 +282,18 @@ def extract_cliente_info(text_content):
         elif line == "EMAIL" and i + 1 < len(lines):
             value = lines[i + 1]
             if "@" in value:
-                cliente["email"] = value
+                cliente["centro_di_costo"] = value
 
         # stop when products start
         if re.match(r"^\d+\s+Infisso$", line):
             break
 
+    existing_cliente = find_cliente_by_email(cliente["centro_di_costo"], db)
+    if existing_cliente:
+        cliente["id"] = existing_cliente.id
+    
     return {"Cliente": cliente}
+
 
 def extract_progetto_info(text_content):
     lines = [line.strip() for line in text_content.split("\n")]
@@ -331,3 +340,14 @@ def build_fornitori_dict(list2):
     return {
         "fornitori": fornitori
     }
+
+def find_cliente_by_email(email: str, db: Session):
+
+    print('Searching for cliente with email:', email)
+
+    if not email:
+        return None
+
+    return db.exec(
+        select(Cliente).where(func.lower(Cliente.centro_di_costo) == email.lower())
+    ).first()
