@@ -2,16 +2,18 @@ from datetime import date
 import os
 import sys
 import shutil
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from pypdf import PdfReader
 import re
 from sqlmodel import Session, select
 from sqlalchemy import func
+import unicodedata
 
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
 from routers.utils_parsing_models import *
 from models.clienti import Cliente
+from models.fornitori import Fornitore
 
 ############################################
 ########### DEFINER FUNCTIONS ##############
@@ -199,11 +201,9 @@ def append_object(all_obj, res, n_obj):
         res["Quantita"] = int(n_obj) if str(n_obj).isdigit() else 1
         all_obj.append(res.copy())
 
-
 ############################################
 ########### FORNITORI PARSING ##############
 ############################################
-
 
 def pdf_rules2(context2):
     lines = context2.split("\n")
@@ -246,11 +246,9 @@ def pdf_rules2(context2):
 
     return {"fornitori": all_obj}
 
-
 ############################################
 ########### CLIENTE PROJ PARSING ###########
 ############################################
-
 
 def extract_cliente_info(text_content, db: Session):
     lines = [line.strip() for line in text_content.split("\n")]
@@ -293,7 +291,6 @@ def extract_cliente_info(text_content, db: Session):
         cliente["id"] = existing_cliente.id
     
     return {"Cliente": cliente}
-
 
 def extract_progetto_info(text_content):
     lines = [line.strip() for line in text_content.split("\n")]
@@ -351,3 +348,47 @@ def find_cliente_by_email(email: str, db: Session):
     return db.exec(
         select(Cliente).where(func.lower(Cliente.centro_di_costo) == email.lower())
     ).first()
+
+############################################
+########### Fornitore PROJ PARSING #########
+############################################
+
+def normalize_name(value: str | None) -> str:
+    if not value:
+        return ""
+
+    value = value.lower().strip()
+
+    # remove accents: à -> a, è -> e
+    value = unicodedata.normalize("NFKD", value)
+    value = "".join(c for c in value if not unicodedata.combining(c))
+
+    # remove spaces and special chars
+    value = re.sub(r"[^a-z0-9]", "", value)
+
+    return value
+
+
+def add_fornitore_ids(fornitori_data: list[dict], db: Session) -> list[dict]:
+    fornitori_db = db.exec(select(Fornitore.id, Fornitore.nome_cliente)).all()
+
+    fornitori_map = {}
+    for fornitore_id, nome_cliente in fornitori_db:
+        nome_normalizzato = normalize_name(nome_cliente)
+        fornitori_map[nome_normalizzato] = fornitore_id
+
+    for item in fornitori_data:
+        nome_pdf = item.get("Fornitore")
+        nome_pdf_normalizzato = normalize_name(nome_pdf)
+
+        ## if not found return error with fornitore name
+        fornitore_id = fornitori_map.get(nome_pdf_normalizzato)
+        if fornitore_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Fornitore non trovato: {nome_pdf}"
+            )
+        
+        item["fornitore_id"] = fornitori_map.get(nome_pdf_normalizzato)
+
+    return fornitori_data

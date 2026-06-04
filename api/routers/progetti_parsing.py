@@ -31,23 +31,16 @@ async def pdf_parse_contratto(
     print(progetto_info)
     print('\n')
 
-
     ## Extract Fornitori Data
     fornitori_data = pdf_rules2(text_content)
-    print(fornitori_data)
+    fornitori_with_ids = add_fornitore_ids(fornitori_data["fornitori"], db)
+    print(fornitori_with_ids)
     print('\n')
-    # fornitori_data = build_fornitori_dict(fornitori_data)
-    # print(fornitori_data)
-    # print('\n')
 
-    # Merge fornitori into progetto
-    # progetto_info["Progetto"]["fornitori"] = fornitori_data["fornitori"]
-    # print(progetto_info)
-    # print('\n')
 
     result = {
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
-        "Fornitori": fornitori_data["fornitori"]
+        "Fornitori": fornitori_with_ids,
     }
     return result
