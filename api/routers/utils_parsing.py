@@ -244,7 +244,7 @@ def pdf_rules2(context2):
 
     append_object(all_obj, res, n_obj)
 
-    return all_obj
+    return {"fornitori": all_obj}
 
 
 ############################################

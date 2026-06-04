@@ -50,3 +50,4 @@ async def pdf_parse_contratto(
         "Progetto": progetto_info["Progetto"],
         "Fornitori": fornitori_data["fornitori"]
     }
+    return result
