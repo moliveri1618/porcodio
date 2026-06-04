@@ -8,7 +8,7 @@ from routers.utils_parsing import *
 
 router = APIRouter()
 
-@router.post("/parse_contratto_pdf/")
+@router.post("/parse_contratto_pdf")
 async def pdf_parse_contratto(file: UploadFile = File(...)):
 
     # Get text from pdf 
@@ -18,13 +18,13 @@ async def pdf_parse_contratto(file: UploadFile = File(...)):
 
     ## Extract cliente info
     cliente_info = extract_cliente_info(text_content)
-    # print(cliente_info)
-    # print('\n')
+    print(cliente_info)
+    print('\n')
 
     ## Extract progetto info
     progetto_info = extract_progetto_info(text_content)
-    # print(progetto_info)
-    # print('\n')
+    print(progetto_info)
+    print('\n')
 
     ## Extract Fornitori Data
     fornitori_data = pdf_rules2(text_content)
