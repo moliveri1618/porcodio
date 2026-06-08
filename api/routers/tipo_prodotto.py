@@ -34,6 +34,25 @@ def create_tipo_prodotto(
     return db_tipo_prodotto
 
 
+# Create bulk
+@router.post("/bulk", response_model=List[TipoProdottoRead], status_code=201)
+def create_tipi_prodotto_bulk(
+    tipi_prodotto: List[TipoProdottoCreate],
+    db: Session = Depends(get_db),
+):
+    db_tipi_prodotto = [
+        TipoProdotto(**tipo_prodotto.dict()) for tipo_prodotto in tipi_prodotto
+    ]
+
+    db.add_all(db_tipi_prodotto)
+    db.commit()
+
+    for tipo_prodotto in db_tipi_prodotto:
+        db.refresh(tipo_prodotto)
+
+    return db_tipi_prodotto
+
+
 # Get all
 @router.get("", response_model=List[TipoProdottoRead])
 def read_tipi_prodotto(db: Session = Depends(get_db)):

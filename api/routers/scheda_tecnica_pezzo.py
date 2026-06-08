@@ -28,6 +28,22 @@ def create_scheda_tecnica_pezzo(
     return db_scheda
 
 
+@router.post("/bulk", response_model=List[SchedaTecnicaPezzoRead], status_code=201)
+def create_schede_tecniche_pezzi_bulk(
+    pezzi: List[SchedaTecnicaPezzoCreate],
+    db: Session = Depends(get_db),
+):
+    db_pezzi = [SchedaTecnicaPezzo(**pezzo.model_dump()) for pezzo in pezzi]
+
+    db.add_all(db_pezzi)
+    db.commit()
+
+    for pezzo in db_pezzi:
+        db.refresh(pezzo)
+
+    return db_pezzi
+
+
 # Get all
 @router.get("", response_model=List[SchedaTecnicaPezzoRead])
 def read_schede_tecniche_pezzi(db: Session = Depends(get_db)):

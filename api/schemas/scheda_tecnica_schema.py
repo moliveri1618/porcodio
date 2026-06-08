@@ -1,11 +1,13 @@
 from sqlmodel import SQLModel
+from typing import List
 
 
 class SchedaTecnicaSchemaBase(SQLModel):
     fornitore_id: int
     tipo_prodotto_id: int
-    nome: str
-    options: list[str] | None = None
+    tipo_prodotto_valori_id: int
+    field_type_id: int 
+    tipo_prodotto_dropdown_id: List[int] = []
 
 
 class SchedaTecnicaSchemaCreate(SchedaTecnicaSchemaBase):
@@ -19,5 +21,6 @@ class SchedaTecnicaSchemaRead(SchedaTecnicaSchemaBase):
 class SchedaTecnicaSchemaUpdate(SQLModel):
     fornitore_id: int | None = None
     tipo_prodotto_id: int | None = None
-    nome: str | None = None
-    options: list[str] | None = None
+    tipo_prodotto_valori_id: int | None = None
+    field_type_id: int 
+    tipo_prodotto_dropdown_id: List[int] | None = None

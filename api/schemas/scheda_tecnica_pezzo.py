@@ -3,10 +3,8 @@ from sqlmodel import SQLModel
 
 class SchedaTecnicaPezzoBase(SQLModel):
     progetto_id: int
-    fornitore_id: int
-    tipo_prodotto_id: int
-    prodotto_nome: str | None = None
-    prodotto_val: str | None = None
+    scheda_tecnica_schema_id: int
+    valore: str | None = None
 
 
 class SchedaTecnicaPezzoCreate(SchedaTecnicaPezzoBase):
@@ -19,7 +17,5 @@ class SchedaTecnicaPezzoRead(SchedaTecnicaPezzoBase):
 
 class SchedaTecnicaPezzoUpdate(SQLModel):
     progetto_id: int | None = None
-    fornitore_id: int | None = None
-    tipo_prodotto_id: int | None = None
-    prodotto_nome: str | None = None
-    prodotto_val: str | None = None
+    scheda_tecnica_schema_id: int | None = None
+    valore: str | None = None

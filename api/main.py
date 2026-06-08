@@ -27,7 +27,9 @@ from routers import (
     tipo_prodotto_valori,
     tipo_prodotto_dropdown,
     scheda_tecnica_pezzo,
-    scheda_tecnica_schema
+    scheda_tecnica_schema,
+    schede_tecniche_fornitori,
+    react_field_type
 )
 
 # from routers import clienti
@@ -76,6 +78,12 @@ app.include_router(
 )
 
 app.include_router(
+    react_field_type.router,
+    prefix="/react-field-type",
+    tags=["react-field-type"]
+)
+
+app.include_router(
     tipo_prodotto_valori.router,
     prefix="/tipo-prodotto-valori",
     tags=["tipo-prodotto-valori"]
@@ -97,6 +105,12 @@ app.include_router(
     scheda_tecnica_pezzo.router,
     prefix="/scheda-tecnica-pezzo",
     tags=["scheda-tecnica-pezzo"]
+)
+
+app.include_router(
+    schede_tecniche_fornitori.router,
+    prefix="/schede-tecniche-fornitori",
+    tags=["schede-tecniche-fornitori"]
 )
 
 app.include_router(
