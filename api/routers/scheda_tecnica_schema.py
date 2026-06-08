@@ -15,27 +15,25 @@ from dependecies import get_db
 router = APIRouter()
 
 
-# Create
 @router.post("", response_model=SchedaTecnicaSchemaRead, status_code=201)
 def create_scheda_tecnica(
     scheda: SchedaTecnicaSchemaCreate,
     db: Session = Depends(get_db),
 ):
-    db_scheda = SchedaTecnicaSchema(**scheda.dict())
+    db_scheda = SchedaTecnicaSchema(**scheda.model_dump())
+
     db.add(db_scheda)
     db.commit()
     db.refresh(db_scheda)
+
     return db_scheda
 
 
-# Get all
 @router.get("", response_model=List[SchedaTecnicaSchemaRead])
 def read_schede_tecniche(db: Session = Depends(get_db)):
-    schede = db.exec(select(SchedaTecnicaSchema)).all()
-    return schede
+    return db.exec(select(SchedaTecnicaSchema)).all()
 
 
-# Get one
 @router.get("/{scheda_id}", response_model=SchedaTecnicaSchemaRead)
 def read_scheda_tecnica(
     scheda_id: int,
@@ -49,7 +47,6 @@ def read_scheda_tecnica(
     return scheda
 
 
-# Update
 @router.put("/{scheda_id}", response_model=SchedaTecnicaSchemaRead)
 def update_scheda_tecnica(
     scheda_id: int,
@@ -61,7 +58,7 @@ def update_scheda_tecnica(
     if not scheda:
         raise HTTPException(status_code=404, detail="Scheda tecnica not found")
 
-    update_data = scheda_update.dict(exclude_unset=True)
+    update_data = scheda_update.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         setattr(scheda, key, value)
@@ -73,7 +70,6 @@ def update_scheda_tecnica(
     return scheda
 
 
-# Delete
 @router.delete("/{scheda_id}", status_code=204)
 def delete_scheda_tecnica(
     scheda_id: int,
@@ -86,3 +82,4 @@ def delete_scheda_tecnica(
 
     db.delete(scheda)
     db.commit()
+    return None

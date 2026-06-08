@@ -4,7 +4,8 @@ from sqlmodel import SQLModel
 class SchedaTecnicaSchemaBase(SQLModel):
     fornitore_id: int
     tipo_prodotto_id: int
-    prodotto_nome: str | None = None
+    nome: str
+    options: list[str] | None = None
 
 
 class SchedaTecnicaSchemaCreate(SchedaTecnicaSchemaBase):
@@ -18,4 +19,5 @@ class SchedaTecnicaSchemaRead(SchedaTecnicaSchemaBase):
 class SchedaTecnicaSchemaUpdate(SQLModel):
     fornitore_id: int | None = None
     tipo_prodotto_id: int | None = None
-    prodotto_nome: str | None = None
+    nome: str | None = None
+    options: list[str] | None = None

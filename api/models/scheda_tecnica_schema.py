@@ -1,4 +1,5 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Column
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 class SchedaTecnicaSchema(SQLModel, table=True):
@@ -6,8 +7,7 @@ class SchedaTecnicaSchema(SQLModel, table=True):
 
     fornitore_id: int = Field(foreign_key="fornitore.id")
     tipo_prodotto_id: int = Field(foreign_key="tipoprodotto.id")
-    
-    prodotto_nome: str | None = None
 
+    nome: str
 
-
+    options: list[str] | None = Field(default=None, sa_column=Column(JSONB))
