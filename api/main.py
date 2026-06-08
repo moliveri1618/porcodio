@@ -22,7 +22,10 @@ from routers import (
     prodotti,
     notePrivate,
     img_S3,
-    progetti_parsing
+    progetti_parsing,
+    tipo_prodotto,
+    scheda_tecnica_pezzo,
+    scheda_tecnica_schema
 )
 
 # from routers import clienti
@@ -62,6 +65,24 @@ app.include_router(
     progetti_parsing.router, 
     prefix="/progetti-parsing", 
     tags=["progetti-parsing"]
+)
+
+app.include_router(
+    tipo_prodotto.router,
+    prefix="/tipo-prodotto",
+    tags=["tipo-prodotto"]
+)
+
+app.include_router(
+    scheda_tecnica_schema.router,
+    prefix="/scheda-tecnica-schema",
+    tags=["scheda-tecnica-schema"]
+)
+
+app.include_router(
+    scheda_tecnica_pezzo.router,
+    prefix="/scheda-tecnica-pezzo",
+    tags=["scheda-tecnica-pezzo"]
 )
 
 app.include_router(

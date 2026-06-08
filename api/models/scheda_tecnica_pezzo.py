@@ -8,7 +8,7 @@ class SchedaTecnicaPezzo(SQLModel, table=True):
 
     progetto_id: int = Field(foreign_key="progetti.id")
     fornitore_id: int = Field(foreign_key="fornitore.id")
-    tipo_prodotto_id: int = Field(foreign_key="tipo_prodotto.id")
+    tipo_prodotto_id: int = Field(foreign_key="tipoprodotto.id")
 
     prodotto_nome: str | None = None
     prodotto_val: str | None = None
