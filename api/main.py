@@ -24,6 +24,8 @@ from routers import (
     img_S3,
     progetti_parsing,
     tipo_prodotto,
+    tipo_prodotto_valori,
+    tipo_prodotto_dropdown,
     scheda_tecnica_pezzo,
     scheda_tecnica_schema
 )
@@ -71,6 +73,18 @@ app.include_router(
     tipo_prodotto.router,
     prefix="/tipo-prodotto",
     tags=["tipo-prodotto"]
+)
+
+app.include_router(
+    tipo_prodotto_valori.router,
+    prefix="/tipo-prodotto-valori",
+    tags=["tipo-prodotto-valori"]
+)
+
+app.include_router(
+    tipo_prodotto_dropdown.router,
+    prefix="/tipo-prodotto-dropdown",
+    tags=["tipo-prodotto-dropdown"]
 )
 
 app.include_router(
