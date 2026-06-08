@@ -7,6 +7,7 @@ from dependecies import get_db
 
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
+
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
 from models.scheda_tecnica_schema import SchedaTecnicaSchema
 from models.tipo_prodotto import TipoProdotto
@@ -35,8 +36,10 @@ def get_schede_tecniche_fornitore(
     tipo_prodotto_ids = list({schema.tipo_prodotto_id for schema in schemas})
     valori_ids = list({schema.tipo_prodotto_valori_id for schema in schemas})
     field_type_ids = list({schema.field_type_id for schema in schemas})
+    schema_ids = [schema.id for schema in schemas]
 
     dropdown_ids = []
+
     for schema in schemas:
         if schema.tipo_prodotto_dropdown_id:
             dropdown_ids.extend(schema.tipo_prodotto_dropdown_id)
@@ -56,6 +59,7 @@ def get_schede_tecniche_fornitore(
     ).all()
 
     dropdowns = []
+
     if dropdown_ids:
         dropdowns = db.exec(
             select(TipoProdottoValoriDropdown).where(
@@ -66,6 +70,7 @@ def get_schede_tecniche_fornitore(
     pezzi = db.exec(
         select(SchedaTecnicaPezzo).where(
             SchedaTecnicaPezzo.progetto_id == progetto_id,
+            SchedaTecnicaPezzo.scheda_tecnica_schema_id.in_(schema_ids),
         )
     ).all()
 
@@ -73,7 +78,7 @@ def get_schede_tecniche_fornitore(
     valori_map = {valore.id: valore.nome for valore in valori}
     field_types_map = {field_type.id: field_type.nome for field_type in field_types}
     dropdowns_map = {dropdown.id: dropdown for dropdown in dropdowns}
-    pezzi_map = {pezzo.scheda_tecnica_schema_id: pezzo.valore for pezzo in pezzi}
+    pezzi_map = {pezzo.scheda_tecnica_schema_id: pezzo for pezzo in pezzi}
 
     grouped = {}
 
@@ -87,6 +92,8 @@ def get_schede_tecniche_fornitore(
                 "campi": [],
             }
 
+        field_type = field_types_map.get(schema.field_type_id)
+
         options = []
 
         if schema.tipo_prodotto_dropdown_id:
@@ -98,19 +105,38 @@ def get_schede_tecniche_fornitore(
                         {
                             "id": dropdown.id,
                             "label": dropdown.nome,
-                            "value": dropdown.nome,
                         }
                     )
+
+        pezzo = pezzi_map.get(schema.id)
+
+        selected_value = None
+
+        if pezzo:
+            if field_type == "select":
+                selected_value = next(
+                    (
+                        dropdown_id
+                        for dropdown_id in schema.tipo_prodotto_dropdown_id
+                        if dropdowns_map.get(dropdown_id)
+                        and dropdowns_map[dropdown_id].nome == pezzo.valore
+                    ),
+                    None,
+                )
+
+            elif field_type == "number":
+                selected_value = int(pezzo.valore) if pezzo.valore else None
+
+            else:
+                selected_value = pezzo.valore
 
         grouped[tipo_id]["campi"].append(
             {
                 "tipo_prodotto_valori_id": schema.tipo_prodotto_valori_id,
-                "tipo_prodotto_valori": valori_map.get(
-                    schema.tipo_prodotto_valori_id
-                ),
-                "field_type": field_types_map.get(schema.field_type_id),
+                "tipo_prodotto_valori": valori_map.get(schema.tipo_prodotto_valori_id),
+                "field_type": field_type,
                 "options": options,
-                "selected_value": pezzi_map.get(schema.id),
+                "selected_value": selected_value,
             }
         )
 
