@@ -3,6 +3,7 @@ from typing import List
 from sqlalchemy.dialects.postgresql import ARRAY
 
 
+
 class SchedaTecnicaSchema(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
