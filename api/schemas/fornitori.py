@@ -36,3 +36,10 @@ class FornitoriUpdate(BaseModel):
     file_info: Optional[FileInfo] = None
     upload_id: Optional[str] = None
 
+
+class FornitoriByIdsRequest(BaseModel):
+    ids: list[int]
+
+class FornitoreNameRead(BaseModel):
+    id: int
+    nome_cliente: str | None = None

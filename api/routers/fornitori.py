@@ -9,8 +9,14 @@ import httpx
 from datetime import datetime, timezone
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
-from models.fornitori import Fornitore  # Changed model name from Cliente to Fornitori
-from schemas.fornitori import FornitoriCreate, FornitoriRead, FornitoriUpdate  # Updated schemas
+from models.fornitori import Fornitore  
+from schemas.fornitori import (
+    FornitoriCreate,
+    FornitoriRead,
+    FornitoriUpdate,
+    FornitoriByIdsRequest,
+    FornitoreNameRead,
+)
 from dependecies import get_db
 
 router = APIRouter()
@@ -27,6 +33,35 @@ def create_fornitore(fornitore: FornitoriCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_fornitore)
     return db_fornitore
+
+
+@router.post("/by-ids", response_model=list[FornitoreNameRead])
+def read_fornitori_by_ids(
+    payload: FornitoriByIdsRequest,
+    db: Session = Depends(get_db),
+):
+    if not payload.ids:
+        return []
+
+    fornitori = db.exec(select(Fornitore).where(Fornitore.id.in_(payload.ids))).all()
+
+    found_ids = {f.id for f in fornitori}
+    missing_ids = [fid for fid in payload.ids if fid not in found_ids]
+
+    if missing_ids:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Fornitori not found: {missing_ids}",
+        )
+
+    return [
+        {
+            "id": f.id,
+            "nome_cliente": f.nome_cliente,
+        }
+        for f in fornitori
+    ]
+
 
 # Get all
 @router.get("", response_model=List[FornitoriRead])
@@ -131,4 +166,3 @@ def delete_fornitore(fornitore_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Fornitore not found")
     db.delete(fornitore)
     db.commit()
-
