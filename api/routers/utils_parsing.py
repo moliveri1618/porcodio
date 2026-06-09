@@ -412,8 +412,10 @@ def add_fornitore_ids(fornitori_data: list[dict], db: Session) -> list[dict]:
 ########### SCHEDE TECHNICHE PROJ PARSING ##
 ############################################
 
+
 def build_scheda_tecnica_schema_fornitore(
     fornitore_id: int,
+    quantita: int,
     db: Session,
 ):
     fornitore_id = 13 # testing
@@ -422,6 +424,10 @@ def build_scheda_tecnica_schema_fornitore(
             SchedaTecnicaSchema.fornitore_id == fornitore_id
         )
     ).all()
+
+    print("fornitore_id:", fornitore_id)
+    print("schemas length:", len(schemas))
+    print("schemas:", schemas)
 
     if not schemas:
         return []
@@ -473,6 +479,7 @@ def build_scheda_tecnica_schema_fornitore(
             grouped[tipo_id] = {
                 "tipo_prodotto_id": tipo_id,
                 "tipo_prodotto_nome": tipi_prodotti_map.get(tipo_id),
+                "quantita": quantita,
                 "campi": [],
             }
 
