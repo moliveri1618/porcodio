@@ -8,6 +8,7 @@ import re
 from sqlmodel import Session, select
 from sqlalchemy import func
 import unicodedata
+import re
 
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
@@ -20,6 +21,7 @@ from models.tipo_prodotto_valori import TipoProdottoValori
 from models.tipo_prodotto_valori_dropdown import TipoProdottoValoriDropdown
 from models.react_field_type import ReactFieldType
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
+
 
 ############################################
 ########### DEFINER FUNCTIONS ##############
@@ -90,6 +92,12 @@ def colore_maniglie_infissi_definer(text_line):
 ############################################
 ########### UTILS FUNCTIONS ################
 ############################################
+
+def normalize_design(value: str | None) -> str:
+    if not value:
+        return ""
+
+    return re.sub(r"[^a-z0-9]", "", value.lower().strip())
 
 def extract_numbers(string):
     # Use regex to find all sequences of digits in the string

@@ -40,6 +40,10 @@ async def pdf_parse_contratto(
     ## Build schede tecniche fornitore
     schede_tecniche = {}
     for fornitore in fornitori_data_w_ids:
+
+        if normalize_design(fornitore.get("Design")) != normalize_design("Avvolgibile"):   # build table just for avvolgibili
+            continue 
+
         fornitore_id = fornitore.get("fornitore_id")
         if fornitore_id and fornitore_id not in schede_tecniche:
             schede_tecniche[fornitore_id] = build_scheda_tecnica_schema_fornitore(
