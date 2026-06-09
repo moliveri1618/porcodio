@@ -33,14 +33,35 @@ async def pdf_parse_contratto(
 
     ## Extract Fornitori Data
     fornitori_data = pdf_rules2(text_content)
-    fornitori_with_ids = add_fornitore_ids(fornitori_data["fornitori"], db)
-    print(fornitori_with_ids)
+    fornitori_data_w_ids = add_fornitore_ids(fornitori_data["fornitori"], db)
+    print(fornitori_data_w_ids)
     print('\n')
 
+    ## Build schede tecniche fornitore
+    schede_tecniche = {}
+    for fornitore in fornitori_data_w_ids:
+        fornitore_id = fornitore.get("fornitore_id")
+        if fornitore_id and fornitore_id not in schede_tecniche:
+            schede_tecniche[fornitore_id] = build_scheda_tecnica_schema_fornitore(
+                fornitore_id=fornitore_id,
+                db=db,
+            )
 
     result = {
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
-        "Fornitori": fornitori_with_ids,
+        "Fornitori": fornitori_data_w_ids,
+        "SchedeTecniche": schede_tecniche,
     }
     return result
+
+
+@router.get("/{fornitore_id}")
+def get_scheda_tecnica_schema_fornitore(
+    fornitore_id: int,
+    db: Session = Depends(get_db),
+):
+    return build_scheda_tecnica_schema_fornitore(
+        fornitore_id=fornitore_id,
+        db=db,
+    )

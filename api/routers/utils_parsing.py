@@ -14,6 +14,11 @@ if os.getenv("GITHUB_ACTIONS"):
 from routers.utils_parsing_models import *
 from models.clienti import Cliente
 from models.fornitori import Fornitore
+from models.scheda_tecnica_schema import SchedaTecnicaSchema
+from models.tipo_prodotto import TipoProdotto
+from models.tipo_prodotto_valori import TipoProdottoValori
+from models.tipo_prodotto_valori_dropdown import TipoProdottoValoriDropdown
+from models.react_field_type import ReactFieldType
 
 ############################################
 ########### DEFINER FUNCTIONS ##############
@@ -388,7 +393,102 @@ def add_fornitore_ids(fornitori_data: list[dict], db: Session) -> list[dict]:
                 status_code=400,
                 detail=f"Fornitore non trovato: {nome_pdf}"
             )
-        
+
         item["fornitore_id"] = fornitori_map.get(nome_pdf_normalizzato)
 
     return fornitori_data
+
+
+############################################
+########### SCHEDE TECHNICHE PROJ PARSING ##
+############################################
+
+def build_scheda_tecnica_schema_fornitore(
+    fornitore_id: int,
+    db: Session,
+):
+    schemas = db.exec(
+        select(SchedaTecnicaSchema).where(
+            SchedaTecnicaSchema.fornitore_id == fornitore_id
+        )
+    ).all()
+
+    if not schemas:
+        return []
+
+    tipo_prodotto_ids = list({s.tipo_prodotto_id for s in schemas})
+    valori_ids = list({s.tipo_prodotto_valori_id for s in schemas})
+    field_type_ids = list({s.field_type_id for s in schemas})
+
+    dropdown_ids = []
+
+    for schema in schemas:
+        if schema.tipo_prodotto_dropdown_id:
+            dropdown_ids.extend(schema.tipo_prodotto_dropdown_id)
+
+    dropdown_ids = list(set(dropdown_ids))
+
+    tipi_prodotti = db.exec(
+        select(TipoProdotto).where(TipoProdotto.id.in_(tipo_prodotto_ids))
+    ).all()
+
+    valori = db.exec(
+        select(TipoProdottoValori).where(TipoProdottoValori.id.in_(valori_ids))
+    ).all()
+
+    field_types = db.exec(
+        select(ReactFieldType).where(ReactFieldType.id.in_(field_type_ids))
+    ).all()
+
+    dropdowns = []
+
+    if dropdown_ids:
+        dropdowns = db.exec(
+            select(TipoProdottoValoriDropdown).where(
+                TipoProdottoValoriDropdown.id.in_(dropdown_ids)
+            )
+        ).all()
+
+    tipi_prodotti_map = {tipo.id: tipo.nome for tipo in tipi_prodotti}
+    valori_map = {valore.id: valore.nome for valore in valori}
+    field_types_map = {field_type.id: field_type.nome for field_type in field_types}
+    dropdowns_map = {dropdown.id: dropdown for dropdown in dropdowns}
+
+    grouped = {}
+
+    for schema in schemas:
+        tipo_id = schema.tipo_prodotto_id
+
+        if tipo_id not in grouped:
+            grouped[tipo_id] = {
+                "tipo_prodotto_id": tipo_id,
+                "tipo_prodotto_nome": tipi_prodotti_map.get(tipo_id),
+                "campi": [],
+            }
+
+        options = []
+
+        if schema.tipo_prodotto_dropdown_id:
+            for dropdown_id in schema.tipo_prodotto_dropdown_id:
+                dropdown = dropdowns_map.get(dropdown_id)
+
+                if dropdown:
+                    options.append(
+                        {
+                            "id": dropdown.id,
+                            "label": dropdown.nome,
+                        }
+                    )
+
+        grouped[tipo_id]["campi"].append(
+            {
+                "schema_id": schema.id,
+                "tipo_prodotto_valori_id": schema.tipo_prodotto_valori_id,
+                "tipo_prodotto_valori": valori_map.get(schema.tipo_prodotto_valori_id),
+                "field_type_id": schema.field_type_id,
+                "field_type": field_types_map.get(schema.field_type_id),
+                "options": options,
+            }
+        )
+
+    return list(grouped.values())
