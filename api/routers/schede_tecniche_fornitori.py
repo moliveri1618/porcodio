@@ -18,7 +18,8 @@ from models.react_field_type import ReactFieldType
 router = APIRouter()
 
 
-def build_scheda_tecnica_schema_fornitore(
+def build_schede_tecniche_fornitore(
+    progetto_id: int,
     fornitore_id: int,
     db: Session,
 ):
@@ -31,9 +32,10 @@ def build_scheda_tecnica_schema_fornitore(
     if not schemas:
         return []
 
-    tipo_prodotto_ids = list({s.tipo_prodotto_id for s in schemas})
-    valori_ids = list({s.tipo_prodotto_valori_id for s in schemas})
-    field_type_ids = list({s.field_type_id for s in schemas})
+    tipo_prodotto_ids = list({schema.tipo_prodotto_id for schema in schemas})
+    valori_ids = list({schema.tipo_prodotto_valori_id for schema in schemas})
+    field_type_ids = list({schema.field_type_id for schema in schemas})
+    schema_ids = [schema.id for schema in schemas]
 
     dropdown_ids = []
 
@@ -64,10 +66,18 @@ def build_scheda_tecnica_schema_fornitore(
             )
         ).all()
 
+    pezzi = db.exec(
+        select(SchedaTecnicaPezzo).where(
+            SchedaTecnicaPezzo.progetto_id == progetto_id,
+            SchedaTecnicaPezzo.scheda_tecnica_schema_id.in_(schema_ids),
+        )
+    ).all()
+
     tipi_prodotti_map = {tipo.id: tipo.nome for tipo in tipi_prodotti}
     valori_map = {valore.id: valore.nome for valore in valori}
     field_types_map = {field_type.id: field_type.nome for field_type in field_types}
     dropdowns_map = {dropdown.id: dropdown for dropdown in dropdowns}
+    pezzi_map = {pezzo.scheda_tecnica_schema_id: pezzo for pezzo in pezzi}
 
     grouped = {}
 
@@ -80,6 +90,8 @@ def build_scheda_tecnica_schema_fornitore(
                 "tipo_prodotto_nome": tipi_prodotti_map.get(tipo_id),
                 "campi": [],
             }
+
+        field_type = field_types_map.get(schema.field_type_id)
 
         options = []
 
@@ -95,18 +107,52 @@ def build_scheda_tecnica_schema_fornitore(
                         }
                     )
 
+        pezzo = pezzi_map.get(schema.id)
+
+        selected_value = None
+
+        if pezzo:
+            if field_type == "select":
+                selected_value = next(
+                    (
+                        dropdown_id
+                        for dropdown_id in schema.tipo_prodotto_dropdown_id
+                        if dropdowns_map.get(dropdown_id)
+                        and dropdowns_map[dropdown_id].nome == pezzo.valore
+                    ),
+                    None,
+                )
+
+            elif field_type == "number":
+                selected_value = int(pezzo.valore) if pezzo.valore else None
+
+            else:
+                selected_value = pezzo.valore
+
         grouped[tipo_id]["campi"].append(
             {
-                "schema_id": schema.id,
                 "tipo_prodotto_valori_id": schema.tipo_prodotto_valori_id,
                 "tipo_prodotto_valori": valori_map.get(schema.tipo_prodotto_valori_id),
-                "field_type_id": schema.field_type_id,
-                "field_type": field_types_map.get(schema.field_type_id),
+                "field_type": field_type,
                 "options": options,
+                "selected_value": selected_value,
             }
         )
 
     return list(grouped.values())
+
+
+@router.get("/{progetto_id}/{fornitore_id}")
+def get_schede_tecniche_fornitore(
+    progetto_id: int,
+    fornitore_id: int,
+    db: Session = Depends(get_db),
+):
+    return build_schede_tecniche_fornitore(
+        progetto_id=progetto_id,
+        fornitore_id=fornitore_id,
+        db=db,
+    )
 
 
 @router.get("/{progetto_id}/{fornitore_id}")
@@ -232,14 +278,3 @@ def get_schede_tecniche_fornitore(
         )
 
     return list(grouped.values())
-
-
-@router.get("/{fornitore_id}")
-def get_scheda_tecnica_schema_fornitore(
-    fornitore_id: int,
-    db: Session = Depends(get_db),
-):
-    return build_scheda_tecnica_schema_fornitore(
-        fornitore_id=fornitore_id,
-        db=db,
-    )

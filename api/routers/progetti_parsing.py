@@ -56,12 +56,14 @@ async def pdf_parse_contratto(
     return result
 
 
-@router.get("/{fornitore_id}")
-def get_scheda_tecnica_schema_fornitore(
+@router.get("/{progetto_id}/{fornitore_id}")
+def schede_tecniche_fornitore_get(
+    progetto_id: int,
     fornitore_id: int,
     db: Session = Depends(get_db),
 ):
-    return build_scheda_tecnica_schema_fornitore(
+    return get_schede_tecniche_fornitore(
+        progetto_id=progetto_id,
         fornitore_id=fornitore_id,
         db=db,
     )
