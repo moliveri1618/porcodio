@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, UploadFile, File
 import os
 import sys
@@ -38,21 +40,23 @@ async def pdf_parse_contratto(
     print('\n')
 
     ## Build schede tecniche fornitore
-    schede_tecniche = {}
+    schede_quantita = defaultdict(int)
     for fornitore in fornitori_data_w_ids:
-
         if normalize_design(fornitore.get("Design")) != normalize_design("Avvolgibile"):   # build table just for avvolgibili
             continue 
-
-        print(f"Building scheda tecnica for fornitore: {fornitore}")
-
         fornitore_id = fornitore.get("fornitore_id")
-        if fornitore_id and fornitore_id not in schede_tecniche:
-            schede_tecniche[fornitore_id] = build_scheda_tecnica_schema_fornitore(
-                fornitore_id=fornitore_id,
-                quantita=fornitore.get("Quantita", 1),
-                db=db,
-            )
+        if not fornitore_id:
+            continue
+        schede_quantita[fornitore_id] += int(fornitore.get("Quantita") or 1)
+
+    schede_tecniche = {
+        fornitore_id: build_scheda_tecnica_schema_fornitore(
+            fornitore_id=fornitore_id,
+            quantita=quantita,
+            db=db,
+        )
+        for fornitore_id, quantita in schede_quantita.items()
+    }
 
     result = {
         "Cliente": cliente_info["Cliente"],
