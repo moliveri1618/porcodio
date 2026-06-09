@@ -416,6 +416,7 @@ def build_scheda_tecnica_schema_fornitore(
     fornitore_id: int,
     db: Session,
 ):
+    fornitore_id = 13 # testing
     schemas = db.exec(
         select(SchedaTecnicaSchema).where(
             SchedaTecnicaSchema.fornitore_id == fornitore_id
