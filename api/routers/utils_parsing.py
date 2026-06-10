@@ -467,6 +467,7 @@ def build_scheda_tecnica_schema_fornitore(
 
     tipi_prodotti_map = {tipo.id: tipo.nome for tipo in tipi_prodotti}
     valori_map = {valore.id: valore.nome for valore in valori}
+    valori_alias_map = {valore.id: valore.alias for valore in valori}
     field_types_map = {field_type.id: field_type.nome for field_type in field_types}
     dropdowns_map = {dropdown.id: dropdown for dropdown in dropdowns}
 
@@ -502,6 +503,7 @@ def build_scheda_tecnica_schema_fornitore(
                 "schema_id": schema.id,
                 "tipo_prodotto_valori_id": schema.tipo_prodotto_valori_id,
                 "tipo_prodotto_valori": valori_map.get(schema.tipo_prodotto_valori_id),
+                "tipo_prodotto_valori_alias": valori_alias_map.get(schema.tipo_prodotto_valori_id),
                 "field_type_id": schema.field_type_id,
                 "field_type": field_types_map.get(schema.field_type_id),
                 "options": options,
