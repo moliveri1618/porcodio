@@ -671,7 +671,6 @@ def enrich_schede_with_selected_values(fornitori, schede_tecniche):
             selected_value = item.get(alias)
 
             if selected_value:
-                campo["selected_value"] = selected_value
 
                 selected_option = next(
                     (
