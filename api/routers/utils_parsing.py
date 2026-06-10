@@ -638,33 +638,36 @@ def get_schede_tecniche_fornitore(
 
 
 def enrich_schede_with_selected_values(fornitori, schede_tecniche):
-    for item in fornitori:
-        design = normalize_design(item.get("Design"))
-        fornitore_id = item.get("fornitore_id")
+    index = {}
 
-        if not fornitore_id:
-            continue
-
-        schede = schede_tecniche.get(fornitore_id) or schede_tecniche.get(
-            str(fornitore_id)
-        )
-        if not schede:
-            continue
-
+    for fornitore_id, schede in schede_tecniche.items():
         for scheda in schede:
-            prodotto_nome = normalize_design(scheda.get("tipo_prodotto_nome"))
+            key = (
+                str(fornitore_id),
+                normalize_design(scheda.get("tipo_prodotto_nome")),
+            )
 
-            if prodotto_nome != design:
-                continue
+            index[key] = {
+                campo["tipo_prodotto_valori_alias"]: campo
+                for campo in scheda.get("campi", [])
+                if campo.get("tipo_prodotto_valori_alias")
+            }
 
-            for campo in scheda.get("campi", []):
-                alias = campo.get("tipo_prodotto_valori_alias")
-                if not alias:
-                    continue
+    for item in fornitori:
+        fornitore_id = item.get("fornitore_id")
+        design = normalize_design(item.get("Design"))
 
-                selected_value = item.get(alias)
+        if not fornitore_id or not design:
+            continue
 
-                if selected_value:
-                    campo["selected_value"] = selected_value
+        alias_map = index.get((str(fornitore_id), design))
+        if not alias_map:
+            continue
+
+        for alias, campo in alias_map.items():
+            selected_value = item.get(alias)
+
+            if selected_value:
+                campo["selected_value"] = selected_value
 
     return schede_tecniche
