@@ -58,11 +58,17 @@ async def pdf_parse_contratto(
         for fornitore_id, quantita in schede_quantita.items()
     }
 
+    ## Match selected values from PDF with schede tecniche
+    schede_tecnich_sel_value = enrich_schede_with_selected_values(
+        fornitori_data_w_ids,
+        schede_tecniche,
+    )
+
     result = {
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
         "Fornitori": fornitori_data_w_ids,
-        "SchedeTecniche": schede_tecniche,
+        "SchedeTecniche": schede_tecnich_sel_value,
     }
     return result
 

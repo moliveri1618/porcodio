@@ -635,3 +635,36 @@ def get_schede_tecniche_fornitore(
         )
 
     return list(grouped.values())
+
+
+def enrich_schede_with_selected_values(fornitori, schede_tecniche):
+    for item in fornitori:
+        design = normalize_design(item.get("Design"))
+        fornitore_id = item.get("fornitore_id")
+
+        if not fornitore_id:
+            continue
+
+        schede = schede_tecniche.get(fornitore_id) or schede_tecniche.get(
+            str(fornitore_id)
+        )
+        if not schede:
+            continue
+
+        for scheda in schede:
+            prodotto_nome = normalize_design(scheda.get("tipo_prodotto_nome"))
+
+            if prodotto_nome != design:
+                continue
+
+            for campo in scheda.get("campi", []):
+                alias = campo.get("tipo_prodotto_valori_alias")
+                if not alias:
+                    continue
+
+                selected_value = item.get(alias)
+
+                if selected_value:
+                    campo["selected_value"] = selected_value
+
+    return schede_tecniche
