@@ -93,6 +93,9 @@ def colore_maniglie_infissi_definer(text_line):
 ########### UTILS FUNCTIONS ################
 ############################################
 
+def normalize_option(value):
+    return value.lower().replace(" ", "").replace("-", "").replace("'", "")
+
 def normalize_design(value: str | None) -> str:
     if not value:
         return ""
@@ -669,5 +672,17 @@ def enrich_schede_with_selected_values(fornitori, schede_tecniche):
 
             if selected_value:
                 campo["selected_value"] = selected_value
+
+                selected_option = next(
+                    (
+                        option
+                        for option in campo.get("options", [])
+                        if normalize_option(option["label"]) == normalize_option(selected_value)
+                    ),
+                    None,
+                )
+
+                if selected_option:
+                    campo["selected_option_id"] = selected_option["id"]
 
     return schede_tecniche
