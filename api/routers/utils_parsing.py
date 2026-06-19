@@ -304,12 +304,8 @@ def extract_cliente_info(text_content, db: Session):
         elif line == "CAP" and i + 1 < len(lines):
             cliente["cap"] = lines[i + 1]
 
-        elif line == "FATTURAZIONE ELETTRONICA / PEC" and i + 1 < len(lines):
-            value = lines[i + 1]
-
-            # If it's an actual PEC email
-            if "@" in value:
-                cliente["pec"] = value
+        elif "FATTURAZIONE ELETTRONICA" in line and i + 1 < len(lines):
+            cliente["pec"] = lines[i + 1].strip()
 
         elif line == "EMAIL" and i + 1 < len(lines):
             value = lines[i + 1]
@@ -334,6 +330,8 @@ def extract_progetto_info(text_content):
         "centro_di_costo": lines[1] if len(lines) > 1 else "",
         "commerciale": "",
         "importo": "",
+        "numero": "",
+        "data": "",
         "data_primo_pagamento": date.today().isoformat(),
     }
 
@@ -341,6 +339,12 @@ def extract_progetto_info(text_content):
 
         if line == "ADDETTO" and i + 1 < len(lines):
             progetto["commerciale"] = lines[i + 1]
+
+        if line == "NUMERO" and i + 1 < len(lines):
+            progetto["numero"] = lines[i + 1]
+
+        elif line == "DATA" and i + 1 < len(lines):
+            progetto["data"] = lines[i + 1]
 
         elif "IMPONIBILE" in line and i + 1 < len(lines):
             progetto["importo"] = lines[i + 1]
