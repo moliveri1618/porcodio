@@ -276,6 +276,9 @@ def extract_cliente_info(text_content, db: Session):
         "indirizzo": "",
         "numero_tel": "",
         "centro_di_costo": "",
+        "pec": "",
+        "piva": "",
+        "cap": "",
     }
 
     for i, line in enumerate(lines):
@@ -289,10 +292,24 @@ def extract_cliente_info(text_content, db: Session):
         elif line == "CITTÀ" and i + 1 < len(lines):
             cliente["citta"] = lines[i + 1]
 
-        elif line == "CELLULARE" and i + 1 < len(lines):
+        elif line in ["CELLULARE", "TELEFONO"] and i + 1 < len(lines):
             value = lines[i + 1]
             if value and value[0].isdigit():
                 cliente["numero_tel"] = value
+
+        elif line == "CF / P.IVA" and i + 1 < len(lines):
+            value = lines[i + 1]
+            cliente["piva"] = value
+
+        elif line == "CAP" and i + 1 < len(lines):
+            cliente["cap"] = lines[i + 1]
+
+        elif line == "FATTURAZIONE ELETTRONICA / PEC" and i + 1 < len(lines):
+            value = lines[i + 1]
+
+            # If it's an actual PEC email
+            if "@" in value:
+                cliente["pec"] = value
 
         elif line == "EMAIL" and i + 1 < len(lines):
             value = lines[i + 1]
@@ -306,7 +323,7 @@ def extract_cliente_info(text_content, db: Session):
     existing_cliente = find_cliente_by_email(cliente["centro_di_costo"], db)
     if existing_cliente:
         cliente["id"] = existing_cliente.id
-    
+
     return {"Cliente": cliente}
 
 def extract_progetto_info(text_content):
