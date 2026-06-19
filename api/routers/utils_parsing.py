@@ -347,7 +347,16 @@ def extract_progetto_info(text_content):
             progetto["data"] = lines[i + 1]
 
         elif "IMPONIBILE" in line and i + 1 < len(lines):
-            progetto["importo"] = lines[i + 1]
+            importo = lines[i + 1]
+
+            importo = (
+                importo.replace("€", "")
+                .replace(".", "")
+                .replace(",", ".")
+                .strip()
+            )
+
+            progetto["importo"] = str(importo)
 
     return {"Progetto": progetto}
 
