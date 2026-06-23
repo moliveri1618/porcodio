@@ -25,6 +25,7 @@ if os.getenv("GITHUB_ACTIONS"):
 from models.progetti import Progetti
 from models.clienti import Cliente
 from models.fornitori import Fornitore
+from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
 from datetime import datetime, timedelta
 from models.progetto_fornitore_link import ProgettoFornitoreLink
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
@@ -1228,15 +1229,22 @@ def delete_progetto(
         if not exists:
             raise HTTPException(status_code=404, detail="Project not found")
 
+        # 1) delete schede tecniche
+        db.exec(
+            delete(SchedaTecnicaPezzo).where(
+                SchedaTecnicaPezzo.progetto_id == project_id
+            )
+        )
+
         # 1) delete link rows first
-        db.execute(
+        db.exec(
             delete(ProgettoFornitoreLink).where(
                 ProgettoFornitoreLink.progetto_id == project_id
             )
         )
 
         # 2) delete project
-        result = db.execute(delete(Progetti).where(Progetti.id == project_id))
+        result = db.exec(delete(Progetti).where(Progetti.id == project_id))
 
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Project not found")
