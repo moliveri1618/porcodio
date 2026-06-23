@@ -28,6 +28,36 @@ def create_scheda_tecnica_pezzo(
     return db_scheda
 
 
+@router.post("/bulk/from-schede/{progetto_id}")
+def save_schede_tecniche_from_frontend(
+    progetto_id: int,
+    schede_tecniche: dict,
+    db: Session = Depends(get_db),
+):
+    new_rows = []
+
+    for schede in schede_tecniche.values():
+        for scheda in schede:
+            for rif in scheda.get("riferimenti", []):
+                riferimento = rif.get("riferimento")
+                values = rif.get("values", {})
+
+                for schema_id, valore in values.items():
+                    db_pezzo = SchedaTecnicaPezzo(
+                        progetto_id=progetto_id,
+                        riferimento=riferimento,
+                        scheda_tecnica_schema_id=int(schema_id),
+                        valore=str(valore) if valore is not None else None,
+                    )
+
+                    db.add(db_pezzo)
+                    new_rows.append(db_pezzo)
+
+    db.commit()
+
+    return {"created": len(new_rows)}
+
+
 @router.post("/bulk", response_model=List[SchedaTecnicaPezzoRead], status_code=201)
 def create_schede_tecniche_pezzi_bulk(
     pezzi: List[SchedaTecnicaPezzoCreate],

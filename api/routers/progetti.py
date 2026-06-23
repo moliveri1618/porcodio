@@ -281,10 +281,8 @@ def compute_status_percent_db_edit(progetto: Progetti) -> int:
 
     return max(0, min(100, round(total)))
 
-
 def format_it(number: float) -> str:
     return f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
 
 @router.post("/calc-taglia-existing-projects")
 def get_projects_pointing(db: Session = Depends(get_db)):
@@ -316,7 +314,6 @@ def get_projects_pointing(db: Session = Depends(get_db)):
     db.commit()
 
     return result
-
 
 # Create
 @router.post("", response_model=ProgettiRead)
@@ -386,7 +383,6 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
 
     return db_progetto
 
-
 # Get from gesty
 @router.get("/get_progetti_gesty")
 def progetti_from_gesty(db: Session = Depends(get_db)):
@@ -420,7 +416,6 @@ def progetti_from_gesty(db: Session = Depends(get_db)):
             created.append(saved)
 
     return created
-
 
 # Get all
 @router.get("")
@@ -527,7 +522,6 @@ def sum_importo_parz(
         "sum_importo_parz": total,
     }
 
-
 @router.get("/sum-importo-mensile-filtrato")
 def sum_importo_filtrato(
     tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
@@ -570,7 +564,6 @@ def sum_importo_filtrato(
 
     totale = db.exec(query).first()
     return totale
-
 
 @router.get("/export-excel-importo-mensile")
 def export_progetti_excel(
@@ -709,7 +702,6 @@ def export_progetti_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
     )
-
 
 @router.get("/v2")
 def read_progettiV2(
@@ -939,7 +931,6 @@ def read_progettiV2(
         "total_pages": (total + page_size - 1) // page_size,
     }
 
-
 @router.get("/tecnici-workload")
 def get_tecnici_workload(db: Session = Depends(get_db)):
     tecnici = ["Davide", "Matteo", "Mirko", "Lorenzo", "Silvia"]
@@ -1034,7 +1025,6 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
         "year": now.year,
     }
 
-
 ALLOWED_FIELDS = ["note", "data_cambiamento_stato", "tecnico", "stato", "taglia_progetto", "note_taglia"]
 @router.put("/{id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
@@ -1070,7 +1060,6 @@ def update_single_progetto_field(
         raise HTTPException(status_code=500, detail=str(e))
 
     return progetto
-
 
 # Get one
 @router.get("/{progetto_id}")
@@ -1140,7 +1129,6 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "fornitori": fornitori_data,
     }
 
-
 # Modify one
 @router.put("/{progetto_id}", response_model=ProgettiRead)
 def update_progetto(
@@ -1203,7 +1191,6 @@ def update_progetto(
 
     return progetto
 
-
 # Delete one
 @router.delete("/v1/{progetto_id}")
 def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
@@ -1226,7 +1213,6 @@ def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": f"Progetto {progetto_id} deleted successfully"}
-
 
 # Delete one
 @router.delete("/v2/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1264,7 +1250,6 @@ def delete_progetto(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.post("/recalc_importo_parz")
 def recalc_importo_parz(db: Session = Depends(get_db)):
@@ -1305,7 +1290,6 @@ def recalc_importo_parz(db: Session = Depends(get_db)):
         "updated": updated,
         "details": details,
     }
-
 
 @router.post("/recalc_status_percent")
 def recalc_status_percent(db: Session = Depends(get_db)):
