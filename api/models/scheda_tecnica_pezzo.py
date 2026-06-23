@@ -15,4 +15,4 @@ class SchedaTecnicaPezzo(SQLModel, table=True):
     )
     riferimento: str = Field(index=True)  # "1", "2", "3", etc.
 
-    valore: str
+    valore: str | None = None
