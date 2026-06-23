@@ -715,3 +715,78 @@ def enrich_schede_with_selected_values(fornitori, schede_tecniche):
                     campo["selected_option_id"] = selected_option["id"]
 
     return schede_tecniche
+
+
+def enrich_schede_with_selected_values_V2(fornitori, schede_tecniche):
+    index = {}
+
+    for fornitore_id, schede in schede_tecniche.items():
+        for scheda in schede:
+            key = (
+                str(fornitore_id),
+                normalize_design(scheda.get("tipo_prodotto_nome")),
+            )
+
+            index[key] = {
+                campo["tipo_prodotto_valori_alias"]: campo
+                for campo in scheda.get("campi", [])
+                if campo.get("tipo_prodotto_valori_alias")
+            }
+
+    for item in fornitori:
+        fornitore_id = item.get("fornitore_id")
+        design = normalize_design(item.get("Design"))
+
+        if not fornitore_id or not design:
+            continue
+
+        alias_map = index.get((str(fornitore_id), design))
+        if not alias_map:
+            continue
+
+        quantita = int(item.get("Quantita") or 1)
+
+        for scheda in schede_tecniche.get(fornitore_id, []):
+            if normalize_design(scheda.get("tipo_prodotto_nome")) != design:
+                continue
+
+            # create all schema ids with empty value
+            selected_values = {
+                str(campo["schema_id"]): None
+                for campo in scheda.get("campi", [])
+            }
+
+            # fill only matched values from PDF
+            for alias, campo in alias_map.items():
+                selected_value = item.get(alias)
+
+                if not selected_value:
+                    continue
+
+                selected_option = next(
+                    (
+                        option
+                        for option in campo.get("options", [])
+                        if normalize_option(option["label"])
+                        == normalize_option(selected_value)
+                    ),
+                    None,
+                )
+
+                if selected_option:
+                    schema_id = campo["schema_id"]
+                    selected_values[str(schema_id)] = selected_option["id"]
+
+            scheda["riferimenti"] = [
+                {
+                    "riferimento": f"rif{i}",
+                    "values": selected_values.copy(),
+                }
+                for i in range(1, quantita + 1)
+            ]
+
+            for campo in scheda.get("campi", []):
+                campo.pop("selected_option_id", None)
+                campo.pop("valore", None)
+
+    return schede_tecniche
