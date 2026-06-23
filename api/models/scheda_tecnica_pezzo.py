@@ -13,4 +13,6 @@ class SchedaTecnicaPezzo(SQLModel, table=True):
     scheda_tecnica_schema_id: int = Field(
         foreign_key="schedatecnicaschema.id", index=True
     )
+    riferimento: str = Field(index=True)  # "1", "2", "3", etc.
+
     valore: str
