@@ -13,6 +13,7 @@ from schemas.scheda_tecnica_pezzo import (
 )
 from models.progetti import Progetti
 from models.progetto_fornitore_link import ProgettoFornitoreLink
+from routers.utils_parsing import *
 
 from dependecies import get_db
 
@@ -140,10 +141,23 @@ def get_schede_tecniche_by_progetto(
         final_result[fornitore_id]["value"] = []
 
         for group in tipi.values():
-            group["riferimenti"] = list(group["riferimenti"].values())
-            group["quantita"] = len(group["riferimenti"])
+            riferimenti = list(group["riferimenti"].values())
+            quantita = len(riferimenti)
 
-            final_result[fornitore_id]["value"].append(group)
+            schede_base = build_scheda_tecnica_schema_fornitore(
+                fornitore_id=int(fornitore_id),
+                quantita=quantita,
+                db=db,
+            )
+
+            if not schede_base:
+                continue
+
+            scheda = schede_base[0]
+            scheda["riferimenti"] = riferimenti
+            scheda["quantita"] = quantita
+
+            final_result[fornitore_id]["value"].append(scheda)
 
     return final_result
 
