@@ -28,7 +28,7 @@ from routers import (
     tipo_prodotto_dropdown,
     scheda_tecnica_pezzo,
     scheda_tecnica_schema,
-    schede_tecniche_fornitori,
+    dati_cantiere,
     react_field_type
 )
 
@@ -75,6 +75,12 @@ app.include_router(
     tipo_prodotto.router,
     prefix="/tipo-prodotto",
     tags=["tipo-prodotto"]
+)
+
+app.include_router(
+    dati_cantiere.router,
+    prefix="/dati-cantiere",
+    tags=["dati-cantiere"],
 )
 
 app.include_router(
