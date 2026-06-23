@@ -5,11 +5,13 @@ from typing import List
 from sqlmodel import Session, select
 
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
+from models.scheda_tecnica_schema import SchedaTecnicaSchema
 from schemas.scheda_tecnica_pezzo import (
     SchedaTecnicaPezzoCreate,
     SchedaTecnicaPezzoRead,
     SchedaTecnicaPezzoUpdate,
 )
+
 from dependecies import get_db
 
 router = APIRouter()
@@ -56,6 +58,67 @@ def save_schede_tecniche_from_frontend(
     db.commit()
 
     return {"created": len(new_rows)}
+
+
+@router.get("/by-progetto/{progetto_id}")
+def get_schede_tecniche_by_progetto(
+    progetto_id: int,
+    db: Session = Depends(get_db),
+):
+    pezzi = db.exec(
+        select(SchedaTecnicaPezzo).where(SchedaTecnicaPezzo.progetto_id == progetto_id)
+    ).all()
+
+    result = {}
+
+    for pezzo in pezzi:
+        schema = db.get(SchedaTecnicaSchema, pezzo.scheda_tecnica_schema_id)
+
+        if not schema:
+            continue
+
+        fornitore_id = str(schema.fornitore_id)
+
+        if fornitore_id not in result:
+            result[fornitore_id] = {}
+
+        # you can group by tipo_prodotto_id
+        tipo_key = str(schema.tipo_prodotto_id)
+
+        if tipo_key not in result[fornitore_id]:
+            result[fornitore_id][tipo_key] = {
+                "tipo_prodotto_id": schema.tipo_prodotto_id,
+                "tipo_prodotto_nome": None,
+                "quantita": 0,
+                "campi": [],
+                "riferimenti": {},
+            }
+
+        group = result[fornitore_id][tipo_key]
+
+        if pezzo.riferimento not in group["riferimenti"]:
+            group["riferimenti"][pezzo.riferimento] = {
+                "riferimento": pezzo.riferimento,
+                "values": {},
+            }
+
+        group["riferimenti"][pezzo.riferimento]["values"][
+            str(pezzo.scheda_tecnica_schema_id)
+        ] = pezzo.valore
+
+    # convert dicts to lists
+    final_result = {}
+
+    for fornitore_id, tipi in result.items():
+        final_result[fornitore_id] = []
+
+        for group in tipi.values():
+            group["riferimenti"] = list(group["riferimenti"].values())
+            group["quantita"] = len(group["riferimenti"])
+
+            final_result[fornitore_id].append(group)
+
+    return final_result
 
 
 @router.post("/bulk", response_model=List[SchedaTecnicaPezzoRead], status_code=201)
