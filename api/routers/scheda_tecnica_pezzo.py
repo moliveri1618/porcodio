@@ -41,7 +41,12 @@ def save_schede_tecniche_from_frontend(
 ):
     new_rows = []
 
-    for schede in schede_tecniche.values():
+    for scheda_wrapper in schede_tecniche.values():
+        schede = scheda_wrapper.get("value")
+
+        if not schede:
+            continue
+
         for scheda in schede:
             for rif in scheda.get("riferimenti", []):
                 riferimento = rif.get("riferimento")
@@ -162,20 +167,20 @@ def get_schede_tecniche_by_progetto(
     return final_result
 
 
-@router.post("/bulk", response_model=List[SchedaTecnicaPezzoRead], status_code=201)
-def create_schede_tecniche_pezzi_bulk(
-    pezzi: List[SchedaTecnicaPezzoCreate],
-    db: Session = Depends(get_db),
-):
-    db_pezzi = [SchedaTecnicaPezzo(**pezzo.model_dump()) for pezzo in pezzi]
+# @router.post("/bulk", response_model=List[SchedaTecnicaPezzoRead], status_code=201)
+# def create_schede_tecniche_pezzi_bulk(
+#     pezzi: List[SchedaTecnicaPezzoCreate],
+#     db: Session = Depends(get_db),
+# ):
+#     db_pezzi = [SchedaTecnicaPezzo(**pezzo.model_dump()) for pezzo in pezzi]
 
-    db.add_all(db_pezzi)
-    db.commit()
+#     db.add_all(db_pezzi)
+#     db.commit()
 
-    for pezzo in db_pezzi:
-        db.refresh(pezzo)
+#     for pezzo in db_pezzi:
+#         db.refresh(pezzo)
 
-    return db_pezzi
+#     return db_pezzi
 
 
 # Get all
