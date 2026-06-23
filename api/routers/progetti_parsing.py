@@ -127,23 +127,31 @@ async def pdf_parse_contratto(
         schede_tecniche,
     )
 
+    schede_tecniche_result = {}
+
+    for fornitore in fornitori_data_w_ids:
+        fornitore_id = fornitore.get("fornitore_id")
+        fornitore_nome = fornitore.get("Fornitore")
+
+        if not fornitore_id:
+            continue
+
+        scheda = (
+            schede_tecnich_sel_value.get(fornitore_id)
+            or schede_tecnich_sel_value.get(str(fornitore_id))
+        )
+
+        schede_tecniche_result[fornitore_id] = {
+            "fornitore_id": fornitore_id,
+            "fornitore": fornitore_nome,
+            "value": scheda if scheda else None,
+        }
+
     result = {
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
         "Fornitori": fornitori_data_w_ids,
-        "SchedeTecniche": schede_tecnich_sel_value,
+        "SchedeTecniche": schede_tecniche_result,
     }
     return result
 
-
-# @router.get("/{progetto_id}/{fornitore_id}")
-# def schede_tecniche_fornitore_get(
-#     progetto_id: int,
-#     fornitore_id: int,
-#     db: Session = Depends(get_db),
-# ):
-#     return get_schede_tecniche_fornitore(
-#         progetto_id=progetto_id,
-#         fornitore_id=fornitore_id,
-#         db=db,
-#     )
