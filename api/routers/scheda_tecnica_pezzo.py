@@ -83,7 +83,7 @@ def get_schede_tecniche_by_progetto(
 
         final_result[fid] = {
             "fornitore_id": link.fornitore_id,
-            "fornitore": link.fornitore.nome,
+            "fornitore": link.fornitore.nome_cliente,
             "value": None,
         }
 
