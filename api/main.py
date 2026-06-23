@@ -107,12 +107,6 @@ app.include_router(
     tags=["scheda-tecnica-pezzo"]
 )
 
-# app.include_router(
-#     schede_tecniche_fornitori.router,
-#     prefix="/schede-tecniche-fornitori",
-#     tags=["schede-tecniche-fornitori"]
-# )
-
 app.include_router(
     clienti.router, 
     prefix="/clienti", 
