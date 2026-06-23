@@ -11,6 +11,8 @@ from schemas.scheda_tecnica_pezzo import (
     SchedaTecnicaPezzoRead,
     SchedaTecnicaPezzoUpdate,
 )
+from models.progetti import Progetti
+from models.progetto_fornitore_link import ProgettoFornitoreLink
 
 from dependecies import get_db
 
@@ -65,6 +67,27 @@ def get_schede_tecniche_by_progetto(
     progetto_id: int,
     db: Session = Depends(get_db),
 ):
+    progetto = db.get(Progetti, progetto_id)
+
+    if not progetto:
+        raise HTTPException(status_code=404, detail="Progetto not found")
+
+    final_result = {}
+
+    # 1. Add all fornitori of the progetto first, with value null
+    for link in progetto.fornitori_links:
+        if not link.fornitore:
+            continue
+
+        fid = str(link.fornitore_id)
+
+        final_result[fid] = {
+            "fornitore_id": link.fornitore_id,
+            "fornitore": link.fornitore.nome,
+            "value": None,
+        }
+
+    # 2. Get saved schede tecniche pezzi
     pezzi = db.exec(
         select(SchedaTecnicaPezzo).where(SchedaTecnicaPezzo.progetto_id == progetto_id)
     ).all()
@@ -82,7 +105,6 @@ def get_schede_tecniche_by_progetto(
         if fornitore_id not in result:
             result[fornitore_id] = {}
 
-        # you can group by tipo_prodotto_id
         tipo_key = str(schema.tipo_prodotto_id)
 
         if tipo_key not in result[fornitore_id]:
@@ -106,17 +128,22 @@ def get_schede_tecniche_by_progetto(
             str(pezzo.scheda_tecnica_schema_id)
         ] = pezzo.valore
 
-    # convert dicts to lists
-    final_result = {}
-
+    # 3. Add schede into the fornitori wrapper
     for fornitore_id, tipi in result.items():
-        final_result[fornitore_id] = []
+        if fornitore_id not in final_result:
+            final_result[fornitore_id] = {
+                "fornitore_id": int(fornitore_id),
+                "fornitore": None,
+                "value": [],
+            }
+
+        final_result[fornitore_id]["value"] = []
 
         for group in tipi.values():
             group["riferimenti"] = list(group["riferimenti"].values())
             group["quantita"] = len(group["riferimenti"])
 
-            final_result[fornitore_id].append(group)
+            final_result[fornitore_id]["value"].append(group)
 
     return final_result
 

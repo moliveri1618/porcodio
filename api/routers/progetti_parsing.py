@@ -154,4 +154,3 @@ async def pdf_parse_contratto(
         "SchedeTecniche": schede_tecniche_result,
     }
     return result
-
