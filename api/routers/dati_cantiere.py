@@ -1,65 +1,52 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from typing import List
 
 from dependecies import get_db
-from models.dati_cantiere import CantiereExtractor
+from models.dati_cantiere import DatiCantiere
 from schemas.dati_cantiere import (
-    CantiereExtractorCreate,
-    CantiereExtractorRead,
+    DatiCantiereCreate,
+    DatiCantiereRead,
 )
 
 router = APIRouter()
 
 
-@router.get("/by-progetto/{progetto_id}", response_model=list[CantiereExtractorRead])
-def get_all_by_progetto_id(
+@router.get("/by-progetto/{progetto_id}", response_model=DatiCantiereRead | None)
+def get_by_progetto_id(
     progetto_id: int,
     db: Session = Depends(get_db),
 ):
-    rows = db.exec(
-        select(CantiereExtractor)
-        .where(CantiereExtractor.progetto_id == progetto_id)
-        .order_by(CantiereExtractor.id.asc())
-    ).all()
+    row = db.exec(
+        select(DatiCantiere).where(DatiCantiere.progetto_id == progetto_id)
+    ).first()
 
-    return rows
+    return row
 
 
-@router.post("/bulk-upsert/{progetto_id}", response_model=list[CantiereExtractorRead])
-def bulk_upsert_by_progetto_id(
+
+@router.post("/upsert/{progetto_id}", response_model=DatiCantiereRead)
+def upsert_by_progetto_id(
     progetto_id: int,
-    items: List[CantiereExtractorCreate],
+    item: DatiCantiereCreate,
     db: Session = Depends(get_db),
 ):
-    saved_rows = []
+    existing = db.exec(
+        select(DatiCantiere).where(DatiCantiere.progetto_id == progetto_id)
+    ).first()
 
-    for item in items:
-        campo = item.campo
+    data = item.model_dump(exclude_unset=True)
+    data["progetto_id"] = progetto_id
 
-        existing = db.exec(
-            select(CantiereExtractor).where(
-                CantiereExtractor.progetto_id == progetto_id,
-                CantiereExtractor.campo == campo,
-            )
-        ).first()
+    if existing:
+        for key, value in data.items():
+            setattr(existing, key, value)
 
-        if existing:
-            existing.valore = item.valore
-            row = existing
-        else:
-            row = CantiereExtractor(
-                progetto_id=progetto_id,
-                campo=campo,
-                valore=item.valore,
-            )
-            db.add(row)
-
-        saved_rows.append(row)
+        row = existing
+    else:
+        row = DatiCantiere(**data)
+        db.add(row)
 
     db.commit()
+    db.refresh(row)
 
-    for row in saved_rows:
-        db.refresh(row)
-
-    return saved_rows
+    return row
