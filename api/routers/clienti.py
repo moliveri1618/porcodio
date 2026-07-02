@@ -77,14 +77,28 @@ def fix_clienti_data_with_gesty(db: Session = Depends(get_db)):
 # Create
 @router.post("", response_model=ClienteRead)
 def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db)):
-    
-    
-    
+
+    print("📥 cliente received:", cliente)
+    print("📧 cliente.centro_di_costo:", repr(cliente.centro_di_costo))
+
+    # Check if a client with the same email already exists
+    if cliente.centro_di_costo:
+        existing_cliente = (
+            db.query(Cliente)
+            .filter(Cliente.centro_di_costo == cliente.centro_di_costo)
+            .first()
+        )
+        print("🔎 existing_cliente:", existing_cliente)
+
+        if existing_cliente:
+            print("✅ Cliente already exists, returning:", existing_cliente.id)
+            return existing_cliente
+
     # Always ensure we have an ID before creating the object
     cliente_data = cliente.dict(exclude_unset=True)
     if not cliente_data.get('id') or cliente_data.get('id') == '':
         last_cliente = db.query(Cliente).order_by(Cliente.id.desc()).first()
-        
+
         if last_cliente and last_cliente.id:
             try:
                 last_num = int(last_cliente.id)
@@ -93,10 +107,7 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=400, detail="Cannot auto-generate ID: last ID is not numeric")
         else:
             cliente_data['id'] = '1'
-            
-    
-            
-            
+
     db_cliente = Cliente(**cliente_data)
     db.add(db_cliente)
     try:
