@@ -26,6 +26,7 @@ from models.progetti import Progetti
 from models.clienti import Cliente
 from models.fornitori import Fornitore
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
+from models.dati_cantiere import DatiCantiere
 from datetime import datetime, timedelta
 from models.progetto_fornitore_link import ProgettoFornitoreLink
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
@@ -1235,6 +1236,9 @@ def delete_progetto(
                 SchedaTecnicaPezzo.progetto_id == project_id
             )
         )
+
+        # 2) del dati cantiere
+        db.exec(delete(DatiCantiere).where(DatiCantiere.progetto_id == project_id))
 
         # 1) delete link rows first
         db.exec(
