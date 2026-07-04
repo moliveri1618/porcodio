@@ -6,7 +6,8 @@ class DatiCantiereBase(BaseModel):
     progetto_id: Optional[int] = None
 
     # DATI ANAGRAFICI
-    numero_contratto: Optional[str] = None
+    numero: Optional[str] = None
+    data: Optional[str] = None
     piva: Optional[str] = None
     pec: Optional[str] = None
     cap: Optional[str] = None
@@ -41,7 +42,8 @@ class DatiCantiereUpdate(BaseModel):
     progetto_id: Optional[int] = None
 
     # DATI ANAGRAFICI
-    numero_contratto: Optional[str] = None
+    numero: Optional[str] = None
+    data: Optional[str] = None
     piva: Optional[str] = None
     pec: Optional[str] = None
     cap: Optional[str] = None
