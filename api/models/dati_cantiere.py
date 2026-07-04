@@ -12,6 +12,10 @@ class DatiCantiere(SQLModel, table=True):
     )
 
     # DATI ANAGRAFICI
+    numero_contratto: Optional[str] = Field(default=None)
+    piva: Optional[str] = Field(default=None)
+    pec: Optional[str] = Field(default=None)
+    cap: Optional[str] = Field(default=None)
     rag_sociale: Optional[str] = Field(default=None)
     luogo_zona: Optional[str] = Field(default=None)
     consegna: Optional[str] = Field(default=None)

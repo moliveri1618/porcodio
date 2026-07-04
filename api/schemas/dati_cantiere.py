@@ -6,6 +6,10 @@ class DatiCantiereBase(BaseModel):
     progetto_id: Optional[int] = None
 
     # DATI ANAGRAFICI
+    numero_contratto: Optional[str] = None
+    piva: Optional[str] = None
+    pec: Optional[str] = None
+    cap: Optional[str] = None
     rag_sociale: Optional[str] = None
     luogo_zona: Optional[str] = None
     consegna: Optional[str] = None
@@ -37,6 +41,10 @@ class DatiCantiereUpdate(BaseModel):
     progetto_id: Optional[int] = None
 
     # DATI ANAGRAFICI
+    numero_contratto: Optional[str] = None
+    piva: Optional[str] = None
+    pec: Optional[str] = None
+    cap: Optional[str] = None
     rag_sociale: Optional[str] = None
     luogo_zona: Optional[str] = None
     consegna: Optional[str] = None
