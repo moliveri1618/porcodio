@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from sqlmodel import SQLModel, Field
 
@@ -13,7 +14,7 @@ class DatiCantiere(SQLModel, table=True):
 
     # DATI ANAGRAFICI
     numero: Optional[str] = Field(default=None)
-    data: Optional[str] = Field(default=None)
+    data: Optional[date] = Field(default=None)
     piva: Optional[str] = Field(default=None)
     pec: Optional[str] = Field(default=None)
     cap: Optional[str] = Field(default=None)

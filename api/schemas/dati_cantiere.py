@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel
 from typing import Optional
 
@@ -7,7 +9,7 @@ class DatiCantiereBase(BaseModel):
 
     # DATI ANAGRAFICI
     numero: Optional[str] = None
-    data: Optional[str] = None
+    data: Optional[date] = None
     piva: Optional[str] = None
     pec: Optional[str] = None
     cap: Optional[str] = None
@@ -43,7 +45,7 @@ class DatiCantiereUpdate(BaseModel):
 
     # DATI ANAGRAFICI
     numero: Optional[str] = None
-    data: Optional[str] = None
+    data: Optional[date] = None
     piva: Optional[str] = None
     pec: Optional[str] = None
     cap: Optional[str] = None
