@@ -550,8 +550,8 @@ def sum_importo_filtrato(
     if stato and stato.strip():
         stato_clean = stato.strip().upper()
 
-        # VAL+INV means "all statuses" -> don't filter by stato
-        if stato_clean != "VAL+INV":
+        # TUTTI means "all statuses" -> don't filter by stato
+        if stato_clean != "TUTTI":
             conditions.append(Progetti.stato == stato_clean)
 
     # date
