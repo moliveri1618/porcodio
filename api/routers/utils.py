@@ -385,7 +385,7 @@ def create_clienti_from_payload(db: Session, payload: list[dict]) -> dict:
 def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
     results: List[Dict[str, Any]] = []
-    #now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    # now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     for item in payload or []:
         cli = (item or {}).get("Cliente") or {}
@@ -464,3 +464,19 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
         })
 
     return results
+
+
+async def fetch_pdf_from_crm(tipo: str, code: str) -> bytes:
+    url = f"{API_BASE}/{tipo}/{code}/"
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(url, headers=headers)
+
+    if r.status_code == 200:
+        return r.content
+
+    if r.status_code in (401, 403):
+        raise HTTPException(status_code=401, detail="Token non valido")
+
+    raise HTTPException(status_code=r.status_code, detail=r.text)

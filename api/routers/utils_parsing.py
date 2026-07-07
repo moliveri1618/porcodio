@@ -9,6 +9,9 @@ from sqlmodel import Session, select
 from sqlalchemy import func
 import unicodedata
 import re
+from collections import defaultdict
+import io
+from sqlalchemy import delete
 
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
@@ -156,6 +159,18 @@ def pdf_to_text_from_upload(file: UploadFile) -> str:
         text += page.extract_text() or ""
 
     return text
+
+
+def pdf_to_text_from_bytes(pdf_bytes: bytes) -> str:
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+
+    text = ""
+
+    for page in reader.pages:
+        text += page.extract_text() or ""
+
+    return text
+
 
 def save_pdf(file: UploadFile, folder_name: str) -> str:
     # Directory where this file is located
@@ -790,3 +805,110 @@ def enrich_schede_with_selected_values_V2(fornitori, schede_tecniche):
                 campo.pop("valore", None)
 
     return schede_tecniche
+
+
+def parse_contratto_text(
+    text_content: str,
+    db: Session,
+):
+    # ## Extract cliente info
+    # cliente_info = extract_cliente_info(text_content, db)
+
+    # ## Extract progetto info
+    # progetto_info = extract_progetto_info(text_content)
+
+    ## Extract Fornitori Data
+    fornitori_data = pdf_rules2(text_content)
+    fornitori_data_w_ids = add_fornitore_ids(fornitori_data["fornitori"], db)
+
+    ## Build schede tecniche fornitore
+    schede_quantita = defaultdict(int)
+    for fornitore in fornitori_data_w_ids:
+        if normalize_design(fornitore.get("Design")) != normalize_design("Avvolgibile"):
+            continue
+
+        fornitore_id = fornitore.get("fornitore_id")
+        if not fornitore_id:
+            continue
+
+        schede_quantita[fornitore_id] += int(fornitore.get("Quantita") or 1)
+
+    schede_tecniche = {
+        fornitore_id: build_scheda_tecnica_schema_fornitore(
+            fornitore_id=fornitore_id,
+            quantita=quantita,
+            db=db,
+        )
+        for fornitore_id, quantita in schede_quantita.items()
+    }
+
+    ## Match selected values from PDF with schede tecniche
+    schede_tecnich_sel_value = enrich_schede_with_selected_values_V2(
+        fornitori_data_w_ids,
+        schede_tecniche,
+    )
+
+    schede_tecniche_result = {}
+
+    for fornitore in fornitori_data_w_ids:
+        fornitore_id = fornitore.get("fornitore_id")
+        fornitore_nome = fornitore.get("Fornitore")
+
+        if not fornitore_id:
+            continue
+
+        scheda = schede_tecnich_sel_value.get(
+            fornitore_id
+        ) or schede_tecnich_sel_value.get(str(fornitore_id))
+
+        schede_tecniche_result[fornitore_id] = {
+            "fornitore_id": fornitore_id,
+            "fornitore": fornitore_nome,
+            "value": scheda if scheda else None,
+        }
+
+    return {
+        # "Cliente": cliente_info["Cliente"],
+        # "Progetto": progetto_info["Progetto"],
+        # "Fornitori": fornitori_data_w_ids,
+        "SchedeTecniche": schede_tecniche_result,
+    }
+
+
+def save_schede_tecniche_logic(
+    progetto_id: int,
+    schede_tecniche: dict,
+    db: Session,
+):
+    # delete old values first
+    db.exec(
+        delete(SchedaTecnicaPezzo).where(SchedaTecnicaPezzo.progetto_id == progetto_id)
+    )
+
+    new_rows = []
+
+    for scheda_wrapper in schede_tecniche.values():
+        schede = scheda_wrapper.get("value")
+
+        if not schede:
+            continue
+
+        for scheda in schede:
+            for rif in scheda.get("riferimenti", []):
+                riferimento = rif.get("riferimento")
+                values = rif.get("values", {})
+
+                for schema_id, valore in values.items():
+                    db_pezzo = SchedaTecnicaPezzo(
+                        progetto_id=progetto_id,
+                        riferimento=riferimento,
+                        scheda_tecnica_schema_id=int(schema_id),
+                        valore=str(valore) if valore is not None else None,
+                    )
+
+                    db.add(db_pezzo)
+                    new_rows.append(db_pezzo)
+
+    db.commit()
+
+    return {"created": len(new_rows)}
