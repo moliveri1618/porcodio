@@ -405,7 +405,7 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
         if project.get("Progetto", {}).get("data_primo_pagamento")
         and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
         >= one_year_ago
-        and str(project.get("Progetto", {}).get("id")) == "10723"
+        # and str(project.get("Progetto", {}).get("id")) == "10723"
     ]
 
     # Download the contract PDF(s)
