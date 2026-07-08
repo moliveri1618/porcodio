@@ -613,8 +613,8 @@ def export_progetti_excel(
     if stato and stato.strip():
         stato_clean = stato.strip().upper()
 
-        if stato_clean == "VAL+INV":
-            conditions.append(Progetti.stato.in_(["VALIDATO", "INVIATO"]))
+        if stato_clean == "TUTTI":
+            pass  # no stato filter
         else:
             conditions.append(Progetti.stato == stato_clean)
 
