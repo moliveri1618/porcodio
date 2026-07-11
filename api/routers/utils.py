@@ -17,6 +17,7 @@ from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from routers.utils import *
 from dependecies import get_db
 from sqlmodel import Session, select
+from sqlalchemy import and_, func, or_
 
 API_BASE = "https://www.tigulliocrm.it/api"
 API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
@@ -114,6 +115,28 @@ POINTING_TAGLIA_MAP = [
     {"taglia": "xl", "valore": 13, "min": 10.5},
     {"taglia": "xxl", "valore": 21, "min": 17.0},
 ]
+
+
+def add_filters(
+    filters: list,
+    tecnico: str | None,
+    cliente_nome: str | None,
+):
+    if tecnico:
+        tecnico_clean = tecnico.strip().lower()
+
+        if tecnico_clean == "nuovi-ordini":
+            filters.append(
+                or_(
+                    Progetti.tecnico.is_(None),
+                    func.trim(Progetti.tecnico) == "",
+                )
+            )
+        elif tecnico_clean != "generali":
+            filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+
+    if cliente_nome and cliente_nome.strip():
+        filters.append(Cliente.nome_cliente.ilike(f"%{cliente_nome.strip()}%"))
 
 
 def map_to_taglia(grezzo: float) -> dict:

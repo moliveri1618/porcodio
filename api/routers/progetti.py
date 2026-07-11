@@ -732,6 +732,7 @@ def export_progetti_excel(
         headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
     )
 
+
 @router.get("/v2")
 def read_progettiV2(
     db: Session = Depends(get_db),
@@ -741,7 +742,13 @@ def read_progettiV2(
     include_suspended: bool = False,
     tecnico: str | None = None,
     cliente_nome: str | None = None,
-    sort_tecnico: bool = False,  
+    status: int | None = Query(None, ge=0, le=100),
+    fornitore: str | None = None,
+    azienda: str | None = None,
+    commerciale: str | None = None,
+    importo_parz: str | None = None,
+    importo: str | None = None,
+    sort_tecnico: bool = False,
 ):
     offset = (page - 1) * page_size
 
@@ -761,20 +768,16 @@ def read_progettiV2(
     )
 
     filters = []
-    if tecnico:
-        tecnico_clean = tecnico.strip().lower()
-        if tecnico_clean == "nuovi-ordini":
-            filters.append(
-                or_(Progetti.tecnico.is_(None), func.trim(Progetti.tecnico) == "")
-            )
-        elif tecnico_clean != "generali":
-            filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
+    add_filters(
+        filters=filters,
+        tecnico=tecnico,
+        cliente_nome=cliente_nome,
+    )
+
     if not include_suspended:
         filters.append(stato_upper != "SOSPESO")
     if not include_completed:
         filters.append(~is_completed_expr)
-    if cliente_nome and cliente_nome.strip():
-        filters.append(Cliente.nome_cliente.ilike(f"%{cliente_nome.strip()}%"))
 
     total = db.exec(
         select(func.count(Progetti.id))
@@ -959,6 +962,7 @@ def read_progettiV2(
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
     }
+
 
 @router.get("/tecnici-workload")
 def get_tecnici_workload(db: Session = Depends(get_db)):
