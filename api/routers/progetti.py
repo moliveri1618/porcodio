@@ -772,6 +772,7 @@ def read_progettiV2(
         filters=filters,
         tecnico=tecnico,
         cliente_nome=cliente_nome,
+        status=status,
     )
 
     if not include_suspended:

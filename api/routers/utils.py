@@ -121,6 +121,7 @@ def add_filters(
     filters: list,
     tecnico: str | None,
     cliente_nome: str | None,
+    status: int | None = None,
 ):
     if tecnico:
         tecnico_clean = tecnico.strip().lower()
@@ -137,6 +138,11 @@ def add_filters(
 
     if cliente_nome and cliente_nome.strip():
         filters.append(Cliente.nome_cliente.ilike(f"%{cliente_nome.strip()}%"))
+
+    if status is not None:
+        filters.append(
+            func.coalesce(Progetti.status_percent, 0) == status
+        )
 
 
 def map_to_taglia(grezzo: float) -> dict:
