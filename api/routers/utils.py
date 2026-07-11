@@ -122,6 +122,9 @@ def add_filters(
     tecnico: str | None,
     cliente_nome: str | None,
     status: int | None = None,
+    fornitore: str | None = None,
+    azienda: str | None = None,
+    commerciale: str | None = None,
 ):
     if tecnico:
         tecnico_clean = tecnico.strip().lower()
@@ -142,6 +145,27 @@ def add_filters(
     if status is not None:
         filters.append(
             func.coalesce(Progetti.status_percent, 0) == status
+        )
+
+    if azienda and azienda.strip():
+        filters.append(
+            Progetti.azienda.ilike(f"%{azienda.strip()}%")
+        )
+
+    if commerciale and commerciale.strip():
+        filters.append(
+            Progetti.commerciale.ilike(f"%{commerciale.strip()}%")
+        )
+
+    if fornitore and fornitore.strip():
+        filters.append(
+            Progetti.fornitori_links.any(
+                ProgettoFornitoreLink.fornitore.has(
+                    Fornitore.nome_cliente.ilike(
+                        f"%{fornitore.strip()}%"
+                    )
+                )
+            )
         )
 
 

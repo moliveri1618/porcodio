@@ -773,6 +773,9 @@ def read_progettiV2(
         tecnico=tecnico,
         cliente_nome=cliente_nome,
         status=status,
+        fornitore=fornitore,
+        azienda=azienda,
+        commerciale=commerciale,
     )
 
     if not include_suspended:
