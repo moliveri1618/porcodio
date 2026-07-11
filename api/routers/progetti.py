@@ -1090,63 +1090,6 @@ def update_single_progetto_field(
 
     return progetto
 
-
-@router.get("/filtered")
-def read_progetti_filtered(
-    db: Session = Depends(get_db),
-    nome_cliente: str | None = Query(None),
-    tecnico: str | None = Query(None),
-):
-    filters = []
-
-    if nome_cliente and nome_cliente.strip():
-        filters.append(Cliente.nome_cliente.ilike(f"%{nome_cliente.strip()}%"))
-
-    if tecnico and tecnico.strip():
-        filters.append(Progetti.tecnico.ilike(f"%{tecnico.strip()}%"))
-
-    stmt = (
-        select(Progetti)
-        .join(Cliente, Progetti.cliente_id == Cliente.id)
-        .where(*filters)
-        .options(joinedload(Progetti.cliente))
-        .order_by(Progetti.data_creazione.desc().nullslast())
-    )
-
-    progetti = db.exec(stmt).all()
-
-    return [
-        {
-            "id": p.id,
-            "progetto": p.progetto_id,
-            "tecnico": p.tecnico,
-            "stato": p.stato,
-            "commerciale": p.commerciale,
-            "azienda": p.azienda,
-            "centro_di_costo": p.centro_di_costo,
-            "cliente_id": p.cliente_id,
-            "data_creazione": p.data_creazione,
-            "data_cambiamento_stato": p.data_cambiamento_stato,
-            "importo": p.importo,
-            "importo_parz": p.importo_parz,
-            "status_percent": p.status_percent,
-            "taglia_progetto": p.taglia_progetto,
-            "cliente": (
-                {
-                    "id": p.cliente.id,
-                    "nome_cliente": p.cliente.nome_cliente,
-                    "citta": p.cliente.citta,
-                    "indirizzo": p.cliente.indirizzo,
-                    "numero_tel": p.cliente.numero_tel,
-                }
-                if p.cliente
-                else None
-            ),
-        }
-        for p in progetti
-    ]
-
-
 # Get one
 @router.get("/{progetto_id}")
 def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
