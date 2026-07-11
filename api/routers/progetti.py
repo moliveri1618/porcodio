@@ -745,6 +745,7 @@ def read_progettiV2(
     status: int | None = Query(None, ge=0, le=100),
     fornitore: str | None = None,
     azienda: str | None = None,
+    stato: str | None = None,
     commerciale: str | None = None,
     importo_parz: str | None = None,
     importo: str | None = None,
@@ -776,6 +777,7 @@ def read_progettiV2(
         fornitore=fornitore,
         azienda=azienda,
         commerciale=commerciale,
+        stato=stato,
     )
 
     if not include_suspended:

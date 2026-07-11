@@ -125,6 +125,7 @@ def add_filters(
     fornitore: str | None = None,
     azienda: str | None = None,
     commerciale: str | None = None,
+    stato: str | None = None,
 ):
     if tecnico:
         tecnico_clean = tecnico.strip().lower()
@@ -166,6 +167,11 @@ def add_filters(
                     )
                 )
             )
+        )
+
+    if stato and stato.strip():
+        filters.append(
+            Progetti.stato.ilike(f"%{stato.strip()}%")
         )
 
 
