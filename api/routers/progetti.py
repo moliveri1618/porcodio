@@ -17,6 +17,7 @@ from sqlalchemy.orm import selectinload, joinedload, load_only
 from sqlalchemy import delete, and_, case, func
 from math import ceil
 from typing import Optional
+from datetime import date
 # from pprint import pprint
 
 
@@ -750,6 +751,8 @@ def read_progettiV2(
     importo_parz: str | None = None,
     importo: str | None = None,
     sort_tecnico: bool = False,
+    data_da: date | None = None,
+    data_a: date | None = None,
 ):
     offset = (page - 1) * page_size
 
@@ -779,6 +782,15 @@ def read_progettiV2(
         commerciale=commerciale,
         stato=stato,
     )
+
+    if data_da:
+        filters.append(
+            func.date(Progetti.data_cambiamento_stato) >= data_da
+        )
+    if data_a:
+        filters.append(
+            func.date(Progetti.data_cambiamento_stato) <= data_a
+        )
 
     if not include_suspended:
         filters.append(stato_upper != "SOSPESO")
