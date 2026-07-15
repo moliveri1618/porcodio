@@ -791,6 +791,14 @@ def read_progettiV2(
         .join(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*filters)
     ).one()
+
+    filtered_importo = db.exec(
+        select(func.coalesce(func.sum(Progetti.importo_parz), 0))
+        .select_from(Progetti)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .where(*filters)
+    ).one()
+
     if total == 0:
         return {
             "items": [],
@@ -798,6 +806,7 @@ def read_progettiV2(
             "page": page,
             "page_size": page_size,
             "total_pages": 0,
+            "filtered_importo": 0,
         }
 
     if sort_tecnico:
@@ -967,6 +976,7 @@ def read_progettiV2(
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
+        "filtered_importo": filtered_importo,
     }
 
 
