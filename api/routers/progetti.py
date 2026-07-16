@@ -597,8 +597,6 @@ def sum_importo_filtrato(
 
 @router.get("/export-excel-importo-mensile")
 def export_progetti_excel(
-    tipo_importo: str = Query("totale", pattern="^(totale|parziale)$"),
-    stato: Optional[str] = Query(None),
     data_da: Optional[str] = Query(None),
     data_a: Optional[str] = Query(None),
     tecnico: Optional[str] = Query(None),
@@ -610,14 +608,8 @@ def export_progetti_excel(
     if tecnico and tecnico.strip() and tecnico.lower() != "generali":
         conditions.append(Progetti.tecnico == tecnico.strip())
 
-    # stato
-    if stato and stato.strip():
-        stato_clean = stato.strip().upper()
-
-        if stato_clean == "TUTTI":
-            pass  # no stato filter
-        else:
-            conditions.append(Progetti.stato == stato_clean)
+    # always exclude VALIDATO and SOSPESO
+    conditions.append(Progetti.stato.notin_(["VALIDATO", "SOSPESO"]))
 
     # date
     if data_da:
