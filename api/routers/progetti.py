@@ -797,7 +797,7 @@ def read_progettiV2(
     ).one()
 
     filtered_importo = db.exec(
-        select(func.coalesce(func.sum(Progetti.importo_parz), 0))
+        select(func.coalesce(func.sum(Progetti.importo), 0))
         .select_from(Progetti)
         .join(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*filters)
