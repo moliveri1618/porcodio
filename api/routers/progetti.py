@@ -595,11 +595,14 @@ def sum_importo_filtrato(
     totale = db.exec(query).first()
     return totale
 
+
 @router.get("/export-excel-importo-mensile")
 def export_progetti_excel(
     data_da: Optional[str] = Query(None),
     data_a: Optional[str] = Query(None),
     tecnico: Optional[str] = Query(None),
+    include_completed: bool = Query(False),
+    include_suspended: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     conditions = []
@@ -608,8 +611,13 @@ def export_progetti_excel(
     if tecnico and tecnico.strip() and tecnico.lower() != "generali":
         conditions.append(Progetti.tecnico == tecnico.strip())
 
-    # always exclude VALIDATO and SOSPESO
-    conditions.append(Progetti.stato.notin_(["VALIDATO", "SOSPESO"]))
+    # Exclude VALIDATO unless "Show Completed" is active
+    if not include_completed:
+        conditions.append(Progetti.stato != "VALIDATO")
+
+    # Exclude SOSPESO unless "Show Sospesi" is active
+    if not include_suspended:
+        conditions.append(Progetti.stato != "SOSPESO")
 
     # date
     if data_da:
