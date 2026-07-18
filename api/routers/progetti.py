@@ -387,9 +387,71 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
 
     return db_progetto
 
+# # Get from gesty
+# @router.get("/get_progetti_gesty")
+# async def progetti_from_gesty(db: Session = Depends(get_db)):
+#     """
+#     Calls the dip-tecnico API with Bearer token in header
+#     """
+
+#     payload = fetch_from_gesty("dip-tecnico")
+#     # pprint(payload)
+
+#     current_date = datetime.now()
+#     one_year_ago = current_date - timedelta(days=90)
+
+#     payload = [
+#         project
+#         for project in payload
+#         if project.get("Progetto", {}).get("data_primo_pagamento")
+#         and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
+#         >= one_year_ago
+#         # and str(project.get("Progetto", {}).get("id")) == "10723"
+#     ]
+
+#     # Download the contract PDF(s)
+#     for project in payload:
+#         contratto_code = project.get("Progetto", {}).get("contratto_code")
+#         if contratto_code:
+#             pdf_bytes = await fetch_pdf_from_crm(
+#                 "contratto",
+#                 contratto_code,
+#             )
+
+#             # pass pdf_bytes to your parser
+#             if pdf_bytes:
+#                 text_content = pdf_to_text_from_bytes(pdf_bytes)
+#                 parsed_results = parse_contratto_text(text_content, db) # just need schede tecniche
+
+#         payload = attach_file_links(payload)
+#         clienti_inserted_info = create_clienti_from_payload(db, payload)
+#         progetti_payload = build_progetti_payloads(payload)
+
+#         created = []
+#         for body in progetti_payload:
+#             progetto_in = ProgettiCreate(**body)
+#             saved = create_or_update_progetto(progetto_in, db=db)
+#             if saved is not None:
+#                 created.append(saved)
+
+#                 # # Save schede tecniche using the DB project id
+#                 # if parsed_results:
+#                 #     save_schede_tecniche_logic(
+#                 #         progetto_id=saved.id,
+#                 #         schede_tecniche=parsed_results,
+#                 #         db=db,
+#                 #     )
+
+#     # return created
+#     return {
+#         "payload": payload,
+#         "parsed": parsed_results,
+#     }
+
+
 # Get from gesty
 @router.get("/get_progetti_gesty")
-async def progetti_from_gesty(db: Session = Depends(get_db)):
+def progetti_from_gesty(db: Session = Depends(get_db)):
     """
     Calls the dip-tecnico API with Bearer token in header
     """
@@ -406,47 +468,21 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
         if project.get("Progetto", {}).get("data_primo_pagamento")
         and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
         >= one_year_ago
-        # and str(project.get("Progetto", {}).get("id")) == "10723"
     ]
 
-    # Download the contract PDF(s)
-    for project in payload:
-        contratto_code = project.get("Progetto", {}).get("contratto_code")
-        if contratto_code:
-            pdf_bytes = await fetch_pdf_from_crm(
-                "contratto",
-                contratto_code,
-            )
+    payload = attach_file_links(payload)
+    clienti_inserted_info = create_clienti_from_payload(db, payload)
+    progetti_payload = build_progetti_payloads(payload)
 
-            # pass pdf_bytes to your parser
-            if pdf_bytes:
-                text_content = pdf_to_text_from_bytes(pdf_bytes)
-                parsed_results = parse_contratto_text(text_content, db) # just need schede tecniche
+    created = []
+    for body in progetti_payload:
+        progetto_in = ProgettiCreate(**body)
+        saved = create_or_update_progetto(progetto_in, db=db)
+        if saved is not None:
+            created.append(saved)
 
-        payload = attach_file_links(payload)
-        clienti_inserted_info = create_clienti_from_payload(db, payload)
-        progetti_payload = build_progetti_payloads(payload)
+    return created
 
-        created = []
-        for body in progetti_payload:
-            progetto_in = ProgettiCreate(**body)
-            saved = create_or_update_progetto(progetto_in, db=db)
-            if saved is not None:
-                created.append(saved)
-                
-                # Save schede tecniche using the DB project id
-                if parsed_results:
-                    save_schede_tecniche_logic(
-                        progetto_id=saved.id,
-                        schede_tecniche=parsed_results,
-                        db=db,
-                    )
-
-    # return created
-    return {
-        "payload": payload,
-        "parsed": parsed_results,
-    }
 
 # Get all
 @router.get("")
