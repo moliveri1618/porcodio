@@ -560,6 +560,68 @@ def build_scheda_tecnica_schema_fornitore(
 
     return list(grouped.values())
 
+from copy import deepcopy
+
+
+def copy_avvolgibile_scheda_to_other_fornitori(
+    schede_tecniche_result: dict,
+    fornitori_data_w_ids: list,
+) -> dict:
+
+    avvolgibile_scheda = None
+
+    # Find the existing Avvolgibile scheda
+    for fornitore_data in schede_tecniche_result.values():
+        value = fornitore_data.get("value")
+
+        if not value:
+            continue
+
+        for scheda in value:
+            if normalize_design(scheda.get("tipo_prodotto_nome")) == normalize_design(
+                "Avvolgibile"
+            ):
+                avvolgibile_scheda = value
+                break
+
+        if avvolgibile_scheda:
+            break
+
+    if not avvolgibile_scheda:
+        return schede_tecniche_result
+
+    # Map fornitore_id -> Design
+    design_by_fornitore = {
+        f.get("fornitore_id"): f.get("Design")
+        for f in fornitori_data_w_ids
+        if f.get("fornitore_id")
+    }
+
+    # Copy scheda to fornitori without one
+    for fornitore_id, fornitore_data in schede_tecniche_result.items():
+
+        if fornitore_data.get("value") is not None:
+            continue
+
+        copied_scheda = deepcopy(avvolgibile_scheda)
+
+        # Keep the product name coming from this fornitore
+        design = design_by_fornitore.get(fornitore_id)
+
+        for tipo_prodotto in copied_scheda:
+
+            tipo_prodotto["tipo_prodotto_nome"] = design
+
+            # Reset selected values
+            for riferimento in tipo_prodotto.get("riferimenti", []):
+                values = riferimento.get("values", {})
+
+                riferimento["values"] = {schema_id: None for schema_id in values}
+
+        fornitore_data["value"] = copied_scheda
+
+    return schede_tecniche_result
+
 
 def get_schede_tecniche_fornitore(
     progetto_id: int,

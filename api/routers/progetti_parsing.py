@@ -147,6 +147,12 @@ async def pdf_parse_contratto(
             "value": scheda if scheda else None,
         }
 
+    ### add schede tecniche fornitore with no avvolgibile design
+    schede_tecniche_result = copy_avvolgibile_scheda_to_other_fornitori(
+        schede_tecniche_result,
+        fornitori_data_w_ids,
+    )
+
     result = {
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
