@@ -639,6 +639,7 @@ def export_progetti_excel(
     tecnico: Optional[str] = Query(None),
     include_completed: bool = Query(False),
     include_suspended: bool = Query(False),
+    stato: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     conditions = []
@@ -654,6 +655,10 @@ def export_progetti_excel(
     # Exclude SOSPESO unless "Show Sospesi" is active
     if not include_suspended:
         conditions.append(Progetti.stato != "SOSPESO")
+
+    # stato filter
+    if stato and stato.strip():
+        conditions.append(Progetti.stato == stato.strip().upper())
 
     # date
     if data_da:
