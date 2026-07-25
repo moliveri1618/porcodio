@@ -58,12 +58,14 @@ def save_schede_tecniche_from_frontend(
         for scheda in schede:
             for rif in scheda.get("riferimenti", []):
                 riferimento = rif.get("riferimento")
+                posizione = rif.get("posizione")
                 values = rif.get("values", {})
 
                 for schema_id, valore in values.items():
                     db_pezzo = SchedaTecnicaPezzo(
                         progetto_id=progetto_id,
                         riferimento=riferimento,
+                        posizione=posizione,
                         scheda_tecnica_schema_id=int(schema_id),
                         valore=str(valore) if valore is not None else None,
                     )
