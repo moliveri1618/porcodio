@@ -752,7 +752,6 @@ def export_progetti_excel(
         showRowStripes=False,
         showColumnStripes=False,
     )
-
     ws.add_table(table)
 
     # empty row
