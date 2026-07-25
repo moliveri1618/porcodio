@@ -749,51 +749,51 @@ def get_schede_tecniche_fornitore(
     return list(grouped.values())
 
 
-def enrich_schede_with_selected_values(fornitori, schede_tecniche):
-    index = {}
+# def enrich_schede_with_selected_values(fornitori, schede_tecniche):
+#     index = {}
 
-    for fornitore_id, schede in schede_tecniche.items():
-        for scheda in schede:
-            key = (
-                str(fornitore_id),
-                normalize_design(scheda.get("tipo_prodotto_nome")),
-            )
+#     for fornitore_id, schede in schede_tecniche.items():
+#         for scheda in schede:
+#             key = (
+#                 str(fornitore_id),
+#                 normalize_design(scheda.get("tipo_prodotto_nome")),
+#             )
 
-            index[key] = {
-                campo["tipo_prodotto_valori_alias"]: campo
-                for campo in scheda.get("campi", [])
-                if campo.get("tipo_prodotto_valori_alias")
-            }
+#             index[key] = {
+#                 campo["tipo_prodotto_valori_alias"]: campo
+#                 for campo in scheda.get("campi", [])
+#                 if campo.get("tipo_prodotto_valori_alias")
+#             }
 
-    for item in fornitori:
-        fornitore_id = item.get("fornitore_id")
-        design = normalize_design(item.get("Design"))
+#     for item in fornitori:
+#         fornitore_id = item.get("fornitore_id")
+#         design = normalize_design(item.get("Design"))
 
-        if not fornitore_id or not design:
-            continue
+#         if not fornitore_id or not design:
+#             continue
 
-        alias_map = index.get((str(fornitore_id), design))
-        if not alias_map:
-            continue
+#         alias_map = index.get((str(fornitore_id), design))
+#         if not alias_map:
+#             continue
 
-        for alias, campo in alias_map.items():
-            selected_value = item.get(alias)
+#         for alias, campo in alias_map.items():
+#             selected_value = item.get(alias)
 
-            if selected_value:
+#             if selected_value:
 
-                selected_option = next(
-                    (
-                        option
-                        for option in campo.get("options", [])
-                        if normalize_option(option["label"]) == normalize_option(selected_value)
-                    ),
-                    None,
-                )
+#                 selected_option = next(
+#                     (
+#                         option
+#                         for option in campo.get("options", [])
+#                         if normalize_option(option["label"]) == normalize_option(selected_value)
+#                     ),
+#                     None,
+#                 )
 
-                if selected_option:
-                    campo["selected_option_id"] = selected_option["id"]
+#                 if selected_option:
+#                     campo["selected_option_id"] = selected_option["id"]
 
-    return schede_tecniche
+#     return schede_tecniche
 
 
 def enrich_schede_with_selected_values_V2(fornitori, schede_tecniche):
@@ -819,10 +819,7 @@ def enrich_schede_with_selected_values_V2(fornitori, schede_tecniche):
         if not fornitore_id or not design:
             continue
 
-        alias_map = index.get((str(fornitore_id), design))
-        if not alias_map:
-            continue
-
+        alias_map = index.get((str(fornitore_id), design), {})
         quantita = int(item.get("Quantita") or 1)
 
         for scheda in schede_tecniche.get(fornitore_id, []):
