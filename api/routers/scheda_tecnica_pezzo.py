@@ -8,30 +8,15 @@ from sqlalchemy import delete
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
 from models.scheda_tecnica_schema import SchedaTecnicaSchema
 from schemas.scheda_tecnica_pezzo import (
-    SchedaTecnicaPezzoCreate,
     SchedaTecnicaPezzoRead,
-    SchedaTecnicaPezzoUpdate,
 )
 from models.progetti import Progetti
-from models.progetto_fornitore_link import ProgettoFornitoreLink
 from routers.utils_parsing import *
 
 from dependecies import get_db
 
 router = APIRouter()
 
-
-# # Create
-# @router.post("", response_model=SchedaTecnicaPezzoRead, status_code=201)
-# def create_scheda_tecnica_pezzo(
-#     scheda: SchedaTecnicaPezzoCreate,
-#     db: Session = Depends(get_db),
-# ):
-#     db_scheda = SchedaTecnicaPezzo(**scheda.dict())
-#     db.add(db_scheda)
-#     db.commit()
-#     db.refresh(db_scheda)
-#     return db_scheda
 
 
 # Upsert One
@@ -138,6 +123,7 @@ def get_schede_tecniche_by_progetto(
         if pezzo.riferimento not in group["riferimenti"]:
             group["riferimenti"][pezzo.riferimento] = {
                 "riferimento": pezzo.riferimento,
+                "posizione": pezzo.posizione,
                 "values": {},
             }
 
@@ -183,56 +169,3 @@ def get_schede_tecniche_by_progetto(
 def read_schede_tecniche_pezzi(db: Session = Depends(get_db)):
     schede = db.exec(select(SchedaTecnicaPezzo)).all()
     return schede
-
-
-# # Get one
-# @router.get("/{scheda_id}", response_model=SchedaTecnicaPezzoRead)
-# def read_scheda_tecnica_pezzo(
-#     scheda_id: int,
-#     db: Session = Depends(get_db),
-# ):
-#     scheda = db.get(SchedaTecnicaPezzo, scheda_id)
-
-#     if not scheda:
-#         raise HTTPException(status_code=404, detail="Scheda tecnica pezzo not found")
-
-#     return scheda
-
-
-# # Put
-# @router.put("/{scheda_id}", response_model=SchedaTecnicaPezzoRead)
-# def update_scheda_tecnica_pezzo(
-#     scheda_id: int,
-#     scheda_update: SchedaTecnicaPezzoUpdate,
-#     db: Session = Depends(get_db),
-# ):
-#     scheda = db.get(SchedaTecnicaPezzo, scheda_id)
-
-#     if not scheda:
-#         raise HTTPException(status_code=404, detail="Scheda tecnica pezzo not found")
-
-#     update_data = scheda_update.dict(exclude_unset=True)
-
-#     for key, value in update_data.items():
-#         setattr(scheda, key, value)
-
-#     db.add(scheda)
-#     db.commit()
-#     db.refresh(scheda)
-
-#     return scheda
-
-
-# # Delete
-# @router.delete("/{scheda_id}", status_code=204)
-# def delete_scheda_tecnica_pezzo(
-#     scheda_id: int,
-#     db: Session = Depends(get_db),
-# ):
-#     scheda = db.get(SchedaTecnicaPezzo, scheda_id)
-
-#     if not scheda:
-#         raise HTTPException(status_code=404, detail="Scheda tecnica pezzo not found")
-
-#     db.delete(scheda)
-#     db.commit()
