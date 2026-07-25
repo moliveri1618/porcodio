@@ -101,25 +101,32 @@ async def pdf_parse_contratto(
     print("\n")
 
     ## Build schede tecniche fornitore
-    schede_quantita = defaultdict(int)
+    schede_tecniche = {}
+
     for fornitore in fornitori_data_w_ids:
-        if normalize_design(fornitore.get("Design")) != normalize_design(
-            "Avvolgibile"
-        ):  # build table just for avvolgibili
-            continue
         fornitore_id = fornitore.get("fornitore_id")
+        design = fornitore.get("Design") or ""
+        quantita = int(fornitore.get("Quantita") or 1)
+
         if not fornitore_id:
             continue
-        schede_quantita[fornitore_id] += int(fornitore.get("Quantita") or 1)
 
-    schede_tecniche = {
-        fornitore_id: build_scheda_tecnica_schema_fornitore(
+        tipo_prodotto_id = (
+            1 if normalize_design(design) == normalize_design("Avvolgibile") else 3
+        )
+
+        scheda = build_scheda_tecnica_schema_fornitore(
             fornitore_id=fornitore_id,
             quantita=quantita,
+            tipo_prodotto_id=tipo_prodotto_id,
             db=db,
         )
-        for fornitore_id, quantita in schede_quantita.items()
-    }
+
+        if tipo_prodotto_id == 3:
+            for gruppo in scheda:
+                gruppo["tipo_prodotto_nome"] = design
+
+        schede_tecniche.setdefault(fornitore_id, []).extend(scheda)
 
     ## Match selected values from PDF with schede tecniche
     schede_tecnich_sel_value = enrich_schede_with_selected_values_V2(
@@ -146,12 +153,6 @@ async def pdf_parse_contratto(
             "fornitore": fornitore_nome,
             "value": scheda if scheda else None,
         }
-
-    ### add schede tecniche fornitore with no avvolgibile design
-    schede_tecniche_result = copy_avvolgibile_scheda_to_other_fornitori(
-        schede_tecniche_result,
-        fornitori_data_w_ids,
-    )
 
     result = {
         "Cliente": cliente_info["Cliente"],

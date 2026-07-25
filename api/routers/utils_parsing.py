@@ -464,17 +464,19 @@ def add_fornitore_ids(fornitori_data: list[dict], db: Session) -> list[dict]:
 def build_scheda_tecnica_schema_fornitore(
     fornitore_id: int,
     quantita: int,
+    tipo_prodotto_id: int,
     db: Session,
 ):
-    fornitore_id = 13 # testing
     schemas = db.exec(
         select(SchedaTecnicaSchema).where(
-            SchedaTecnicaSchema.fornitore_id == fornitore_id
+            SchedaTecnicaSchema.fornitore_id == fornitore_id,
+            SchedaTecnicaSchema.tipo_prodotto_id == tipo_prodotto_id,
         )
     ).all()
 
     print("fornitore_id:", fornitore_id)
     print("schemas length:", len(schemas))
+    print("tipo_prodotto_id:", tipo_prodotto_id)
     print("schemas:", schemas)
 
     if not schemas:
