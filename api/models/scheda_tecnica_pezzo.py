@@ -14,5 +14,5 @@ class SchedaTecnicaPezzo(SQLModel, table=True):
         foreign_key="schedatecnicaschema.id", index=True
     )
     riferimento: str = Field(index=True)  # "1", "2", "3", etc.
-
+    posizione: str | None = None
     valore: str | None = None

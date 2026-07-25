@@ -6,6 +6,7 @@ class SchedaTecnicaPezzoBase(SQLModel):
     scheda_tecnica_schema_id: int
     riferimento: str
     valore: str | None = None
+    posizione: str | None = None
 
 
 class SchedaTecnicaPezzoCreate(SchedaTecnicaPezzoBase):
@@ -21,3 +22,4 @@ class SchedaTecnicaPezzoUpdate(SQLModel):
     scheda_tecnica_schema_id: int | None = None
     riferimento: str
     valore: str | None = None
+    posizione: str | None = None
