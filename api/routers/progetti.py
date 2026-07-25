@@ -640,6 +640,10 @@ def export_progetti_excel(
     include_completed: bool = Query(False),
     include_suspended: bool = Query(False),
     stato: Optional[str] = Query(None),
+    azienda: Optional[str] = Query(None),
+    commerciale: Optional[str] = Query(None),
+    importo_parz: Optional[str] = Query(None),
+    importo: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     conditions = []
@@ -656,9 +660,27 @@ def export_progetti_excel(
     if not include_suspended:
         conditions.append(Progetti.stato != "SOSPESO")
 
-    # stato filter
+    # stato
     if stato and stato.strip():
         conditions.append(Progetti.stato == stato.strip().upper())
+
+    # azienda
+    if azienda and azienda.strip():
+        conditions.append(Progetti.azienda.ilike(f"%{azienda.strip()}%"))
+
+    # commerciale
+    if commerciale and commerciale.strip():
+        conditions.append(Progetti.commerciale.ilike(f"%{commerciale.strip()}%"))
+
+    # importo parziale
+    if importo_parz and importo_parz.strip():
+        conditions.append(
+            cast(Progetti.importo_parz, String).ilike(f"%{importo_parz.strip()}%")
+        )
+
+    # importo totale
+    if importo and importo.strip():
+        conditions.append(cast(Progetti.importo, String).ilike(f"%{importo.strip()}%"))
 
     # date
     if data_da:
