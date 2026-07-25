@@ -18,7 +18,6 @@ from dependecies import get_db
 router = APIRouter()
 
 
-
 # Upsert One
 @router.post("/bulk/from-schede/{progetto_id}")
 def save_schede_tecniche_from_frontend(
@@ -126,6 +125,11 @@ def get_schede_tecniche_by_progetto(
                 "posizione": pezzo.posizione,
                 "values": {},
             }
+        elif (
+            group["riferimenti"][pezzo.riferimento]["posizione"] is None
+            and pezzo.posizione is not None
+        ):
+            group["riferimenti"][pezzo.riferimento]["posizione"] = pezzo.posizione
 
         group["riferimenti"][pezzo.riferimento]["values"][
             str(pezzo.scheda_tecnica_schema_id)
@@ -149,6 +153,7 @@ def get_schede_tecniche_by_progetto(
             schede_base = build_scheda_tecnica_schema_fornitore(
                 fornitore_id=int(fornitore_id),
                 quantita=quantita,
+                tipo_prodotto_id=group["tipo_prodotto_id"],
                 db=db,
             )
 
