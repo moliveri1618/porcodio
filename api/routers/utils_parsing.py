@@ -468,10 +468,12 @@ def build_scheda_tecnica_schema_fornitore(
     db: Session,
 ):
     schemas = db.exec(
-        select(SchedaTecnicaSchema).where(
+        select(SchedaTecnicaSchema)
+        .where(
             SchedaTecnicaSchema.fornitore_id == fornitore_id,
             SchedaTecnicaSchema.tipo_prodotto_id == tipo_prodotto_id,
         )
+        .order_by(SchedaTecnicaSchema.id)
     ).all()
 
     print("fornitore_id:", fornitore_id)
