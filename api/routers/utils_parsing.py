@@ -473,7 +473,7 @@ def build_scheda_tecnica_schema_fornitore(
             SchedaTecnicaSchema.fornitore_id == fornitore_id,
             SchedaTecnicaSchema.tipo_prodotto_id == tipo_prodotto_id,
         )
-        .order_by(SchedaTecnicaSchema.id)
+        .order_by(SchedaTecnicaSchema.tipo_prodotto_valori_id)
     ).all()
 
     print("fornitore_id:", fornitore_id)
