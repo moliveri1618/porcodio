@@ -30,7 +30,7 @@ def save_schede_tecniche_from_frontend(
     db.exec(
         delete(SchedaTecnicaPezzo).where(SchedaTecnicaPezzo.progetto_id == progetto_id)
     )
-    
+
     new_rows = []
 
     for scheda_wrapper in schede_tecniche.values():
@@ -40,6 +40,8 @@ def save_schede_tecniche_from_frontend(
             continue
 
         for scheda in schede:
+            tipo_prodotto_nome = scheda.get("tipo_prodotto_nome")
+
             for rif in scheda.get("riferimenti", []):
                 riferimento = rif.get("riferimento")
                 posizione = rif.get("posizione")
@@ -52,6 +54,7 @@ def save_schede_tecniche_from_frontend(
                         posizione=posizione,
                         scheda_tecnica_schema_id=int(schema_id),
                         valore=str(valore) if valore is not None else None,
+                        tipo_prodotto_nome=tipo_prodotto_nome,
                     )
 
                     db.add(db_pezzo)
@@ -106,12 +109,13 @@ def get_schede_tecniche_by_progetto(
         if fornitore_id not in result:
             result[fornitore_id] = {}
 
-        tipo_key = str(schema.tipo_prodotto_id)
+        tipo_prodotto_nome = pezzo.tipo_prodotto_nome or "Altro"
+        tipo_key = f"{schema.tipo_prodotto_id}:{tipo_prodotto_nome}"
 
         if tipo_key not in result[fornitore_id]:
             result[fornitore_id][tipo_key] = {
                 "tipo_prodotto_id": schema.tipo_prodotto_id,
-                "tipo_prodotto_nome": None,
+                "tipo_prodotto_nome": tipo_prodotto_nome,
                 "quantita": 0,
                 "campi": [],
                 "riferimenti": {},
@@ -161,6 +165,7 @@ def get_schede_tecniche_by_progetto(
                 continue
 
             scheda = schede_base[0]
+            scheda["tipo_prodotto_nome"] = group["tipo_prodotto_nome"]
             scheda["riferimenti"] = riferimenti
             scheda["quantita"] = quantita
 

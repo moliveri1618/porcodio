@@ -16,3 +16,4 @@ class SchedaTecnicaPezzo(SQLModel, table=True):
     riferimento: str = Field(index=True)  # "1", "2", "3", etc.
     posizione: str | None = None
     valore: str | None = None
+    tipo_prodotto_nome: str | None = None

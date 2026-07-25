@@ -7,6 +7,7 @@ class SchedaTecnicaPezzoBase(SQLModel):
     riferimento: str
     valore: str | None = None
     posizione: str | None = None
+    tipo_prodotto_nome: str | None = None
 
 
 class SchedaTecnicaPezzoCreate(SchedaTecnicaPezzoBase):
@@ -23,3 +24,4 @@ class SchedaTecnicaPezzoUpdate(SQLModel):
     riferimento: str
     valore: str | None = None
     posizione: str | None = None
+    tipo_prodotto_nome: str | None = None
