@@ -18,6 +18,7 @@ from routers.utils import *
 from dependecies import get_db
 from sqlmodel import Session, select
 from sqlalchemy import and_, func, or_
+from decimal import Decimal, InvalidOperation
 
 API_BASE = "https://www.tigulliocrm.it/api"
 API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
@@ -126,6 +127,8 @@ def add_filters(
     azienda: str | None = None,
     commerciale: str | None = None,
     stato: str | None = None,
+    importo_parz: str | None = None,
+    importo: str | None = None,
 ):
     if tecnico:
         tecnico_clean = tecnico.strip().lower()
@@ -142,6 +145,15 @@ def add_filters(
 
     if cliente_nome and cliente_nome.strip():
         filters.append(Cliente.nome_cliente.ilike(f"%{cliente_nome.strip()}%"))
+
+    parsed_importo_parz = parse_decimal_filter(importo_parz)
+    if parsed_importo_parz is not None:
+        filters.append(Progetti.importo_parz == parsed_importo_parz)
+
+    parsed_importo = parse_decimal_filter(importo)
+
+    if parsed_importo is not None:
+        filters.append(Progetti.importo == parsed_importo)
 
     if status is not None:
         filters.append(
@@ -269,6 +281,17 @@ def calculate_project_point_db(progetto: Progetti) -> dict:
             "warnings": warnings,
         },
     }
+
+def parse_decimal_filter(value: str | None) -> Decimal | None:
+    if not value or not value.strip():
+        return None
+
+    normalized = value.strip().replace(",", ".")
+
+    try:
+        return Decimal(normalized)
+    except InvalidOperation:
+        return None
 
 
 def fetch_from_gesty(endpoint: str) -> dict:

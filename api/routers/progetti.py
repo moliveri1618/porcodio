@@ -843,6 +843,8 @@ def read_progettiV2(
         azienda=azienda,
         commerciale=commerciale,
         stato=stato,
+        importo_parz=importo_parz,
+        importo=importo,
     )
 
     if data_da:
