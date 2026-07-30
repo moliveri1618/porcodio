@@ -874,11 +874,11 @@ def parse_contratto_text(
     text_content: str,
     db: Session,
 ):
-    # ## Extract cliente info
-    # cliente_info = extract_cliente_info(text_content, db)
+    ## Extract cliente info
+    cliente_info = extract_cliente_info(text_content, db)
 
-    # ## Extract progetto info
-    # progetto_info = extract_progetto_info(text_content)
+    ## Extract progetto info
+    progetto_info = extract_progetto_info(text_content)
 
     ## Extract Fornitori Data
     fornitori_data = pdf_rules2(text_content)
@@ -931,9 +931,9 @@ def parse_contratto_text(
         }
 
     return {
-        # "Cliente": cliente_info["Cliente"],
-        # "Progetto": progetto_info["Progetto"],
-        # "Fornitori": fornitori_data_w_ids,
+        "Cliente": cliente_info["Cliente"],
+        "Progetto": progetto_info["Progetto"],
+        "Fornitori": fornitori_data_w_ids,
         "SchedeTecniche": schede_tecniche_result,
     }
 

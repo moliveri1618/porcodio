@@ -410,11 +410,30 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
     ]
     payload[0]["Progetto"]["id"] = "13560"
 
-    ##### OLD CODE ######
+    # ##### OLD CODE ######
+    # payload = attach_file_links(payload)
+    # clienti_inserted_info = create_clienti_from_payload(db, payload)
+    # progetti_payload = build_progetti_payloads(payload)
+    # #####################
+
+    # Download the contract PDF(s)
+    for project in payload:
+        contratto_code = project.get("Progetto", {}).get("contratto_code")
+        if contratto_code:
+            pdf_bytes = await fetch_pdf_from_crm(
+                "contratto",
+                contratto_code,
+            )
+
+            # pass pdf_bytes to your parser
+            if pdf_bytes:
+                text_content = pdf_to_text_from_bytes(pdf_bytes)
+                parsed_results = parse_contratto_text(text_content, db) # just need schede tecniche
+    print(parsed_results)
+
     payload = attach_file_links(payload)
     clienti_inserted_info = create_clienti_from_payload(db, payload)
     progetti_payload = build_progetti_payloads(payload)
-    #####################
 
     created = []
     for body in progetti_payload:
@@ -423,38 +442,13 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
         if saved is not None:
             created.append(saved)
 
-    # # Download the contract PDF(s)
-    # for project in payload:
-    #     contratto_code = project.get("Progetto", {}).get("contratto_code")
-    #     if contratto_code:
-    #         pdf_bytes = await fetch_pdf_from_crm(
-    #             "contratto",
-    #             contratto_code,
-    #         )
-
-    #         # pass pdf_bytes to your parser
-    #         if pdf_bytes:
-    #             text_content = pdf_to_text_from_bytes(pdf_bytes)
-    #             parsed_results = parse_contratto_text(text_content, db) # just need schede tecniche
-
-    #     payload = attach_file_links(payload)
-    #     clienti_inserted_info = create_clienti_from_payload(db, payload)
-    #     progetti_payload = build_progetti_payloads(payload)
-
-    #     created = []
-    #     for body in progetti_payload:
-    #         progetto_in = ProgettiCreate(**body)
-    #         saved = create_or_update_progetto(progetto_in, db=db)
-    #         if saved is not None:
-    #             created.append(saved)
-
-    #             # # Save schede tecniche using the DB project id
-    #             # if parsed_results:
-    #             #     save_schede_tecniche_logic(
-    #             #         progetto_id=saved.id,
-    #             #         schede_tecniche=parsed_results,
-    #             #         db=db,
-    #             #     )
+            # Save schede tecniche using the DB project id
+            if parsed_results:
+                save_schede_tecniche_logic(
+                    progetto_id=saved.id,
+                    schede_tecniche=parsed_results,
+                    db=db,
+                )
 
     # return created
     return {
