@@ -36,7 +36,6 @@ from routers.utils import *
 from routers.utils_parsing import (
     parse_contratto_text,
     pdf_to_text_from_bytes,
-    save_schede_tecniche_logic,
     save_schede_tecniche_logic_gesty,
 )
 from dependecies import get_db
@@ -442,7 +441,6 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
                 parsed_results = parse_contratto_text(
                     text_content, db
                 )  # just need schede tecniche
-    print(parsed_results)
 
     payload = attach_file_links(payload)
     clienti_inserted_info = create_clienti_from_payload(db, payload)
@@ -453,6 +451,8 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
         progetto_in = ProgettiCreate(**body)
         saved = create_or_update_progetto(progetto_in, db=db)
         if saved is not None:
+
+            # parsing logic from here
             created.append(saved)
 
             # Save schede tecniche using the DB project id
@@ -465,8 +465,8 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
 
     # return created
     return {
-        "payload": payload,
-        # "parsed": parsed_results,
+        # "payload": payload,
+        "parsed": parsed_results,
     }
 
 

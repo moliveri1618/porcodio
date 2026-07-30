@@ -99,6 +99,7 @@ async def pdf_parse_contratto(
     fornitori_data_w_ids = add_fornitore_ids(fornitori_data["fornitori"], db)
     print(fornitori_data_w_ids)
     print("\n")
+    #print("fornitori_data_w_ids:", fornitori_data_w_ids)
 
     ## Build schede tecniche fornitore
     schede_tecniche = {}

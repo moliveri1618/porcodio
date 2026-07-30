@@ -883,27 +883,35 @@ def parse_contratto_text(
     ## Extract Fornitori Data
     fornitori_data = pdf_rules2(text_content)
     fornitori_data_w_ids = add_fornitore_ids(fornitori_data["fornitori"], db)
+    # print("fornitori_data_w_ids:", fornitori_data_w_ids)
 
     ## Build schede tecniche fornitore
-    schede_quantita = defaultdict(int)
-    for fornitore in fornitori_data_w_ids:
-        if normalize_design(fornitore.get("Design")) != normalize_design("Avvolgibile"):
-            continue
+    schede_tecniche = {}
 
+    for fornitore in fornitori_data_w_ids:
         fornitore_id = fornitore.get("fornitore_id")
+        design = fornitore.get("Design") or ""
+        quantita = int(fornitore.get("Quantita") or 1)
+
         if not fornitore_id:
             continue
 
-        schede_quantita[fornitore_id] += int(fornitore.get("Quantita") or 1)
+        tipo_prodotto_id = (
+            1 if normalize_design(design) == normalize_design("Avvolgibile") else 3
+        )
 
-    schede_tecniche = {
-        fornitore_id: build_scheda_tecnica_schema_fornitore(
+        scheda = build_scheda_tecnica_schema_fornitore(
             fornitore_id=fornitore_id,
             quantita=quantita,
+            tipo_prodotto_id=tipo_prodotto_id,
             db=db,
         )
-        for fornitore_id, quantita in schede_quantita.items()
-    }
+
+        if tipo_prodotto_id == 3:
+            for gruppo in scheda:
+                gruppo["tipo_prodotto_nome"] = design
+
+        schede_tecniche.setdefault(fornitore_id, []).extend(scheda)
 
     ## Match selected values from PDF with schede tecniche
     schede_tecnich_sel_value = enrich_schede_with_selected_values_V2(
@@ -930,20 +938,29 @@ def parse_contratto_text(
             "value": scheda if scheda else None,
         }
 
-    return {
+    result = {
         "Cliente": cliente_info["Cliente"],
         "Progetto": progetto_info["Progetto"],
         "Fornitori": fornitori_data_w_ids,
         "SchedeTecniche": schede_tecniche_result,
     }
+    return result
 
 
-def save_schede_tecniche_logic(
+def save_schede_tecniche_logic_gesty(
     progetto_id: int,
     schede_tecniche: dict,
     db: Session,
-):
-    # delete old values first
+) -> dict:
+    """
+    Replaces all SchedaTecnicaPezzo rows for the project
+    using the SchedeTecniche object produced by the PDF parser.
+    """
+
+    if not isinstance(schede_tecniche, dict):
+        return {"created": 0}
+
+    # Delete existing technical-sheet values for this project
     db.exec(
         delete(SchedaTecnicaPezzo).where(SchedaTecnicaPezzo.progetto_id == progetto_id)
     )
@@ -951,22 +968,48 @@ def save_schede_tecniche_logic(
     new_rows = []
 
     for scheda_wrapper in schede_tecniche.values():
-        schede = scheda_wrapper.get("value")
+        if not isinstance(scheda_wrapper, dict):
+            continue
 
-        if not schede:
+        schede = scheda_wrapper.get("value", [])
+
+        if not isinstance(schede, list):
             continue
 
         for scheda in schede:
-            for rif in scheda.get("riferimenti", []):
+            if not isinstance(scheda, dict):
+                continue
+
+            tipo_prodotto_nome = scheda.get("tipo_prodotto_nome")
+
+            riferimenti = scheda.get("riferimenti", [])
+            if not isinstance(riferimenti, list):
+                continue
+
+            for rif in riferimenti:
+                if not isinstance(rif, dict):
+                    continue
+
                 riferimento = rif.get("riferimento")
+                posizione = rif.get("posizione")
                 values = rif.get("values", {})
 
+                if not isinstance(values, dict):
+                    continue
+
                 for schema_id, valore in values.items():
+                    try:
+                        schema_id_int = int(schema_id)
+                    except (TypeError, ValueError):
+                        continue
+
                     db_pezzo = SchedaTecnicaPezzo(
                         progetto_id=progetto_id,
                         riferimento=riferimento,
-                        scheda_tecnica_schema_id=int(schema_id),
+                        posizione=posizione,
+                        scheda_tecnica_schema_id=schema_id_int,
                         valore=str(valore) if valore is not None else None,
+                        tipo_prodotto_nome=tipo_prodotto_nome,
                     )
 
                     db.add(db_pezzo)
@@ -974,50 +1017,7 @@ def save_schede_tecniche_logic(
 
     db.commit()
 
-    return {"created": len(new_rows)}
-
-
-def save_schede_tecniche_logic_gesty(
-    progetto_id: int,
-    schede_tecniche: dict,
-    db: Session,
-):
-    valid_schede = []
-
-    for scheda_wrapper in schede_tecniche.values():
-        if not isinstance(scheda_wrapper, dict):
-            continue
-
-        schede = scheda_wrapper.get("value")
-
-        if isinstance(schede, list):
-            valid_schede.extend(schede)
-
-    if not valid_schede:
-        return {"created": 0}
-
-    db.exec(
-        delete(SchedaTecnicaPezzo).where(SchedaTecnicaPezzo.progetto_id == progetto_id)
-    )
-
-    new_rows = []
-
-    for scheda in valid_schede:
-        for rif in scheda.get("riferimenti", []):
-            riferimento = rif.get("riferimento")
-            values = rif.get("values", {})
-
-            for schema_id, valore in values.items():
-                db_pezzo = SchedaTecnicaPezzo(
-                    progetto_id=progetto_id,
-                    riferimento=riferimento,
-                    scheda_tecnica_schema_id=int(schema_id),
-                    valore=str(valore) if valore is not None else None,
-                )
-
-                db.add(db_pezzo)
-                new_rows.append(db_pezzo)
-
-    db.commit()
-
-    return {"created": len(new_rows)}
+    return {
+        "progetto_id": progetto_id,
+        "created": len(new_rows),
+    }
