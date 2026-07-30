@@ -975,3 +975,49 @@ def save_schede_tecniche_logic(
     db.commit()
 
     return {"created": len(new_rows)}
+
+
+def save_schede_tecniche_logic_gesty(
+    progetto_id: int,
+    schede_tecniche: dict,
+    db: Session,
+):
+    valid_schede = []
+
+    for scheda_wrapper in schede_tecniche.values():
+        if not isinstance(scheda_wrapper, dict):
+            continue
+
+        schede = scheda_wrapper.get("value")
+
+        if isinstance(schede, list):
+            valid_schede.extend(schede)
+
+    if not valid_schede:
+        return {"created": 0}
+
+    db.exec(
+        delete(SchedaTecnicaPezzo).where(SchedaTecnicaPezzo.progetto_id == progetto_id)
+    )
+
+    new_rows = []
+
+    for scheda in valid_schede:
+        for rif in scheda.get("riferimenti", []):
+            riferimento = rif.get("riferimento")
+            values = rif.get("values", {})
+
+            for schema_id, valore in values.items():
+                db_pezzo = SchedaTecnicaPezzo(
+                    progetto_id=progetto_id,
+                    riferimento=riferimento,
+                    scheda_tecnica_schema_id=int(schema_id),
+                    valore=str(valore) if valore is not None else None,
+                )
+
+                db.add(db_pezzo)
+                new_rows.append(db_pezzo)
+
+    db.commit()
+
+    return {"created": len(new_rows)}

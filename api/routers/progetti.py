@@ -18,6 +18,7 @@ from sqlalchemy import delete, and_, case, func
 from math import ceil
 from typing import Optional
 from datetime import date
+
 # from pprint import pprint
 
 
@@ -32,7 +33,12 @@ from datetime import datetime, timedelta
 from models.progetto_fornitore_link import ProgettoFornitoreLink
 from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
 from routers.utils import *
-from routers.utils_parsing import parse_contratto_text, pdf_to_text_from_bytes, save_schede_tecniche_logic
+from routers.utils_parsing import (
+    parse_contratto_text,
+    pdf_to_text_from_bytes,
+    save_schede_tecniche_logic,
+    save_schede_tecniche_logic_gesty,
+)
 from dependecies import get_db
 from sqlalchemy import nulls_last
 from io import BytesIO
@@ -47,12 +53,10 @@ from datetime import datetime
 
 router = APIRouter()
 
+
 def get_valid_supplier_links(progetto: Progetti):
-    return [
-        link
-        for link in (progetto.fornitori_links or [])
-        if link.fornitore_id != 2
-    ]
+    return [link for link in (progetto.fornitori_links or []) if link.fornitore_id != 2]
+
 
 def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
     if not fornitore_id or fornitore_id == 0:
@@ -62,8 +66,10 @@ def _fornitore_exists(db: Session, fornitore_id: int) -> bool:
         is not None
     )
 
+
 def has_any_file(arr):
     return bool(arr) and any((x.file_name or "").strip() for x in arr)
+
 
 def has_any_file_V2(arr):
     if not arr:
@@ -79,6 +85,7 @@ def has_any_file_V2(arr):
 
     return False
 
+
 def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: list):
 
     # delete existing links
@@ -86,7 +93,7 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
         ProgettoFornitoreLink.progetto_id == progetto_pk
     ).delete(synchronize_session=False)
 
-    # insert new links 
+    # insert new links
     # dati cantiere , id=2, must always be present
     fornitori_payload = list(fornitori_payload or [])
 
@@ -111,21 +118,22 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
                 # skip invalid supplier id
                 continue
             link = ProgettoFornitoreLink(
-                    progetto_id=progetto_pk,
-                    fornitore_id=f.fornitore_id,
-                    contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-                    rilievi_misure=(
-                        [r.model_dump() for r in f.rilievi_misure]
-                        if f.rilievi_misure
-                        else []
-                    ),
-                    prodotti_fornitore=(
-                        [p.model_dump() for p in f.prodotti_fornitore]
-                        if f.prodotti_fornitore
-                        else []
-                    ),
-                )
+                progetto_id=progetto_pk,
+                fornitore_id=f.fornitore_id,
+                contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
+                rilievi_misure=(
+                    [r.model_dump() for r in f.rilievi_misure]
+                    if f.rilievi_misure
+                    else []
+                ),
+                prodotti_fornitore=(
+                    [p.model_dump() for p in f.prodotti_fornitore]
+                    if f.prodotti_fornitore
+                    else []
+                ),
+            )
             db.add(link)
+
 
 def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti:
     """
@@ -198,6 +206,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
 
     return db_progetto
 
+
 def compute_status_percent_db(progetto: Progetti) -> int:
 
     # exclude dati cantiere (id=2)
@@ -223,14 +232,11 @@ def compute_status_percent_db(progetto: Progetti) -> int:
 
     return max(0, min(100, round(total)))
 
+
 def compute_status_percent(progetto: ProgettiCreate) -> int:
 
     # exclude dati cantiere (id=2)
-    fornitori = [
-        f
-        for f in (progetto.fornitori or [])
-        if f.fornitore_id != 2
-    ]
+    fornitori = [f for f in (progetto.fornitori or []) if f.fornitore_id != 2]
 
     n = len(fornitori)
 
@@ -255,6 +261,7 @@ def compute_status_percent(progetto: ProgettiCreate) -> int:
             total += rilievi_per_link
 
     return max(0, min(100, round(total)))
+
 
 def compute_status_percent_db_edit(progetto: Progetti) -> int:
 
@@ -285,8 +292,10 @@ def compute_status_percent_db_edit(progetto: Progetti) -> int:
 
     return max(0, min(100, round(total)))
 
+
 def format_it(number: float) -> str:
     return f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
 
 @router.post("/calc-taglia-existing-projects")
 def get_projects_pointing(db: Session = Depends(get_db)):
@@ -318,6 +327,7 @@ def get_projects_pointing(db: Session = Depends(get_db)):
     db.commit()
 
     return result
+
 
 # Create
 @router.post("", response_model=ProgettiRead)
@@ -387,6 +397,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
 
     return db_progetto
 
+
 # Get from gesty
 @router.get("/get_progetti_gesty/v2")
 async def progetti_from_gesty(db: Session = Depends(get_db)):
@@ -428,7 +439,9 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
             # pass pdf_bytes to your parser
             if pdf_bytes:
                 text_content = pdf_to_text_from_bytes(pdf_bytes)
-                parsed_results = parse_contratto_text(text_content, db) # just need schede tecniche
+                parsed_results = parse_contratto_text(
+                    text_content, db
+                )  # just need schede tecniche
     print(parsed_results)
 
     payload = attach_file_links(payload)
@@ -444,16 +457,16 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
 
             # Save schede tecniche using the DB project id
             if parsed_results:
-                save_schede_tecniche_logic(
+                save_schede_tecniche_logic_gesty(
                     progetto_id=saved.id,
-                    schede_tecniche=parsed_results,
+                    schede_tecniche=parsed_results.get("SchedeTecniche", {}),
                     db=db,
                 )
 
     # return created
     return {
         "payload": payload,
-        #"parsed": parsed_results,
+        # "parsed": parsed_results,
     }
 
 
@@ -578,6 +591,7 @@ def read_progetti(db: Session = Depends(get_db)):
     # elapsed = time.perf_counter() - start_time
     return result
 
+
 @router.get("/sum-importo-parz")
 def sum_importo_parz(
     n: int = Query(..., ge=1),
@@ -596,6 +610,7 @@ def sum_importo_parz(
         "n": n,
         "sum_importo_parz": total,
     }
+
 
 @router.get("/sum-importo-mensile-filtrato")
 def sum_importo_filtrato(
@@ -856,13 +871,9 @@ def read_progettiV2(
     )
 
     if data_da:
-        filters.append(
-            func.date(Progetti.data_cambiamento_stato) >= data_da
-        )
+        filters.append(func.date(Progetti.data_cambiamento_stato) >= data_da)
     if data_a:
-        filters.append(
-            func.date(Progetti.data_cambiamento_stato) <= data_a
-        )
+        filters.append(func.date(Progetti.data_cambiamento_stato) <= data_a)
 
     if not include_suspended:
         filters.append(stato_upper != "SOSPESO")
@@ -903,7 +914,7 @@ def read_progettiV2(
         )
 
         order_by_clause = [
-            tecnico_empty_first.asc(),                  # empty/null first
+            tecnico_empty_first.asc(),  # empty/null first
             func.lower(func.coalesce(Progetti.tecnico, "")).asc(),  # alphabetical
             Progetti.data_creazione.asc().nullslast(),  # tie-breaker
         ]
@@ -936,7 +947,7 @@ def read_progettiV2(
                 Progetti.importo_parz,
                 Progetti.status_percent,
                 Progetti.taglia_progetto,
-                Progetti.note_taglia
+                Progetti.note_taglia,
             ),
             joinedload(Progetti.cliente).load_only(
                 Cliente.id,
@@ -1158,22 +1169,37 @@ def get_tecnici_workload(db: Session = Depends(get_db)):
         "year": now.year,
     }
 
-ALLOWED_FIELDS = ["note", "data_cambiamento_stato", "tecnico", "stato", "taglia_progetto", "note_taglia"]
+
+ALLOWED_FIELDS = [
+    "note",
+    "data_cambiamento_stato",
+    "tecnico",
+    "stato",
+    "taglia_progetto",
+    "note_taglia",
+]
+
+
 @router.put("/{id}/field", response_model=ProgettiRead)
 def update_single_progetto_field(
-    id: int,    field: str,
+    id: int,
+    field: str,
     value: str | None,
     db: Session = Depends(get_db),
 ):
 
     print("UPDATE FIELD:", id, field, value)
 
-    progetto = db.get(Progetti, id) # manually created proj don't have progetto_id, but just id
+    progetto = db.get(
+        Progetti, id
+    )  # manually created proj don't have progetto_id, but just id
     if not progetto:
         raise HTTPException(status_code=404, detail="Progetto not found")
 
     if not hasattr(Progetti, field):
-        raise HTTPException(status_code=400, detail=f"Field '{field}' not found on Progetti model")
+        raise HTTPException(
+            status_code=400, detail=f"Field '{field}' not found on Progetti model"
+        )
 
     if field not in ALLOWED_FIELDS:
         raise HTTPException(
@@ -1193,6 +1219,7 @@ def update_single_progetto_field(
         raise HTTPException(status_code=500, detail=str(e))
 
     return progetto
+
 
 # Get one
 @router.get("/{progetto_id}")
@@ -1262,6 +1289,7 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "fornitori": fornitori_data,
     }
 
+
 # Modify one
 @router.put("/{progetto_id}", response_model=ProgettiRead)
 def update_progetto(
@@ -1324,6 +1352,7 @@ def update_progetto(
 
     return progetto
 
+
 # Delete one
 @router.delete("/v1/{progetto_id}")
 def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
@@ -1346,6 +1375,7 @@ def delete_progetto(progetto_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": f"Progetto {progetto_id} deleted successfully"}
+
 
 # Delete one
 @router.delete("/v2/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1394,6 +1424,7 @@ def delete_progetto(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/recalc_importo_parz")
 def recalc_importo_parz(db: Session = Depends(get_db)):
     # Fetch all progetti
@@ -1417,14 +1448,16 @@ def recalc_importo_parz(db: Session = Depends(get_db)):
             db.add(p)
             updated += 1
 
-        details.append({
-            "id": p.id,
-            "centro_di_costo": p.centro_di_costo,
-            "importo": p.importo,
-            "old_importo_parz": old_importo_parz,
-            "new_importo_parz": new_importo_parz,
-            "changed": abs(old_importo_parz - new_importo_parz) > 1e-9,
-        })
+        details.append(
+            {
+                "id": p.id,
+                "centro_di_costo": p.centro_di_costo,
+                "importo": p.importo,
+                "old_importo_parz": old_importo_parz,
+                "new_importo_parz": new_importo_parz,
+                "changed": abs(old_importo_parz - new_importo_parz) > 1e-9,
+            }
+        )
 
     db.commit()
 
@@ -1433,6 +1466,7 @@ def recalc_importo_parz(db: Session = Depends(get_db)):
         "updated": updated,
         "details": details,
     }
+
 
 @router.post("/recalc_status_percent")
 def recalc_status_percent(db: Session = Depends(get_db)):
@@ -1458,6 +1492,7 @@ def recalc_status_percent(db: Session = Depends(get_db)):
         "total": len(progetti),
         "updated": updated,
     }
+
 
 @router.post("/recalc_status_percent/{project_id}")
 def recalc_status_percent_one(project_id: int, db: Session = Depends(get_db)):
