@@ -1208,7 +1208,13 @@ def update_single_progetto_field(
         )
 
     try:
+
+        # set data cambiamento stato
+        old_stato = progetto.stato
         setattr(progetto, field, value)
+        if field == "stato" and old_stato != value:
+            progetto.data_cambiamento_stato = datetime.now(timezone.utc)
+
         db.add(progetto)
         db.commit()
         db.refresh(progetto)
@@ -1218,7 +1224,6 @@ def update_single_progetto_field(
         print("UPDATE ERROR:", repr(e))
         raise HTTPException(status_code=500, detail=str(e))
 
-    return progetto
 
 
 # Get one
