@@ -463,6 +463,9 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
                     db=db,
                 )
 
+            # dati cantiere 
+            
+
     # return created
     return {
         # "payload": payload,
