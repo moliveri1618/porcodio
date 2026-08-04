@@ -416,7 +416,7 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
         if project.get("Progetto", {}).get("data_primo_pagamento")
         and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
         >= one_year_ago
-        and str(project.get("Progetto", {}).get("id")) == "10502"
+        # and str(project.get("Progetto", {}).get("id")) == "10502"
     ]
     payload[0]["Progetto"]["id"] = "13560"
 
@@ -464,7 +464,7 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
                 )
 
             # dati cantiere 
-            
+
 
     # return created
     return {
