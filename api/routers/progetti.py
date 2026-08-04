@@ -448,9 +448,6 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
 
             ### parsing logic from here ###
 
-            # add to res array 
-            created.append(saved)
-
             # get contratto code
             upload_url = body.get("upload_id")
             contratto_code = (
@@ -483,9 +480,13 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
 
             # dati cantiere
 
+            # add to res array
+            db.refresh(saved)
+            created.append(saved.model_dump())
+
     return {
-        # "payload": payload,
         "created": created,
+        # "payload": payload,
         # "parsed": parsed_results,
     }
 
