@@ -23,7 +23,8 @@ class DatiCantiereBase(BaseModel):
 
     # DATI TECNICI CANTIERE
     cantiere_tecnico_rilevatore: Optional[str] = None
-    cantiere_tempo_installazione: Optional[str] = None
+    cantiere_tempo_installazione: Optional[int] = None
+    cantiere_tempo_installazione_persone: Optional[int] = None
     cantiere_piano_edificio: Optional[str] = None
     casa_abitata: Optional[str] = None
     cantiere_accesso: Optional[str] = None
@@ -59,7 +60,8 @@ class DatiCantiereUpdate(BaseModel):
 
     # DATI TECNICI CANTIERE
     cantiere_tecnico_rilevatore: Optional[str] = None
-    cantiere_tempo_installazione: Optional[str] = None
+    cantiere_tempo_installazione: Optional[int] = None
+    cantiere_tempo_installazione_persone: Optional[int] = None
     cantiere_piano_edificio: Optional[str] = None
     casa_abitata: Optional[str] = None
     cantiere_accesso: Optional[str] = None

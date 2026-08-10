@@ -28,7 +28,8 @@ class DatiCantiere(SQLModel, table=True):
 
     # DATI TECNICI CANTIERE
     cantiere_tecnico_rilevatore: Optional[str] = Field(default=None)
-    cantiere_tempo_installazione: Optional[str] = Field(default=None)
+    cantiere_tempo_installazione: Optional[int] = Field(default=None)
+    cantiere_tempo_installazione_persone: Optional[int] = Field(default=None)
     cantiere_piano_edificio: Optional[str] = Field(default=None)
     casa_abitata: Optional[str] = Field(default=None)
     cantiere_accesso: Optional[str] = Field(default=None)
