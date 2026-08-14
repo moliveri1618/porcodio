@@ -24,7 +24,7 @@ from datetime import date
 
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
-from models.progetti import Progetti
+from models.progetti import Progetti, ExportExcelRequest
 from models.clienti import Cliente
 from models.fornitori import Fornitore
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
@@ -676,71 +676,10 @@ def sum_importo_filtrato(
     return totale
 
 
-@router.get("/export-excel-importo-mensile")
-def export_progetti_excel(
-    data_da: Optional[str] = Query(None),
-    data_a: Optional[str] = Query(None),
-    tecnico: Optional[str] = Query(None),
-    include_completed: bool = Query(False),
-    include_suspended: bool = Query(False),
-    stato: Optional[str] = Query(None),
-    azienda: Optional[str] = Query(None),
-    commerciale: Optional[str] = Query(None),
-    importo_parz: Optional[str] = Query(None),
-    importo: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    conditions = []
+@router.post("/export-excel-importo-mensile")
+def export_progetti_excel(payload: ExportExcelRequest):
 
-    # tecnico
-    if tecnico and tecnico.strip() and tecnico.lower() != "generali":
-        conditions.append(Progetti.tecnico == tecnico.strip())
-
-    # Exclude VALIDATO unless "Show Completed" is active
-    if not include_completed:
-        conditions.append(Progetti.stato != "VALIDATO")
-
-    # Exclude SOSPESO unless "Show Sospesi" is active
-    if not include_suspended:
-        conditions.append(Progetti.stato != "SOSPESO")
-
-    # stato
-    if stato and stato.strip():
-        conditions.append(Progetti.stato == stato.strip().upper())
-
-    # azienda
-    if azienda and azienda.strip():
-        conditions.append(Progetti.azienda.ilike(f"%{azienda.strip()}%"))
-
-    # commerciale
-    if commerciale and commerciale.strip():
-        conditions.append(Progetti.commerciale.ilike(f"%{commerciale.strip()}%"))
-
-    # importo parziale
-    if importo_parz and importo_parz.strip():
-        conditions.append(
-            cast(Progetti.importo_parz, String).ilike(f"%{importo_parz.strip()}%")
-        )
-
-    # importo totale
-    if importo and importo.strip():
-        conditions.append(cast(Progetti.importo, String).ilike(f"%{importo.strip()}%"))
-
-    # date
-    if data_da:
-        conditions.append(Progetti.data_cambiamento_stato >= f"{data_da}T00:00:00.000Z")
-
-    if data_a:
-        conditions.append(Progetti.data_cambiamento_stato <= f"{data_a}T23:59:59.999Z")
-
-    query = (
-        select(Progetti, Cliente.nome_cliente)
-        .join(Cliente, Progetti.cliente_id == Cliente.id)
-        .where(*conditions)
-        .order_by(Progetti.data_cambiamento_stato.desc())
-    )
-
-    rows = db.exec(query).all()
+    projects = payload.projects
 
     wb = Workbook()
     ws = wb.active
@@ -762,41 +701,63 @@ def export_progetti_excel(
     totale_importo = 0
     totale_importo_parz = 0
 
-    for progetto, cliente_nome in rows:
+    for progetto in projects:
+
         totale_importo += progetto.importo or 0
         totale_importo_parz += progetto.importo_parz or 0
+
+        cliente_nome = (
+            progetto.cliente.nome_cliente
+            if progetto.cliente
+            else progetto.nome_cliente
+        )
+
+        tecnico = (
+            progetto.tecnico
+            or (
+                progetto.cliente.tecnico
+                if progetto.cliente
+                else None
+            )
+        )
 
         ws.append(
             [
                 cliente_nome,
-                progetto.tecnico,
+                tecnico,
                 progetto.commerciale,
                 progetto.centro_di_costo,
                 progetto.azienda,
                 progetto.stato,
-                str(progetto.data_creazione) if progetto.data_creazione else None,
+                progetto.display_date or progetto.data_creazione,
                 progetto.importo,
                 progetto.importo_parz,
             ]
         )
 
-    # table must include only header + real data rows
-    data_last_row = 1 + len(rows)
+    # ------------------------------
+    # Excel table
+    # ------------------------------
+
+    data_last_row = 1 + len(projects)  # header + data rows
     last_col = ws.max_column
     last_col_letter = get_column_letter(last_col)
 
-    table = Table(
-        displayName="ProgettiTable", ref=f"A1:{last_col_letter}{data_last_row}"
-    )
+    if projects:
+        table = Table(
+            displayName="ProgettiTable",
+            ref=f"A1:{last_col_letter}{data_last_row}",
+        )
 
-    table.tableStyleInfo = TableStyleInfo(
-        name="TableStyleMedium2",
-        showFirstColumn=False,
-        showLastColumn=False,
-        showRowStripes=False,
-        showColumnStripes=False,
-    )
-    ws.add_table(table)
+        table.tableStyleInfo = TableStyleInfo(
+            name="TableStyleMedium2",
+            showFirstColumn=False,
+            showLastColumn=False,
+            showRowStripes=False,
+            showColumnStripes=False,
+        )
+
+        ws.add_table(table)
 
     # empty row
     ws.append([])

@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy.dialects.postgresql import JSON
+from pydantic import BaseModel
 
 import sys
 import os
@@ -37,3 +38,30 @@ class Progetti(SQLModel, table=True):
 
     cliente: Optional["Cliente"] = Relationship(back_populates="progetti")    
     fornitori_links: List["ProgettoFornitoreLink"] = Relationship(back_populates="progetto")
+
+
+class ClienteExport(BaseModel):
+    nome_cliente: Optional[str] = None
+    tecnico: Optional[str] = None
+
+
+class ProgettoExport(BaseModel):
+    id: Optional[int] = None
+    nome_cliente: Optional[str] = None
+    cliente: Optional[ClienteExport] = None
+
+    tecnico: Optional[str] = None
+    commerciale: Optional[str] = None
+    centro_di_costo: Optional[str] = None
+    azienda: Optional[str] = None
+    stato: Optional[str] = None
+
+    display_date: Optional[str] = None
+    data_creazione: Optional[str] = None
+
+    importo: Optional[float] = None
+    importo_parz: Optional[float] = None
+
+
+class ExportExcelRequest(BaseModel):
+    projects: List[ProgettoExport]
