@@ -9,7 +9,7 @@ router = APIRouter()
 
 API_BASE = "https://www.tigulliocrm.it/api"
 API_URL = "https://www.tigulliocrm.it/api/fornitori/"
-API_KEY = "xAe5xrokrKL4g7sbyGHQ3mZ9wyqUVks7"
+API_KEY = "mq67zq76tpEkALryrRyvWvSy4kc0MpyZ"
 
 
 async def fetch_pdf_from_crm(tipo: str, code: str) -> bytes:
