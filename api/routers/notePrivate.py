@@ -105,130 +105,130 @@ def upsert_note_by_username(username: str, note_update: NotePrivateUpdate, db: S
     return created
 
 
-import requests
+# import requests
 
-import os
+# import os
 
-TENANT_ID = os.getenv("TENANT_ID")
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET_VALUE = os.getenv("CLIENT_SECRET_VALUE")
-CLIENT_SECRET_ID = os.getenv("CLIENT_SECRET_ID")
-
-
-SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
-SHAREPOINT_SITE_PATH = os.getenv("SHAREPOINT_SITE_PATH")
-
-GRAPH_URL = os.getenv("GRAPH_URL")
+# TENANT_ID = os.getenv("TENANT_ID")
+# CLIENT_ID = os.getenv("CLIENT_ID")
+# CLIENT_SECRET_VALUE = os.getenv("CLIENT_SECRET_VALUE")
+# CLIENT_SECRET_ID = os.getenv("CLIENT_SECRET_ID")
 
 
-# ---------------------------------------------------------
-# GET ACCESS TOKEN
-# ---------------------------------------------------------
+# SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
+# SHAREPOINT_SITE_PATH = os.getenv("SHAREPOINT_SITE_PATH")
+
+# GRAPH_URL = os.getenv("GRAPH_URL")
 
 
-def get_access_token():
-    url = f"https://login.microsoftonline.com/" f"{TENANT_ID}/oauth2/v2.0/token"
-
-    data = {
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET_VALUE,
-        "scope": "https://graph.microsoft.com/.default",
-        "grant_type": "client_credentials",
-    }
-
-    response = requests.post(url, data=data)
-
-    if not response.ok:
-        raise HTTPException(
-            status_code=500, detail=f"Microsoft auth failed: {response.text}"
-        )
-
-    return response.json()["access_token"]
+# # ---------------------------------------------------------
+# # GET ACCESS TOKEN
+# # ---------------------------------------------------------
 
 
-# ---------------------------------------------------------
-# GET SHAREPOINT SITE ID
-# ---------------------------------------------------------
+# def get_access_token():
+#     url = f"https://login.microsoftonline.com/" f"{TENANT_ID}/oauth2/v2.0/token"
+
+#     data = {
+#         "client_id": CLIENT_ID,
+#         "client_secret": CLIENT_SECRET_VALUE,
+#         "scope": "https://graph.microsoft.com/.default",
+#         "grant_type": "client_credentials",
+#     }
+
+#     response = requests.post(url, data=data)
+
+#     if not response.ok:
+#         raise HTTPException(
+#             status_code=500, detail=f"Microsoft auth failed: {response.text}"
+#         )
+
+#     return response.json()["access_token"]
 
 
-def get_site_id(token: str):
-
-    url = f"{GRAPH_URL}/sites/" f"{SHAREPOINT_HOST}:" f"{SHAREPOINT_SITE_PATH}"
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    response = requests.get(url, headers=headers)
-
-    if not response.ok:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-
-    return response.json()["id"]
+# # ---------------------------------------------------------
+# # GET SHAREPOINT SITE ID
+# # ---------------------------------------------------------
 
 
-# ---------------------------------------------------------
-# GET DEFAULT DOCUMENT LIBRARY / DRIVE
-# ---------------------------------------------------------
+# def get_site_id(token: str):
+
+#     url = f"{GRAPH_URL}/sites/" f"{SHAREPOINT_HOST}:" f"{SHAREPOINT_SITE_PATH}"
+
+#     headers = {"Authorization": f"Bearer {token}"}
+
+#     response = requests.get(url, headers=headers)
+
+#     if not response.ok:
+#         raise HTTPException(status_code=response.status_code, detail=response.text)
+
+#     return response.json()["id"]
 
 
-def get_drive_id(token: str, site_id: str):
-
-    url = f"{GRAPH_URL}/sites/{site_id}/drive"
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    response = requests.get(url, headers=headers)
-
-    if not response.ok:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-
-    return response.json()["id"]
+# # ---------------------------------------------------------
+# # GET DEFAULT DOCUMENT LIBRARY / DRIVE
+# # ---------------------------------------------------------
 
 
-# ---------------------------------------------------------
-# UPLOAD FILE
-# ---------------------------------------------------------
+# def get_drive_id(token: str, site_id: str):
+
+#     url = f"{GRAPH_URL}/sites/{site_id}/drive"
+
+#     headers = {"Authorization": f"Bearer {token}"}
+
+#     response = requests.get(url, headers=headers)
+
+#     if not response.ok:
+#         raise HTTPException(status_code=response.status_code, detail=response.text)
+
+#     return response.json()["id"]
 
 
-@router.post("/sharepoint/upload")
-async def upload_to_sharepoint(
-    file: UploadFile = File(...), folder: str = "06-Progetti"
-):
+# # ---------------------------------------------------------
+# # UPLOAD FILE
+# # ---------------------------------------------------------
 
-    token = get_access_token()
-    site_id = get_site_id(token)
-    drive_id = get_drive_id(token, site_id)
 
-    # return {
-    #     "status": "connected",
-    #     "site_id": site_id,
-    #     "drive_id": drive_id,
-    # }
+# @router.post("/sharepoint/upload")
+# async def upload_to_sharepoint(
+#     file: UploadFile = File(...), folder: str = "06-Progetti"
+# ):
 
-    content = await file.read()
+#     token = get_access_token()
+#     site_id = get_site_id(token)
+#     drive_id = get_drive_id(token, site_id)
 
-    # Example:
-    # 06-Progetti/test.pdf
-    path = f"{folder}/{file.filename}"
+#     # return {
+#     #     "status": "connected",
+#     #     "site_id": site_id,
+#     #     "drive_id": drive_id,
+#     # }
 
-    url = f"{GRAPH_URL}/drives/{drive_id}" f"/root:/{path}:/content"
+#     content = await file.read()
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/octet-stream",
-    }
+#     # Example:
+#     # 06-Progetti/test.pdf
+#     path = f"{folder}/{file.filename}"
 
-    response = requests.put(url, headers=headers, data=content)
+#     url = f"{GRAPH_URL}/drives/{drive_id}" f"/root:/{path}:/content"
 
-    if not response.ok:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+#     headers = {
+#         "Authorization": f"Bearer {token}",
+#         "Content-Type": "application/octet-stream",
+#     }
 
-    uploaded = response.json()
+#     response = requests.put(url, headers=headers, data=content)
 
-    return {
-        "message": "File uploaded successfully",
-        "file_name": uploaded["name"],
-        "file_id": uploaded["id"],
-        "web_url": uploaded["webUrl"],
-        "site_id": site_id,
-        "drive_id": drive_id,
-    }
+#     if not response.ok:
+#         raise HTTPException(status_code=response.status_code, detail=response.text)
+
+#     uploaded = response.json()
+
+#     return {
+#         "message": "File uploaded successfully",
+#         "file_name": uploaded["name"],
+#         "file_id": uploaded["id"],
+#         "web_url": uploaded["webUrl"],
+#         "site_id": site_id,
+#         "drive_id": drive_id,
+#     }

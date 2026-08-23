@@ -29,7 +29,8 @@ from routers import (
     scheda_tecnica_pezzo,
     scheda_tecnica_schema,
     dati_cantiere,
-    react_field_type
+    react_field_type,
+    sharePoint
 )
 
 # from routers import clienti
@@ -100,6 +101,8 @@ app.include_router(
     prefix="/tipo-prodotto-dropdown",
     tags=["tipo-prodotto-dropdown"]
 )
+
+app.include_router(sharePoint.router, prefix="/sharePoint", tags=["sharePoint"])
 
 app.include_router(
     scheda_tecnica_schema.router,
