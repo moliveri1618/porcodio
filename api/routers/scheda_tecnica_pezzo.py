@@ -39,7 +39,7 @@ def save_schede_tecniche_from_frontend(
         if not schede:
             continue
 
-        for scheda in schede:
+        for scheda_index, scheda in enumerate(schede):
             tipo_prodotto_nome = scheda.get("tipo_prodotto_nome")
 
             for rif in scheda.get("riferimenti", []):
@@ -55,6 +55,7 @@ def save_schede_tecniche_from_frontend(
                         scheda_tecnica_schema_id=int(schema_id),
                         valore=str(valore) if valore is not None else None,
                         tipo_prodotto_nome=tipo_prodotto_nome,
+                        scheda_index=scheda_index,
                     )
 
                     db.add(db_pezzo)
