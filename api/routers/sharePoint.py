@@ -197,11 +197,11 @@ async def upload_project_to_sharepoint(request: Request):
 
     form = await request.form()
 
-    print("FORM KEYS:", list(form.keys()))
+    # print("FORM KEYS:", list(form.keys()))
 
-    for key in form.keys():
-        print("KEY:", key)
-        print("VALUES:", form.getlist(key))
+    # for key in form.keys():
+    #     print("KEY:", key)
+        # print("VALUES:", form.getlist(key))
 
     cliente_id = form.get("cliente_id")
     cliente_nome = form.get("cliente_nome")

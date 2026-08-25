@@ -26,6 +26,7 @@ from datetime import date
 
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
+from routers.progetti_parsing import parse_contratto_text_v2
 from models.progetti import Progetti, ExportExcelRequest
 from models.clienti import Cliente
 from models.fornitori import Fornitore
@@ -297,6 +298,26 @@ def compute_status_percent_db_edit(progetto: Progetti) -> int:
 def format_it(number: float) -> str:
     return f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+def build_prodotti_from_parsed_fornitori(parsed_fornitori):
+    prodotti_by_fornitore = {}
+
+    for item in parsed_fornitori:
+        fornitore_id = item.get("fornitore_id")
+        design = item.get("Design")
+        quantita = item.get("Quantita", 1)
+
+        if not fornitore_id or not design:
+            continue
+
+        prodotti_by_fornitore.setdefault(fornitore_id, []).append(
+            {
+                "nome": design,
+                "quantita": int(quantita),
+            }
+        )
+
+    return prodotti_by_fornitore
+
 
 @router.post("/calc-taglia-existing-projects")
 def get_projects_pointing(db: Session = Depends(get_db)):
@@ -407,6 +428,7 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
     """
 
     payload = fetch_from_gesty("dip-tecnico")
+
     # Keep only progetto 10842
     payload = [
         progetto for progetto in payload
@@ -486,38 +508,106 @@ async def progetti_from_gesty(db: Session = Depends(get_db)):
 
 
 # # Get from gesty
-# @router.get("/get_progetti_gesty")
-# def progetti_from_gesty(db: Session = Depends(get_db)):
-#     """
-#     Calls the dip-tecnico API with Bearer token in header
-#     """
+@router.get("/get_progetti_gesty/v3")
+async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
+    """
+    Calls the dip-tecnico API with Bearer token in header
+    """
 
-#     payload = fetch_from_gesty("dip-tecnico")
-#     # pprint(payload)
+    payload = fetch_from_gesty("dip-tecnico")
 
-#     current_date = datetime.now()
-#     one_year_ago = current_date - timedelta(days=90)
+    # Keep only progetto 10842
+    payload = [
+        progetto
+        for progetto in payload
+        if str(progetto.get("Progetto", {}).get("id")) == "10842"
+    ]
+    # pprint(payload)
 
-#     payload = [
-#         project
-#         for project in payload
-#         if project.get("Progetto", {}).get("data_primo_pagamento")
-#         and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
-#         >= one_year_ago
-#     ]
+    # # Export payload to txt
+    # with open("gesty_payload.txt", "w", encoding="utf-8") as f:
+    #     f.write(pformat(payload, width=120))
 
-#     payload = attach_file_links(payload)
-#     clienti_inserted_info = create_clienti_from_payload(db, payload)
-#     progetti_payload = build_progetti_payloads(payload)
+    current_date = datetime.now()
+    ninety_days_ago = current_date - timedelta(days=90)
 
-#     created = []
-#     for body in progetti_payload:
-#         progetto_in = ProgettiCreate(**body)
-#         saved = create_or_update_progetto(progetto_in, db=db)
-#         if saved is not None:
-#             created.append(saved)
+    payload = [
+        project
+        for project in payload
+        if project.get("Progetto", {}).get("data_primo_pagamento")
+        and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
+        >= ninety_days_ago
+        # and str(project.get("Progetto", {}).get("id")) == "10502"
+    ]
 
-#     return created
+    payload = attach_file_links(payload)
+    clienti_inserted_info = create_clienti_from_payload(db, payload)
+    progetti_payload = build_progetti_payloads(payload)
+
+    created = []
+    for body in progetti_payload:
+        progetto_in = ProgettiCreate(**body)
+        saved = create_or_update_progetto(progetto_in, db=db)
+        if saved is not None:
+
+            ### parsing logic from here ###
+            parsed_results = None
+
+            # get contratto code
+            upload_url = body.get("upload_id")
+            contratto_code = (
+                upload_url.rstrip("/").split("/")[-1] if upload_url else None
+            )
+
+            # Download the contract PDF(s)
+            if contratto_code:
+                pdf_bytes = await fetch_pdf_from_crm(
+                    "contratto",
+                    contratto_code,
+                )
+
+                # pass pdf_bytes to your parser
+                if pdf_bytes:
+                    text_content = pdf_to_text_from_bytes(pdf_bytes)
+                    parsed_results = parse_contratto_text_v2(text_content, db)
+
+                    # overwrite prodotti_fornitore using PDF data
+                    prodotti_by_fornitore = build_prodotti_from_parsed_fornitori(
+                        parsed_results.get("Fornitori", [])
+                    )
+
+                    links = db.exec(
+                        select(ProgettoFornitoreLink).where(
+                            ProgettoFornitoreLink.progetto_id == saved.id
+                        )
+                    ).all()
+
+                    for link in links:
+                        if link.fornitore_id in prodotti_by_fornitore:
+                            link.prodotti_fornitore = prodotti_by_fornitore[link.fornitore_id]
+                            db.add(link)
+
+                    db.commit()
+
+            # Save schede tecniche using the DB project id
+            if parsed_results:
+                save_schede_tecniche_logic_gesty(
+                    progetto_id=saved.id,
+                    schede_tecniche=parsed_results.get("SchedeTecniche", {}),
+                    db=db,
+                )
+
+            # dati cantiere
+
+            # add to res array
+            db.refresh(saved)
+            created.append(saved.model_dump())
+
+    return {
+        "created": created,
+        # "payload": payload,
+        # "parsed": parsed_results,
+    }
 
 
 # Get all
@@ -1164,7 +1254,7 @@ def update_single_progetto_field(
     db: Session = Depends(get_db),
 ):
 
-    print("UPDATE FIELD:", id, field, value)
+    # print("UPDATE FIELD:", id, field, value)
 
     progetto = db.get(
         Progetti, id
@@ -1197,7 +1287,7 @@ def update_single_progetto_field(
         return progetto
     except Exception as e:
         db.rollback()
-        print("UPDATE ERROR:", repr(e))
+        # print("UPDATE ERROR:", repr(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 

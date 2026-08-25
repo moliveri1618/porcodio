@@ -402,7 +402,7 @@ def build_fornitori_dict(list2):
 
 def find_cliente_by_email(email: str, db: Session):
 
-    print('Searching for cliente with email:', email)
+    # print('Searching for cliente with email:', email)
 
     if not email:
         return None
@@ -476,10 +476,10 @@ def build_scheda_tecnica_schema_fornitore(
         .order_by(SchedaTecnicaSchema.tipo_prodotto_valori_id)
     ).all()
 
-    print("fornitore_id:", fornitore_id)
-    print("schemas length:", len(schemas))
-    print("tipo_prodotto_id:", tipo_prodotto_id)
-    print("schemas:", schemas)
+    # print("fornitore_id:", fornitore_id)
+    # print("schemas length:", len(schemas))
+    # print("tipo_prodotto_id:", tipo_prodotto_id)
+    # print("schemas:", schemas)
 
     if not schemas:
         return []
