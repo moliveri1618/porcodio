@@ -111,10 +111,15 @@ def get_schede_tecniche_by_progetto(
             result[fornitore_id] = {}
 
         tipo_prodotto_nome = pezzo.tipo_prodotto_nome or "Altro"
-        tipo_key = f"{schema.tipo_prodotto_id}:{tipo_prodotto_nome}"
+        tipo_key = (
+            f"{pezzo.scheda_index}:"
+            f"{schema.tipo_prodotto_id}:"
+            f"{tipo_prodotto_nome}"
+        )
 
         if tipo_key not in result[fornitore_id]:
             result[fornitore_id][tipo_key] = {
+                "scheda_index": pezzo.scheda_index,
                 "tipo_prodotto_id": schema.tipo_prodotto_id,
                 "tipo_prodotto_nome": tipo_prodotto_nome,
                 "quantita": 0,
