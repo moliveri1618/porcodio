@@ -885,6 +885,184 @@ def export_progetti_excel(payload: ExportExcelRequest):
     )
 
 
+@router.post("/export-excel-importo-mensile/V2")
+def export_progetti_excel(
+    db: Session = Depends(get_db),
+    include_completed: bool = False,
+    include_suspended: bool = False,
+    tecnico: str | None = None,
+    cliente_nome: str | None = None,
+    status: int | None = Query(None, ge=0, le=100),
+    fornitore: str | None = None,
+    azienda: str | None = None,
+    stato: str | None = None,
+    commerciale: str | None = None,
+    importo_parz: str | None = None,
+    importo: str | None = None,
+    data_da: date | None = None,
+    data_a: date | None = None,
+):
+
+    stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
+
+    is_completed_expr = and_(
+        func.coalesce(Progetti.status_percent, 0) == 100,
+        stato_upper == "VALIDATO",
+    )
+
+    filters = []
+
+    add_filters(
+        filters=filters,
+        tecnico=tecnico,
+        cliente_nome=cliente_nome,
+        status=status,
+        fornitore=fornitore,
+        azienda=azienda,
+        commerciale=commerciale,
+        stato=stato,
+        importo_parz=importo_parz,
+        importo=importo,
+    )
+
+    if data_da:
+        filters.append(func.date(Progetti.data_cambiamento_stato) >= data_da)
+
+    if data_a:
+        filters.append(func.date(Progetti.data_cambiamento_stato) <= data_a)
+
+    if not include_suspended:
+        filters.append(stato_upper != "SOSPESO")
+
+    if not include_completed:
+        filters.append(~is_completed_expr)
+
+    # Get ALL matching projects — no pagination
+    stmt = (
+        select(Progetti)
+        .join(Cliente, Progetti.cliente_id == Cliente.id)
+        .where(*filters)
+        .options(
+            joinedload(Progetti.cliente),
+        )
+        .order_by(Progetti.data_creazione.asc().nullslast())
+    )
+
+    projects = db.exec(stmt).unique().all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Progetti"
+
+    headers = [
+        "Committente",
+        "Tecnico",
+        "Commerciale",
+        "Città",
+        "Azienda",
+        "Stato",
+        "Data",
+        "Importo",
+        "Importo Parziale",
+    ]
+    ws.append(headers)
+
+    totale_importo = 0
+    totale_importo_parz = 0
+
+    for progetto in projects:
+
+        totale_importo += progetto.importo or 0
+        totale_importo_parz += progetto.importo_parz or 0
+
+        cliente_nome = (
+            progetto.cliente.nome_cliente if progetto.cliente else progetto.nome_cliente
+        )
+
+        tecnico = progetto.tecnico or (
+            progetto.cliente.tecnico if progetto.cliente else None
+        )
+
+        ws.append(
+            [
+                cliente_nome,
+                tecnico,
+                progetto.commerciale,
+                progetto.centro_di_costo,
+                progetto.azienda,
+                progetto.stato,
+                progetto.display_date or progetto.data_creazione,
+                progetto.importo,
+                progetto.importo_parz,
+            ]
+        )
+
+    # ------------------------------
+    # Excel table
+    # ------------------------------
+
+    data_last_row = 1 + len(projects)  # header + data rows
+    last_col = ws.max_column
+    last_col_letter = get_column_letter(last_col)
+
+    if projects:
+        table = Table(
+            displayName="ProgettiTable",
+            ref=f"A1:{last_col_letter}{data_last_row}",
+        )
+
+        table.tableStyleInfo = TableStyleInfo(
+            name="TableStyleMedium2",
+            showFirstColumn=False,
+            showLastColumn=False,
+            showRowStripes=False,
+            showColumnStripes=False,
+        )
+
+        ws.add_table(table)
+
+    # empty row
+    ws.append([])
+
+    # total rows
+    ws.append(["", "", "", "", "", "", "Totale imponibile", totale_importo, ""])
+    ws.append(["", "", "", "", "", "", "Totale entrate", "", totale_importo_parz])
+
+    # styles
+    from openpyxl.styles import Font, PatternFill
+
+    header_fill = PatternFill(
+        start_color="4F81BD", end_color="4F81BD", fill_type="solid"
+    )
+    header_font = Font(bold=True, color="FFFFFF")
+
+    total_fill = PatternFill(
+        start_color="D9D9D9", end_color="D9D9D9", fill_type="solid"
+    )
+    total_font = Font(bold=True)
+
+    # header row
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+
+    # last 2 rows = totals
+    for row in ws.iter_rows(min_row=ws.max_row - 1, max_row=ws.max_row):
+        for cell in row:
+            cell.fill = total_fill
+            cell.font = total_font
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
+    )
+
+
 @router.get("/v2")
 def read_progettiV2(
     db: Session = Depends(get_db),
