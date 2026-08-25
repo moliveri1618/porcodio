@@ -17,3 +17,4 @@ class SchedaTecnicaPezzo(SQLModel, table=True):
     posizione: str | None = None
     valore: str | None = None
     tipo_prodotto_nome: str | None = None
+    scheda_index: int | None = Field(default=None, index=True)

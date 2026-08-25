@@ -976,7 +976,7 @@ def save_schede_tecniche_logic_gesty(
         if not isinstance(schede, list):
             continue
 
-        for scheda in schede:
+        for scheda_index, scheda in enumerate(schede):
             if not isinstance(scheda, dict):
                 continue
 
@@ -1005,6 +1005,7 @@ def save_schede_tecniche_logic_gesty(
 
                     db_pezzo = SchedaTecnicaPezzo(
                         progetto_id=progetto_id,
+                        scheda_index=scheda_index,
                         riferimento=riferimento,
                         posizione=posizione,
                         scheda_tecnica_schema_id=schema_id_int,
