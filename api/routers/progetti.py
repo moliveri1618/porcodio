@@ -512,11 +512,11 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
     payload = fetch_from_gesty("dip-tecnico")
 
     # Keep only progetto 10842
-    payload = [
-        progetto
-        for progetto in payload
-        if str(progetto.get("Progetto", {}).get("id")) == "10842"
-    ]
+    # payload = [
+    #     progetto
+    #     for progetto in payload
+    #     if str(progetto.get("Progetto", {}).get("id")) == "10842"
+    # ]
     # pprint(payload)
 
     # # Export payload to txt
