@@ -155,6 +155,10 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     if existing and str(progetto.progetto_id) != "10842":
         return None
 
+    # Skip existing projects
+    if existing:
+        return None
+
     # --- CREATE path ---
     db_progetto = Progetti(
         progetto_id=progetto.progetto_id,
