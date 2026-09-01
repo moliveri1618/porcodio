@@ -938,16 +938,13 @@ def export_progetti_excel(
 
     # Get ALL matching projects — no pagination
     stmt = (
-        select(Progetti)
+        select(Progetti, Cliente)
         .join(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*filters)
-        .options(
-            joinedload(Progetti.cliente),
-        )
         .order_by(Progetti.data_creazione.asc().nullslast())
     )
 
-    projects = db.exec(stmt).unique().all()
+    results = db.exec(stmt).all()
 
     wb = Workbook()
     ws = wb.active
@@ -969,18 +966,19 @@ def export_progetti_excel(
     totale_importo = 0
     totale_importo_parz = 0
 
-    for progetto in projects:
+    for progetto, cliente in results:
 
         totale_importo += progetto.importo or 0
         totale_importo_parz += progetto.importo_parz or 0
 
-        cliente_nome = (
-            progetto.cliente.nome_cliente if progetto.cliente else progetto.nome_cliente
-        )
+        cliente_nome = cliente.nome_cliente
 
-        tecnico = progetto.tecnico or (
-            progetto.cliente.tecnico if progetto.cliente else None
-        )
+        data_excel = progetto.data_cambiamento_stato
+
+        if data_excel and data_excel.tzinfo is not None:
+            data_excel = data_excel.replace(tzinfo=None)
+
+        tecnico = progetto.tecnico
 
         ws.append(
             [
@@ -990,7 +988,7 @@ def export_progetti_excel(
                 progetto.centro_di_costo,
                 progetto.azienda,
                 progetto.stato,
-                progetto.display_date or progetto.data_creazione,
+                data_excel,
                 progetto.importo,
                 progetto.importo_parz,
             ]
@@ -1000,11 +998,11 @@ def export_progetti_excel(
     # Excel table
     # ------------------------------
 
-    data_last_row = 1 + len(projects)  # header + data rows
+    data_last_row = 1 + len(results)  # header + data rows
     last_col = ws.max_column
     last_col_letter = get_column_letter(last_col)
 
-    if projects:
+    if results:
         table = Table(
             displayName="ProgettiTable",
             ref=f"A1:{last_col_letter}{data_last_row}",
