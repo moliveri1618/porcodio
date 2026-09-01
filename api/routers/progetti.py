@@ -904,6 +904,14 @@ def export_progetti_excel(
 
     stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
 
+    stato_priority = case(
+        (stato_upper == "VALIDATO", 1),
+        (stato_upper == "INVIATO", 2),
+        (stato_upper == "ATTESA", 3),
+        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 4),
+        else_=999,
+    )
+
     is_completed_expr = and_(
         func.coalesce(Progetti.status_percent, 0) == 100,
         stato_upper == "VALIDATO",
@@ -936,12 +944,16 @@ def export_progetti_excel(
     if not include_completed:
         filters.append(~is_completed_expr)
 
-    # Get ALL matching projects — no pagination
+    # Get ALL matching projects same as proj/v2 order — no pagination
+
     stmt = (
         select(Progetti, Cliente)
         .join(Cliente, Progetti.cliente_id == Cliente.id)
         .where(*filters)
-        .order_by(Progetti.data_creazione.asc().nullslast())
+        .order_by(
+            stato_priority.asc(),
+            Progetti.data_creazione.asc().nullslast(),
+        )
     )
 
     results = db.exec(stmt).all()
