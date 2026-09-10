@@ -137,55 +137,70 @@ def get_drive_id(token: str, site_id: str):
     return response.json()["id"]
 
 
-# ---------------------------------------------------------
-# UPLOAD FILE
-# ---------------------------------------------------------
+def find_project_folder_by_id(
+    progetto_id: str,
+    token: str,
+    drive_id: str,
+    data_creazione: str,
+):
 
+    year, month_num, _ = data_creazione.split("-")
 
-# @router.post("/sharepoint/upload")
-# async def upload_to_sharepoint(
-#     file: UploadFile = File(...), folder: str = "06-Progetti"
-# ):
+    month_map = {
+        "01": "01 - Jan",
+        "02": "02 - Feb",
+        "03": "03 - Mar",
+        "04": "04 - Apr",
+        "05": "05 - May",
+        "06": "06 - Jun",
+        "07": "07 - Jul",
+        "08": "08 - Aug",
+        "09": "09 - Sep",
+        "10": "10 - Oct",
+        "11": "11 - Nov",
+        "12": "12 - Dec",
+    }
 
-#     token = get_access_token()
-#     site_id = get_site_id(token)
-#     drive_id = get_drive_id(token, site_id)
+    month = month_map[month_num]
 
-#     # return {
-#     #     "status": "connected",
-#     #     "site_id": site_id,
-#     #     "drive_id": drive_id,
-#     # }
+    search_folder = f"06-Progetti/{year}/{month}"
+    encoded_folder = quote(search_folder, safe="/")
 
-#     content = await file.read()
+    url = (
+        f"{GRAPH_URL}/drives/{drive_id}/root:"
+        f"/{encoded_folder}:/search(q='{progetto_id}')"
+    )
 
-#     # Example:
-#     # 06-Progetti/test.pdf
-#     path = f"{folder}/{file.filename}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
 
-#     url = f"{GRAPH_URL}/drives/{drive_id}" f"/root:/{path}:/content"
+    response = requests.get(url, headers=headers)
 
-#     headers = {
-#         "Authorization": f"Bearer {token}",
-#         "Content-Type": "application/octet-stream",
-#     }
+    if not response.ok:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"Could not search SharePoint: {response.text}",
+        )
 
-#     response = requests.put(url, headers=headers, data=content)
+    items = response.json().get("value", [])
 
-#     if not response.ok:
-#         raise HTTPException(status_code=response.status_code, detail=response.text)
+    expected_suffix = f"_{progetto_id}"
 
-#     uploaded = response.json()
+    for item in items:
 
-#     return {
-#         "message": "File uploaded successfully",
-#         "file_name": uploaded["name"],
-#         "file_id": uploaded["id"],
-#         "web_url": uploaded["webUrl"],
-#         "site_id": site_id,
-#         "drive_id": drive_id,
-#     }
+        # We only care about folders
+        if "folder" not in item:
+            continue
 
+        folder_name = item.get("name", "")
+
+        # Example:
+        # 29855 - Mario Rossi_348
+        if folder_name.endswith(expected_suffix):
+            return item
+
+    return None
 
 # ---------------------------------------------------------
 # UPLOAD FILE 2
@@ -206,35 +221,56 @@ async def upload_project_to_sharepoint(request: Request):
     cliente_id = form.get("cliente_id")
     cliente_nome = form.get("cliente_nome")
     progetto_id = form.get("progetto_id")
+    data_creazione = form.get("data_creazione")
 
-    if not progetto_id or not cliente_id or not cliente_nome:
+    if not progetto_id or not cliente_id or not cliente_nome or not data_creazione:
         raise HTTPException(
             status_code=400,
-            detail="progetto_id, cliente_id and cliente_nome are required",
+            detail="progetto_id, cliente_id, cliente_nome and data_creazione are required",
         )
 
     token = get_access_token()
     site_id = get_site_id(token)
     drive_id = get_drive_id(token, site_id)
 
+    # =====================================================
+    # CHECK IF PROJECT ALREADY EXISTS
+    # =====================================================
+
+    existing_project = find_project_folder_by_id(
+        progetto_id=progetto_id,
+        token=token,
+        data_creazione=data_creazione,
+        drive_id=drive_id,
+    )
+
+    if existing_project:
+        return {
+            "message": "Project already exists in SharePoint. Upload skipped.",
+            "skipped": True,
+            "progetto_id": progetto_id,
+            "folder_name": existing_project.get("name"),
+            "folder_id": existing_project.get("id"),
+            "web_url": existing_project.get("webUrl"),
+        }
+
     # find right month
-    now = datetime.now()
-    year = now.strftime("%Y")
+    year, month_num, _ = data_creazione.split("-")
     month_map = {
-        1: "01 - Jan",
-        2: "02 - Feb",
-        3: "03 - Mar",
-        4: "04 - Apr",
-        5: "05 - May",
-        6: "06 - Jun",
-        7: "07 - Jul",
-        8: "08 - Aug",
-        9: "09 - Sep",
-        10: "10 - Oct",
-        11: "11 - Nov",
-        12: "12 - Dec",
+        "01": "01 - Jan",
+        "02": "02 - Feb",
+        "03": "03 - Mar",
+        "04": "04 - Apr",
+        "05": "05 - May",
+        "06": "06 - Jun",
+        "07": "07 - Jul",
+        "08": "08 - Aug",
+        "09": "09 - Sep",
+        "10": "10 - Oct",
+        "11": "11 - Nov",
+        "12": "12 - Dec",
     }
-    month = month_map[now.month]
+    month = month_map[month_num]
     project_folder = f"{cliente_id} - {cliente_nome}_{progetto_id}"
     base_project_path = f"06-Progetti/" f"{year}/" f"{month}/" f"{project_folder}"
 
