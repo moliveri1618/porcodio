@@ -142,49 +142,49 @@ def get_drive_id(token: str, site_id: str):
 # ---------------------------------------------------------
 
 
-@router.post("/sharepoint/upload")
-async def upload_to_sharepoint(
-    file: UploadFile = File(...), folder: str = "06-Progetti"
-):
+# @router.post("/sharepoint/upload")
+# async def upload_to_sharepoint(
+#     file: UploadFile = File(...), folder: str = "06-Progetti"
+# ):
 
-    token = get_access_token()
-    site_id = get_site_id(token)
-    drive_id = get_drive_id(token, site_id)
+#     token = get_access_token()
+#     site_id = get_site_id(token)
+#     drive_id = get_drive_id(token, site_id)
 
-    # return {
-    #     "status": "connected",
-    #     "site_id": site_id,
-    #     "drive_id": drive_id,
-    # }
+#     # return {
+#     #     "status": "connected",
+#     #     "site_id": site_id,
+#     #     "drive_id": drive_id,
+#     # }
 
-    content = await file.read()
+#     content = await file.read()
 
-    # Example:
-    # 06-Progetti/test.pdf
-    path = f"{folder}/{file.filename}"
+#     # Example:
+#     # 06-Progetti/test.pdf
+#     path = f"{folder}/{file.filename}"
 
-    url = f"{GRAPH_URL}/drives/{drive_id}" f"/root:/{path}:/content"
+#     url = f"{GRAPH_URL}/drives/{drive_id}" f"/root:/{path}:/content"
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/octet-stream",
-    }
+#     headers = {
+#         "Authorization": f"Bearer {token}",
+#         "Content-Type": "application/octet-stream",
+#     }
 
-    response = requests.put(url, headers=headers, data=content)
+#     response = requests.put(url, headers=headers, data=content)
 
-    if not response.ok:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+#     if not response.ok:
+#         raise HTTPException(status_code=response.status_code, detail=response.text)
 
-    uploaded = response.json()
+#     uploaded = response.json()
 
-    return {
-        "message": "File uploaded successfully",
-        "file_name": uploaded["name"],
-        "file_id": uploaded["id"],
-        "web_url": uploaded["webUrl"],
-        "site_id": site_id,
-        "drive_id": drive_id,
-    }
+#     return {
+#         "message": "File uploaded successfully",
+#         "file_name": uploaded["name"],
+#         "file_id": uploaded["id"],
+#         "web_url": uploaded["webUrl"],
+#         "site_id": site_id,
+#         "drive_id": drive_id,
+#     }
 
 
 # ---------------------------------------------------------
@@ -201,15 +201,16 @@ async def upload_project_to_sharepoint(request: Request):
 
     # for key in form.keys():
     #     print("KEY:", key)
-        # print("VALUES:", form.getlist(key))
+    # print("VALUES:", form.getlist(key))
 
     cliente_id = form.get("cliente_id")
     cliente_nome = form.get("cliente_nome")
+    progetto_id = form.get("progetto_id")
 
-    if not cliente_id or not cliente_nome:
+    if not progetto_id or not cliente_id or not cliente_nome:
         raise HTTPException(
             status_code=400,
-            detail="cliente_id and cliente_nome are required",
+            detail="progetto_id, cliente_id and cliente_nome are required",
         )
 
     token = get_access_token()
@@ -234,7 +235,7 @@ async def upload_project_to_sharepoint(request: Request):
         12: "12 - Dec",
     }
     month = month_map[now.month]
-    project_folder = f"{cliente_id} - {cliente_nome}"
+    project_folder = f"{cliente_id} - {cliente_nome}_{progetto_id}"
     base_project_path = f"06-Progetti/" f"{year}/" f"{month}/" f"{project_folder}"
 
     uploaded_files = []
