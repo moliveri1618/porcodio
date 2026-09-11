@@ -144,6 +144,11 @@ def find_project_folder_by_id(
     data_creazione: str,
 ):
 
+    print("\n========== SHAREPOINT PROJECT SEARCH ==========")
+    print("1. progetto_id:", repr(progetto_id))
+    print("2. data_creazione:", repr(data_creazione))
+
+
     year, month_num, _ = data_creazione.split("-")
 
     month_map = {
@@ -163,19 +168,31 @@ def find_project_folder_by_id(
 
     month = month_map[month_num]
 
+    print("3. year:", year)
+    print("4. month:", month)
+
     search_folder = f"06-Progetti/{year}/{month}"
     encoded_folder = quote(search_folder, safe="/")
 
+    print("5. search_folder:", search_folder)
+    print("6. encoded_folder:", encoded_folder)
+
     url = (
         f"{GRAPH_URL}/drives/{drive_id}/root:"
-        f"/{encoded_folder}:/search(q='{progetto_id}')"
+        f"/{encoded_folder}:/children"
     )
+
+    print("7. SEARCH URL:", url)
+
 
     headers = {
         "Authorization": f"Bearer {token}",
     }
 
     response = requests.get(url, headers=headers)
+
+    print("8. HTTP STATUS:", response.status_code)
+    print("9. RAW RESPONSE:", response.text)
 
     if not response.ok:
         raise HTTPException(
@@ -185,20 +202,57 @@ def find_project_folder_by_id(
 
     items = response.json().get("value", [])
 
-    expected_suffix = f"_{progetto_id}"
+    print("10. NUMBER OF RESULTS:", len(items))
 
-    for item in items:
 
-        # We only care about folders
-        if "folder" not in item:
-            continue
+    expected_prefix = f"{progetto_id}_"
+
+    print("11. EXPECTED PREFIX:", repr(expected_prefix))
+
+
+    # for item in items:
+
+    #     # We only care about folders
+    #     if "folder" not in item:
+    #         continue
+
+    #     folder_name = item.get("name", "")
+
+    #     # Example:
+    #     # 29855 - Mario Rossi_348
+    #     if folder_name.startswith(expected_prefix):
+    #         return item
+
+    # return None
+    for index, item in enumerate(items):
 
         folder_name = item.get("name", "")
+        is_folder = "folder" in item
 
-        # Example:
-        # 29855 - Mario Rossi_348
-        if folder_name.endswith(expected_suffix):
+        print(f"\n--- RESULT {index} ---")
+        print("NAME:", repr(folder_name))
+        print("IS FOLDER:", is_folder)
+        print("ID:", item.get("id"))
+        print("STARTS WITH EXPECTED PREFIX:", folder_name.startswith(expected_prefix))
+
+        parent = item.get("parentReference", {})
+        print("PARENT PATH:", parent.get("path"))
+
+        if not is_folder:
+            print("SKIP -> result is not a folder")
+            continue
+
+        if folder_name.startswith(expected_prefix):
+            print(">>> MATCH FOUND:", folder_name)
+            print(">>> PROJECT WILL BE SKIPPED")
+            print("===============================================\n")
             return item
+
+        print("NO MATCH ->", repr(folder_name), "does not start with", repr(expected_prefix))
+
+    print("\n>>> NO EXISTING PROJECT FOUND")
+    print(">>> UPLOAD WILL CONTINUE")
+    print("===============================================\n")
 
     return None
 
@@ -271,7 +325,7 @@ async def upload_project_to_sharepoint(request: Request):
         "12": "12 - Dec",
     }
     month = month_map[month_num]
-    project_folder = f"{cliente_id} - {cliente_nome}_{progetto_id}"
+    project_folder = f"{progetto_id}_{cliente_nome}"
     base_project_path = f"06-Progetti/" f"{year}/" f"{month}/" f"{project_folder}"
 
     uploaded_files = []
@@ -287,7 +341,7 @@ async def upload_project_to_sharepoint(request: Request):
         if not getattr(file, "filename", None):
             continue
 
-        folder_path = f"{base_project_path}/" f"Contratto"
+        folder_path = base_project_path
 
         uploaded = await upload_file_to_sharepoint(
             file=file,
@@ -338,12 +392,7 @@ async def upload_project_to_sharepoint(request: Request):
             if not getattr(file, "filename", None):
                 continue
 
-            folder_path = (
-                f"{base_project_path}/"
-                f"Fornitori/"
-                f"{fornitore_nome}/"
-                f"Ordine"
-            )
+            folder_path = f"{base_project_path}/" f"{fornitore_nome}"
 
             uploaded = await upload_file_to_sharepoint(
                 file=file,
@@ -365,12 +414,7 @@ async def upload_project_to_sharepoint(request: Request):
             if not getattr(file, "filename", None):
                 continue
 
-            folder_path = (
-                f"{base_project_path}/"
-                f"Fornitori/"
-                f"{fornitore_nome}/"
-                f"Conferma Ordine"
-            )
+            folder_path = f"{base_project_path}/" f"{fornitore_nome}"
 
             uploaded = await upload_file_to_sharepoint(
                 file=file,
