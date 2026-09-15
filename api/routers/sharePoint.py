@@ -148,7 +148,6 @@ def find_project_folder_by_id(
     print("1. progetto_id:", repr(progetto_id))
     print("2. data_creazione:", repr(data_creazione))
 
-
     year, month_num, _ = data_creazione.split("-")
 
     month_map = {
@@ -184,7 +183,6 @@ def find_project_folder_by_id(
 
     print("7. SEARCH URL:", url)
 
-
     headers = {
         "Authorization": f"Bearer {token}",
     }
@@ -204,11 +202,9 @@ def find_project_folder_by_id(
 
     print("10. NUMBER OF RESULTS:", len(items))
 
-
     expected_prefix = f"{progetto_id}_"
 
     print("11. EXPECTED PREFIX:", repr(expected_prefix))
-
 
     # for item in items:
 
@@ -255,6 +251,47 @@ def find_project_folder_by_id(
     print("===============================================\n")
 
     return None
+
+# =====================================================
+# CHECK IF PROJECT ALREADY EXISTS
+# =====================================================
+
+
+@router.get("/project-exists")
+def project_exists(
+    progetto_id: int,
+    data_creazione: str,
+):
+    token = get_access_token()
+    site_id = get_site_id(token)
+    drive_id = get_drive_id(token, site_id)
+
+    existing_project = find_project_folder_by_id(
+        progetto_id=progetto_id,
+        token=token,
+        data_creazione=data_creazione,
+        drive_id=drive_id,
+    )
+
+    # Project already exists
+    if existing_project:
+        return {
+            "exists": True,
+            "progetto_id": progetto_id,
+            "folder_name": existing_project.get("name"),
+            "folder_id": existing_project.get("id"),
+            "web_url": existing_project.get("webUrl"),
+        }
+
+    # Project does not exist
+    return {
+        "exists": False,
+        "progetto_id": progetto_id,
+        "folder_name": None,
+        "folder_id": None,
+        "web_url": None,
+    }
+
 
 # ---------------------------------------------------------
 # UPLOAD FILE 2
