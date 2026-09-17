@@ -469,3 +469,80 @@ async def upload_project_to_sharepoint(request: Request):
         "uploaded_count": len(uploaded_files),
         "files": uploaded_files,
     }
+
+
+# ---------------------------------------------------------
+# REDIRECT URL TO SHAREPOINT FOLDER
+# ---------------------------------------------------------
+
+@router.get("/folder-url")
+def get_sharepoint_folder_url(
+    progetto_id: int,
+    data_creazione: str,
+    fornitore_nome: str,
+    folder_type: str,
+):
+    token = get_access_token()
+    site_id = get_site_id(token)
+    drive_id = get_drive_id(token, site_id)
+
+    project = find_project_folder_by_id(
+        progetto_id=progetto_id,
+        token=token,
+        data_creazione=data_creazione,
+        drive_id=drive_id,
+    )
+
+    if not project:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found in SharePoint",
+        )
+
+    # Find supplier inside project
+    url = f"{GRAPH_URL}/drives/{drive_id}" f"/items/{project['id']}/children"
+
+    response = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    response.raise_for_status()
+
+    supplier = next(
+        (
+            item
+            for item in response.json().get("value", [])
+            if item.get("folder") and item["name"] == fornitore_nome
+        ),
+        None,
+    )
+
+    if not supplier:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Supplier folder '{fornitore_nome}' not found",
+        )
+
+    # Find Ordine / Conferma Ordine
+    response = requests.get(
+        f"{GRAPH_URL}/drives/{drive_id}/items/{supplier['id']}/children",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    response.raise_for_status()
+
+    folder = next(
+        (
+            item
+            for item in response.json().get("value", [])
+            if item.get("folder") and item["name"] == folder_type
+        ),
+        None,
+    )
+
+    if not folder:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Folder '{folder_type}' not found",
+        )
+
+    return {"web_url": folder["webUrl"]}
