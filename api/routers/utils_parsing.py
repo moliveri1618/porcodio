@@ -24,6 +24,7 @@ from models.tipo_prodotto_valori import TipoProdottoValori
 from models.tipo_prodotto_valori_dropdown import TipoProdottoValoriDropdown
 from models.react_field_type import ReactFieldType
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
+from models.dati_cantiere import DatiCantiere
 
 
 ############################################
@@ -1022,3 +1023,37 @@ def save_schede_tecniche_logic_gesty(
         "progetto_id": progetto_id,
         "created": len(new_rows),
     }
+
+
+from datetime import datetime
+def create_dati_cantiere(
+    db: Session,
+    progetto_id: int,
+    parsed_results: dict,
+) -> DatiCantiere:
+
+    cliente = parsed_results.get("Cliente", {})
+    progetto = parsed_results.get("Progetto", {})
+
+    data = progetto.get("data")
+
+    dati_cantiere = DatiCantiere(
+        progetto_id=progetto_id,
+        # DATI ANAGRAFICI
+        numero=progetto.get("numero"),
+        data=datetime.strptime(data, "%d/%m/%Y").date() if data else None,
+        piva=cliente.get("piva"),
+        pec=cliente.get("pec"),
+        cap=cliente.get("cap"),
+        rag_sociale=cliente.get("nome_cliente"),
+        luogo_zona=cliente.get("citta"),
+        email=None,
+        # DATI TECNICI CANTIERE
+        # Not available in parsed_results
+    )
+
+    db.add(dati_cantiere)
+    db.commit()
+    db.refresh(dati_cantiere)
+
+    return dati_cantiere
