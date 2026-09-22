@@ -517,27 +517,27 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
     payload = fetch_from_gesty("dip-tecnico")
 
     # Keep only progetto 10842
-    payload = [
-        progetto
-        for progetto in payload
-        if str(progetto.get("Progetto", {}).get("id")) == "10502"
-    ]
+    # payload = [
+    #     progetto
+    #     for progetto in payload
+    #     if str(progetto.get("Progetto", {}).get("id")) == "10502"
+    # ]
     # pprint(payload)
 
     # # Export payload to txt
     # with open("gesty_payload.txt", "w", encoding="utf-8") as f:
     #     f.write(pformat(payload, width=120))
 
-    # current_date = datetime.now()
-    # ninety_days_ago = current_date - timedelta(days=90)
+    current_date = datetime.now()
+    ninety_days_ago = current_date - timedelta(days=90)
 
-    # payload = [
-    #     project
-    #     for project in payload
-    #     if project.get("Progetto", {}).get("data_primo_pagamento")
-    #     and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
-    #     >= ninety_days_ago
-    # ]
+    payload = [
+        project
+        for project in payload
+        if project.get("Progetto", {}).get("data_primo_pagamento")
+        and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
+        >= ninety_days_ago
+    ]
 
     payload = attach_file_links(payload)
     clienti_inserted_info = create_clienti_from_payload(db, payload)
@@ -591,6 +591,7 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
 
             # Save schede tecniche using the DB project id
             if parsed_results:
+
                 # print("parsed_results", parsed_results)
                 save_schede_tecniche_logic_gesty(
                     progetto_id=saved.id,
