@@ -309,6 +309,11 @@ async def upload_project_to_sharepoint(request: Request):
     #     print("KEY:", key)
     # print("VALUES:", form.getlist(key))
 
+    # Check if rilievo misure is added, then dont skip upload
+    allow_existing_project = (
+        str(form.get("allow_existing_project", "false")).lower() == "true"
+    )
+
     cliente_id = form.get("cliente_id")
     cliente_nome = form.get("cliente_nome")
     progetto_id = form.get("progetto_id")
@@ -335,7 +340,7 @@ async def upload_project_to_sharepoint(request: Request):
         drive_id=drive_id,
     )
 
-    if existing_project:
+    if existing_project and not allow_existing_project:
         return {
             "message": "Project already exists in SharePoint. Upload skipped.",
             "skipped": True,
