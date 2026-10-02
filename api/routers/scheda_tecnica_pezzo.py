@@ -157,7 +157,11 @@ def get_schede_tecniche_by_progetto(
         final_result[fornitore_id]["value"] = []
 
         for group in tipi.values():
-            riferimenti = list(group["riferimenti"].values())
+            riferimenti = sorted(
+                group["riferimenti"].values(),
+                key=lambda r: int(r["riferimento"].replace("rif", ""))
+            )
+
             quantita = len(riferimenti)
 
             schede_base = build_scheda_tecnica_schema_fornitore(
