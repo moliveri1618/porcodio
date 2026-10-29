@@ -395,6 +395,25 @@ async def upload_project_to_sharepoint(request: Request):
         uploaded_files.append(uploaded)
 
     # =====================================================
+    # RILIEVO MISURE
+    # =====================================================
+
+    rilievo_files = form.getlist("rilievo_misure")
+
+    for file in rilievo_files:
+        if not getattr(file, "filename", None):
+            continue
+
+        uploaded = await upload_file_to_sharepoint(
+            file=file,
+            folder_path=f"{base_project_path}/RilievoMisure",
+            token=token,
+            drive_id=drive_id,
+        )
+
+        uploaded_files.append(uploaded)
+
+    # =====================================================
     # FIND FORNITORI
     # =====================================================
 
