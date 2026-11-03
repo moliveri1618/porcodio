@@ -304,6 +304,7 @@ def fetch_from_gesty(endpoint: str) -> dict:
 
     headers = {"Authorization": f"Bearer {API_KEY}"}
     url = f"{API_BASE}/{endpoint.strip('/')}/"
+    print(url)
 
     try:
         resp = httpx.get(url, headers=headers)

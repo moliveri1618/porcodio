@@ -617,6 +617,143 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
     }
 
 
+# # Get from gesty
+@router.get("/get_progetti_gesty/contratti/v1")
+async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
+    """
+    Calls the contratti API with Bearer token in header
+    """
+
+    # payload = fetch_from_gesty("contratti")
+
+    payload = [
+        p
+        for p in fetch_from_gesty("contratti")
+        if all(
+            f.get("id") != "0"
+            for f in (p.get("Progetto", {}).get("fornitori") or {}).values()
+        )
+    ]
+
+    # Keep only progetto 10842
+    # payload = [
+    #     progetto
+    #     for progetto in payload
+    #     if str(progetto.get("Progetto", {}).get("id")) == "10502"
+    # ]
+    # pprint(payload)
+
+    # # Export payload to txt
+    # with open("gesty_payload.txt", "w", encoding="utf-8") as f:
+    #     f.write(pformat(payload, width=120))
+
+    current_date = datetime.now()
+    ninety_days_ago = current_date - timedelta(days=90)
+
+    payload = [
+        project
+        for project in payload
+        if project.get("Progetto", {}).get("data_primo_pagamento")
+        and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
+        >= ninety_days_ago
+    ]
+
+    payload = attach_file_links(payload)
+    clienti_inserted_info = create_clienti_from_payload(db, payload)
+    progetti_payload = build_progetti_payloads(payload)
+
+    created = []
+    for body in progetti_payload:
+
+        # print(
+        #     f"\n>>> PROCESSING PROJECT: {body.get('progetto_id')}",
+        #     flush=True
+        # )
+
+        progetto_in = ProgettiCreate(**body)
+        saved = create_or_update_progetto(progetto_in, db=db)
+
+        if saved is not None:
+            # print('here')
+
+            ### parsing logic from here ###
+            parsed_results = None
+
+            # get contratto code
+            upload_url = body.get("upload_id")
+            contratto_code = (
+                upload_url.rstrip("/").split("/")[-1] if upload_url else None
+            )
+
+            # Download the contract PDF(s)
+            if contratto_code:
+                pdf_bytes = await fetch_pdf_from_crm(
+                    "contratto",
+                    contratto_code,
+                )
+
+                # pass pdf_bytes to your parser
+                if pdf_bytes:
+
+                    # print(
+                    #     f">>> PARSING PDF FOR PROJECT: {body.get('progetto_id')}",
+                    #     flush=True
+                    # )
+
+                    text_content = pdf_to_text_from_bytes(pdf_bytes)
+                    parsed_results = parse_contratto_text_v2(text_content, db)
+
+                    # overwrite prodotti_fornitore using PDF data
+                    prodotti_by_fornitore = build_prodotti_from_parsed_fornitori(
+                        parsed_results.get("Fornitori", [])
+                    )
+
+                    links = db.exec(
+                        select(ProgettoFornitoreLink).where(
+                            ProgettoFornitoreLink.progetto_id == saved.id
+                        )
+                    ).all()
+
+                    for link in links:
+                        if link.fornitore_id in prodotti_by_fornitore:
+                            link.prodotti_fornitore = prodotti_by_fornitore[
+                                link.fornitore_id
+                            ]
+                            db.add(link)
+
+                    db.commit()
+
+            # Save schede tecniche using the DB project id
+            if parsed_results:
+
+                # print(
+                #     f">>> SAVING SCHEDE FOR PROJECT: {body.get('progetto_id')}",
+                #     flush=True
+                # )
+
+                # print("parsed_results", parsed_results)
+                save_schede_tecniche_logic_gesty(
+                    progetto_id=saved.id,
+                    schede_tecniche=parsed_results.get("SchedeTecniche", {}),
+                    db=db,
+                )
+
+                # dati cantiere
+                create_dati_cantiere(
+                    db=db, progetto_id=saved.id, parsed_results=parsed_results
+                )
+
+            # add to res array
+            db.refresh(saved)
+            created.append(saved.model_dump())
+
+    return {
+        "created": created,
+        # "payload": payload,
+        # "parsed": parsed_results,
+    }
+
+
 # Get all
 @router.get("")
 def read_progetti(db: Session = Depends(get_db)):
