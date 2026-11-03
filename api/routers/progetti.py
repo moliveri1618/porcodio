@@ -115,27 +115,35 @@ def _replace_fornitori_links(db: Session, progetto_pk: int, fornitori_payload: l
             )(),
         )
 
-    if fornitori_payload:
-        for f in fornitori_payload:
-            if not _fornitore_exists(db, f.fornitore_id):
-                # skip invalid supplier id
-                continue
-            link = ProgettoFornitoreLink(
-                progetto_id=progetto_pk,
-                fornitore_id=f.fornitore_id,
-                contratti=[c.model_dump() for c in f.contratti] if f.contratti else [],
-                rilievi_misure=(
-                    [r.model_dump() for r in f.rilievi_misure]
-                    if f.rilievi_misure
-                    else []
-                ),
-                prodotti_fornitore=(
-                    [p.model_dump() for p in f.prodotti_fornitore]
-                    if f.prodotti_fornitore
-                    else []
-                ),
-            )
-            db.add(link)
+    # Prevent duplicate supplier links
+    seen_ids = set()
+
+    for f in fornitori_payload:
+        fornitore_id = int(f.fornitore_id)
+
+        if fornitore_id in seen_ids:
+            continue
+
+        if not _fornitore_exists(db, fornitore_id):
+            continue
+
+        seen_ids.add(fornitore_id)
+
+        link = ProgettoFornitoreLink(
+            progetto_id=progetto_pk,
+            fornitore_id=fornitore_id,
+            contratti=([c.model_dump() for c in f.contratti] if f.contratti else []),
+            rilievi_misure=(
+                [r.model_dump() for r in f.rilievi_misure] if f.rilievi_misure else []
+            ),
+            prodotti_fornitore=(
+                [p.model_dump() for p in f.prodotti_fornitore]
+                if f.prodotti_fornitore
+                else []
+            ),
+        )
+
+        db.add(link)
 
 
 def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti:
@@ -152,9 +160,9 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
             select(Progetti).where(Progetti.progetto_id == progetto.progetto_id)
         ).first()
 
-    # Skip existing projects, EXCEPT 10842
-    if existing and str(progetto.progetto_id) != "10842":
-        return None
+    # # Skip existing projects, EXCEPT 10842
+    # if existing and str(progetto.progetto_id) != "10842":
+    #     return None
 
     # Skip existing projects
     if existing:
@@ -182,16 +190,7 @@ def create_or_update_progetto(progetto: ProgettiCreate, db: Session) -> Progetti
     db.commit()
     db.refresh(db_progetto)
 
-    # ✅ only add valid fornitori
-    default_link = ProgettoFornitoreLink(
-        progetto_id=db_progetto.id,
-        fornitore_id=2,
-        contratti=[],
-        rilievi_misure=[],
-        prodotti_fornitore=[],
-    )
-
-    db.add(default_link)
+    # db.add(default_link)
     _replace_fornitori_links(db, db_progetto.id, progetto.fornitori)
 
     db.commit()
@@ -624,39 +623,69 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
     Calls the contratti API with Bearer token in header
     """
 
-    # payload = fetch_from_gesty("contratti")
+    payload = fetch_from_gesty("contratti")
+    ninety_days_ago = datetime.now().date() - timedelta(days=90)
 
-    payload = [
-        p
-        for p in fetch_from_gesty("contratti")
-        if all(
-            f.get("id") != "0"
-            for f in (p.get("Progetto", {}).get("fornitori") or {}).values()
-        )
-    ]
+    ##### check for existing projects and update their data_creazione if needed
+    existing_projects = {
+        str(p.progetto_id): p
+        for p in db.exec(select(Progetti)).all()
+    }
 
-    # Keep only progetto 10842
-    # payload = [
-    #     progetto
-    #     for progetto in payload
-    #     if str(progetto.get("Progetto", {}).get("id")) == "10502"
-    # ]
-    # pprint(payload)
+    new_payload = []
+    updated_dates = []
 
-    # # Export payload to txt
-    # with open("gesty_payload.txt", "w", encoding="utf-8") as f:
-    #     f.write(pformat(payload, width=120))
+    for item in payload:
+        project = item.get("Progetto") or {}
+        project_id = str(project.get("id"))
 
-    current_date = datetime.now()
-    ninety_days_ago = current_date - timedelta(days=90)
+        payment_date_str = project.get("data_primo_pagamento")
+        if not payment_date_str:
+            continue
 
-    payload = [
-        project
-        for project in payload
-        if project.get("Progetto", {}).get("data_primo_pagamento")
-        and datetime.strptime(project["Progetto"]["data_primo_pagamento"], "%Y-%m-%d")
-        >= ninety_days_ago
-    ]
+        try:
+            payment_date = datetime.strptime(
+                payment_date_str, "%Y-%m-%d"
+            ).date()
+        except ValueError:
+            continue
+
+        # Skip projects containing supplier ID 0
+        suppliers = project.get("fornitori") or {}
+        if any(str(f.get("id")) == "0" for f in suppliers.values()):
+            continue
+
+        existing = existing_projects.get(project_id)
+
+        # Existing project: check if payment date changed
+        if existing:
+            old_date = existing.data_creazione
+
+            if isinstance(old_date, datetime):
+                old_date = old_date.date()
+
+            if old_date != payment_date:
+                existing.data_creazione = datetime.combine(
+                    payment_date,
+                    datetime.min.time()
+                )
+                db.add(existing)
+                updated_dates.append(project_id)
+
+            # No PDF parsing for existing projects
+            continue
+
+        # New project: import only if within last 90 days
+        if payment_date >= ninety_days_ago:
+            new_payload.append(item)
+
+    # Save only if dates have changed
+    if updated_dates:
+        db.commit()
+
+    # Continue with only new projects
+    payload = new_payload
+    ###########################################################################
 
     payload = attach_file_links(payload)
     clienti_inserted_info = create_clienti_from_payload(db, payload)
@@ -749,8 +778,9 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
 
     return {
         "created": created,
-        # "payload": payload,
-        # "parsed": parsed_results,
+        "updated_dates": updated_dates,
+        "total_created": len(created),
+        "total_updated": len(updated_dates),
     }
 
 
