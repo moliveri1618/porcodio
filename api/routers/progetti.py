@@ -790,10 +790,14 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
 # Get contratti from gesty: stato DO,RM, contratti of the last 90 days.
 # Existing projects are skipped before any processing; new ones are created with new_api=True.
 @router.get("/get_progetti_gesty/contratti/v2")
-async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
+async def progetti_from_gesty_contratti_v2(
+    limit: int = Query(20, ge=1, description="Max new projects processed per call"),
+    db: Session = Depends(get_db),
+):
     """
     Calls the Gesty contratti API filtered by stato_ordine DO,RM and
-    data_contratto in the last 90 days, then imports only the new projects.
+    data_contratto in the last 90 days, then imports only the new projects
+    (at most `limit` per call; call again to process the remaining ones).
     """
     ninety_days_ago = datetime.now().date() - timedelta(days=90)
     payload = fetch_contratti_filtrati_from_gesty(
@@ -843,6 +847,10 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
 
         new_payload.append(item)
 
+    # Process at most `limit` new projects per call
+    remaining = max(len(new_payload) - limit, 0)
+    new_payload = new_payload[:limit]
+
     # 3. Process only the new projects
     new_payload = attach_file_links(new_payload)
     create_clienti_from_payload(db, new_payload)
@@ -853,7 +861,8 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
 
     created = []
     created_without_payment_date = []
-    for body in progetti_payload:
+    for i, body in enumerate(progetti_payload, start=1):
+        print(f"[contratti/v2] {i}/{len(progetti_payload)} progetto {body.get('progetto_id')}", flush=True)
         body["new_api"] = True
         without_payment_date = not body.get("data_creazione")
         if without_payment_date:
@@ -929,6 +938,7 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
         "created": created,
         "total_received": len(payload),
         "total_created": len(created),
+        "remaining": remaining,
         "skipped_existing": skipped_existing,
         "skipped_no_id": skipped_no_id,
         "created_without_payment_date": created_without_payment_date,
