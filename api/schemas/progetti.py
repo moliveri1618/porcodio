@@ -32,6 +32,7 @@ class ProgettiCreate(BaseModel):
     importo_parz: Optional[float] = None
     note: Optional[str] = None 
     data_cambiamento_stato: Optional[datetime] = None
+    data_primo_pagamento: Optional[datetime] = None
     taglia_progetto: Optional[str] = ""
     note_taglia: Optional[str] = ""
     cliente_id: int
@@ -39,6 +40,7 @@ class ProgettiCreate(BaseModel):
     status_percent: Optional[float] = None
     upload_id: Optional[str] = None
     upload_id_progetto_files: Optional[str] = None
+    new_api: Optional[bool] = False
 
 
 class FornitoreInProgetto(BaseModel):
@@ -64,6 +66,7 @@ class ProgettiUpdate(BaseModel):
     commerciale: Optional[str] = None
     data_creazione: Optional[datetime] = None
     data_cambiamento_stato: Optional[datetime] = None
+    data_primo_pagamento: Optional[datetime] = None
     taglia_progetto: Optional[str] = ""
     note_taglia: Optional[str] = ""
     importo: Optional[float] = None
@@ -74,3 +77,4 @@ class ProgettiUpdate(BaseModel):
     fornitori: Optional[List[FornitoreLinkData]] = None
     upload_id: Optional[str] = None
     upload_id_progetto_files: Optional[str] = None
+    new_api: Optional[bool] = None

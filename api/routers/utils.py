@@ -6,6 +6,7 @@ import sys
 import os
 from datetime import datetime, timezone
 from typing import List, Dict, Any
+from urllib.parse import urlencode
 
 if os.getenv("GITHUB_ACTIONS"): sys.path.append(os.path.dirname(__file__)) 
 from models.progetti import Progetti
@@ -325,6 +326,48 @@ def fetch_from_gesty(endpoint: str) -> dict:
     return payload['data'] if 'data' in payload else payload
 
 
+def fetch_contratti_filtrati_from_gesty(
+    stato_ordine: str | None = None,
+    data_contratto_da: str | None = None,
+    data_contratto_a: str | None = None,
+) -> dict:
+    """
+    Same as fetch_from_gesty("contratti") but with the optional Gesty filters:
+    stato_ordine (comma separated), data_contratto_da / data_contratto_a (YYYY-MM-DD).
+    Raises HTTPException on error.
+    """
+    if not API_BASE or not API_KEY:
+        raise HTTPException(status_code=500, detail="API_BASE/API_KEY not configured")
+
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    params = {
+        "stato_ordine": stato_ordine,
+        "data_contratto_da": data_contratto_da,
+        "data_contratto_a": data_contratto_a,
+    }
+    query = urlencode({k: v for k, v in params.items() if v}, safe=",")
+    url = f"{API_BASE}/contratti/" + (f"?{query}" if query else "")
+    print(url)
+
+    try:
+        resp = httpx.get(url, headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Gesty fetch error: {e}")
+
+    if resp.status_code != 200:
+        try:
+            body = resp.json()
+        except Exception:
+            body = resp.text
+        raise HTTPException(status_code=resp.status_code, detail={"upstream": body})
+
+    payload = resp.json()
+    if not payload.get("success"):
+        raise HTTPException(status_code=502, detail="Gesty returned success=false")
+
+    return payload['data'] if 'data' in payload else payload
+
+
 def extract_prodotti_names(db: Session, gesty_payload: Any) -> Dict[str, Any]:
     """
     Collect unique product names from the Gesty payload and insert missing ones.
@@ -535,6 +578,7 @@ def build_progetti_payloads(payload: List[Dict[str, Any]]) -> List[Dict[str, Any
             "progetto_id": progetto_id,
             "data_creazione": data_creazione,
             "data_cambiamento_stato": data_creazione,
+            "data_primo_pagamento": (prj.get("data_primo_pagamento") or "").strip() or None,
             "importo": importo,
             "importo_parz": importo_parz,
             "commerciale": commerciale,

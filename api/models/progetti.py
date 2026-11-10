@@ -26,6 +26,7 @@ class Progetti(SQLModel, table=True):
     importo_parz: float = Field(..., nullable=True)
     note: Optional[str] = Field(default=None, nullable=True) 
     data_cambiamento_stato: Optional[datetime] = Field(default=None, nullable=True)    
+    data_primo_pagamento: Optional[datetime] = Field(default=None, nullable=True)
     taglia_progetto: Optional[str] = Field(default="", nullable=True)
     note_taglia: Optional[str] = Field(default="", nullable=True)
     status_percent: Optional[float] = Field(default=None, nullable=True, index=True)
@@ -35,6 +36,7 @@ class Progetti(SQLModel, table=True):
     )
     upload_id: Optional[str] = Field(default=None,nullable=True,index=True)
     upload_id_progetto_files: Optional[str] = Field(default=None,nullable=True,index=True)
+    new_api: Optional[bool] = Field(default=False, nullable=True)  # True if imported from Gesty contratti v2 (stato DO,RM)
 
     cliente: Optional["Cliente"] = Relationship(back_populates="progetti")    
     fornitori_links: List["ProgettoFornitoreLink"] = Relationship(back_populates="progetto")
