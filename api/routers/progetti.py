@@ -821,7 +821,6 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
     new_payload = []
     skipped_existing = []
     skipped_no_id = 0
-    skipped_no_payment_date = []
     skipped_fornitore_0 = []
 
     for item in payload:
@@ -833,10 +832,6 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
             continue
         if project_id in existing_ids:
             skipped_existing.append(project_id)
-            continue
-        # data_primo_pagamento is used as data_creazione (required)
-        if not project.get("data_primo_pagamento"):
-            skipped_no_payment_date.append(project_id)
             continue
         # Skip projects containing supplier ID 0
         suppliers = project.get("fornitori") or {}
@@ -853,9 +848,17 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
     create_clienti_from_payload(db, new_payload)
     progetti_payload = build_progetti_payloads(new_payload)
 
+    # Projects without data_primo_pagamento: data_creazione = import date (today)
+    import_date = datetime.combine(datetime.now().date(), datetime.min.time())
+
     created = []
+    created_without_payment_date = []
     for body in progetti_payload:
         body["new_api"] = True
+        without_payment_date = not body.get("data_creazione")
+        if without_payment_date:
+            body["data_creazione"] = import_date
+            body["data_cambiamento_stato"] = import_date
         progetto_in = ProgettiCreate(**body)
         saved = create_or_update_progetto(progetto_in, db=db)
         if saved is not None:
@@ -919,6 +922,8 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
             # add to res array
             db.refresh(saved)
             created.append(saved.model_dump())
+            if without_payment_date:
+                created_without_payment_date.append(saved.progetto_id)
 
     result = {
         "created": created,
@@ -926,7 +931,7 @@ async def progetti_from_gesty_contratti_v2(db: Session = Depends(get_db)):
         "total_created": len(created),
         "skipped_existing": skipped_existing,
         "skipped_no_id": skipped_no_id,
-        "skipped_no_payment_date": skipped_no_payment_date,
+        "created_without_payment_date": created_without_payment_date,
         "skipped_fornitore_0": skipped_fornitore_0,
     }
     # pprint({k: v for k, v in result.items() if k != "created"})
