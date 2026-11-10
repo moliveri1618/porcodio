@@ -618,175 +618,6 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
     }
 
 
-# # # Get from gesty new payload
-# @router.get("/get_progetti_gesty/contratti/v1")
-# async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
-
-#     """
-#     Calls the contratti API with Bearer token in header
-#     """
-
-#     payload = fetch_from_gesty("contratti")
-#     ninety_days_ago = datetime.now().date() - timedelta(days=90)
-
-#     ##### check for existing projects and update their data_creazione if needed
-#     existing_projects = {
-#         str(p.progetto_id): p
-#         for p in db.exec(select(Progetti)).all()
-#     }
-
-#     new_payload = []
-#     updated_dates = []
-
-#     for item in payload:
-#         project = item.get("Progetto") or {}
-#         project_id = str(project.get("id"))
-
-#         payment_date_str = project.get("data_primo_pagamento")
-#         if not payment_date_str:
-#             continue
-
-#         try:
-#             payment_date = datetime.strptime(
-#                 payment_date_str, "%Y-%m-%d"
-#             ).date()
-#         except ValueError:
-#             continue
-
-#         # Skip projects containing supplier ID 0
-#         suppliers = project.get("fornitori") or {}
-#         if any(str(f.get("id")) == "0" for f in suppliers.values()):
-#             continue
-
-#         existing = existing_projects.get(project_id)
-
-#         # Existing project: check if payment date changed
-#         if existing:
-#             old_date = existing.data_creazione
-
-#             if isinstance(old_date, datetime):
-#                 old_date = old_date.date()
-
-#             if old_date != payment_date:
-#                 existing.data_creazione = datetime.combine(
-#                     payment_date,
-#                     datetime.min.time()
-#                 )
-#                 db.add(existing)
-#                 updated_dates.append(project_id)
-
-#             # No PDF parsing for existing projects
-#             continue
-
-#         # New project: import only if within last 90 days
-#         if payment_date >= ninety_days_ago:
-#             new_payload.append(item)
-
-#     # Save only if dates have changed
-#     if updated_dates:
-#         db.commit()
-
-#     # Continue with only new projects
-#     payload = new_payload
-#     ###########################################################################
-
-#     payload = attach_file_links(payload)
-#     clienti_inserted_info = create_clienti_from_payload(db, payload)
-#     progetti_payload = build_progetti_payloads(payload)
-
-#     created = []
-#     for body in progetti_payload:
-
-#         # print(
-#         #     f"\n>>> PROCESSING PROJECT: {body.get('progetto_id')}",
-#         #     flush=True
-#         # )
-
-#         progetto_in = ProgettiCreate(**body)
-#         saved = create_or_update_progetto(progetto_in, db=db)
-
-#         if saved is not None:
-#             # print('here')
-
-#             ### parsing logic from here ###
-#             parsed_results = None
-
-#             # get contratto code
-#             upload_url = body.get("upload_id")
-#             contratto_code = (
-#                 upload_url.rstrip("/").split("/")[-1] if upload_url else None
-#             )
-
-#             # Download the contract PDF(s)
-#             if contratto_code:
-#                 pdf_bytes = await fetch_pdf_from_crm(
-#                     "contratto",
-#                     contratto_code,
-#                 )
-
-#                 # pass pdf_bytes to your parser
-#                 if pdf_bytes:
-
-#                     # print(
-#                     #     f">>> PARSING PDF FOR PROJECT: {body.get('progetto_id')}",
-#                     #     flush=True
-#                     # )
-
-#                     text_content = pdf_to_text_from_bytes(pdf_bytes)
-#                     parsed_results = parse_contratto_text_v2(text_content, db)
-
-#                     # overwrite prodotti_fornitore using PDF data
-#                     prodotti_by_fornitore = build_prodotti_from_parsed_fornitori(
-#                         parsed_results.get("Fornitori", [])
-#                     )
-
-#                     links = db.exec(
-#                         select(ProgettoFornitoreLink).where(
-#                             ProgettoFornitoreLink.progetto_id == saved.id
-#                         )
-#                     ).all()
-
-#                     for link in links:
-#                         if link.fornitore_id in prodotti_by_fornitore:
-#                             link.prodotti_fornitore = prodotti_by_fornitore[
-#                                 link.fornitore_id
-#                             ]
-#                             db.add(link)
-
-#                     db.commit()
-
-#             # Save schede tecniche using the DB project id
-#             if parsed_results:
-
-#                 # print(
-#                 #     f">>> SAVING SCHEDE FOR PROJECT: {body.get('progetto_id')}",
-#                 #     flush=True
-#                 # )
-
-#                 # print("parsed_results", parsed_results)
-#                 save_schede_tecniche_logic_gesty(
-#                     progetto_id=saved.id,
-#                     schede_tecniche=parsed_results.get("SchedeTecniche", {}),
-#                     db=db,
-#                 )
-
-#                 # dati cantiere
-#                 create_dati_cantiere(
-#                     db=db, progetto_id=saved.id, parsed_results=parsed_results
-#                 )
-
-#             # add to res array
-#             db.refresh(saved)
-#             created.append(saved.model_dump())
-
-#     return {
-#         "created": created,
-#         "updated_dates": updated_dates,
-#         "total_created": len(created),
-#         "total_updated": len(updated_dates),
-#     }
-
-
 # Get contratti from gesty: stato DO,RM, contratti of the last 90 days.
 # Existing projects are skipped before any processing; new ones are created with new_api=True.
 @router.get("/get_progetti_gesty/contratti/v2")
@@ -1598,6 +1429,8 @@ def read_progettiV2(
                 Progetti.status_percent,
                 Progetti.taglia_progetto,
                 Progetti.note_taglia,
+                Progetti.new_api,
+                Progetti.data_primo_pagamento,
             ),
             joinedload(Progetti.cliente).load_only(
                 Cliente.id,
@@ -1698,6 +1531,8 @@ def read_progettiV2(
                 "cliente_id": p.cliente_id,
                 "data_cambiamento_stato": p.data_cambiamento_stato,
                 "data_creazione": p.data_creazione,
+                "data_primo_pagamento": p.data_primo_pagamento,
+                "new_api": bool(p.new_api),
                 "taglia_progetto": p.taglia_progetto,
                 "note_taglia": p.note_taglia,
                 "importo": p.importo,
@@ -1937,6 +1772,8 @@ def read_progetto(progetto_id: int, db: Session = Depends(get_db)):
         "commerciale": progetto.commerciale,
         "cliente_id": progetto.cliente_id,
         "data_creazione": progetto.data_creazione,
+        "data_primo_pagamento": progetto.data_primo_pagamento,
+        "new_api": bool(progetto.new_api),
         "importo": progetto.importo,
         "importo_parz": progetto.importo_parz,
         "cliente": cliente_dict,
