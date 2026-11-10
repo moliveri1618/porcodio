@@ -16,7 +16,7 @@ import sys
 import os
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload, joinedload, load_only
-from sqlalchemy import delete, and_, case, func
+from sqlalchemy import delete, and_, case, func, update
 from math import ceil
 from typing import Optional
 from datetime import date
@@ -946,6 +946,64 @@ async def progetti_from_gesty_contratti_v2(
     }
     # pprint({k: v for k, v in result.items() if k != "created"})
     return result
+
+
+# Update data_primo_pagamento of projects imported by contratti/v2 (new_api=True).
+# Fast path: 1 Gesty call + 1 DB read + 1 bulk update. Touches only data_primo_pagamento.
+@router.get("/get_progetti_gesty/contratti/v2/aggiorna_pagamento")
+def aggiorna_data_primo_pagamento_new_api(db: Session = Depends(get_db)):
+    """
+    For every project with new_api=True, set data_primo_pagamento to the value
+    returned by Gesty when it is present and different from the DB.
+    """
+    progetti = db.exec(
+        select(Progetti.id, Progetti.progetto_id, Progetti.data_primo_pagamento)
+        .where(Progetti.new_api == True)
+    ).all()
+    if not progetti:
+        return {"total_checked": 0, "total_updated": 0, "updated": []}
+
+    # Same Gesty filters as contratti/v2: stato DO,RM, contratti of the last 30 days
+    ninety_days_ago = datetime.now().date() - timedelta(days=90)
+    payload = fetch_contratti_filtrati_from_gesty(
+        stato_ordine="DO,RM",
+        data_contratto_da=ninety_days_ago.isoformat(),
+    )
+    pagamenti = {}
+    for item in payload:
+        prj = item.get("Progetto") or {}
+        pid = str(prj.get("id") or "").strip()
+        raw = (prj.get("data_primo_pagamento") or "").strip()
+        if pid and raw:
+            pagamenti[pid] = raw
+
+    updates = []
+    updated = []
+    for db_id, progetto_id, current in progetti:
+        raw = pagamenti.get(str(progetto_id or "").strip())
+        if not raw:
+            continue
+        try:
+            new_date = datetime.strptime(raw, "%Y-%m-%d")
+        except ValueError:
+            continue
+        if current != new_date:
+            updates.append({"id": db_id, "data_primo_pagamento": new_date})
+            updated.append({
+                "progetto_id": progetto_id,
+                "old": current.date().isoformat() if current else None,
+                "new": raw,
+            })
+
+    if updates:
+        db.execute(update(Progetti), updates)  # bulk UPDATE by primary key
+        db.commit()
+
+    return {
+        "total_checked": len(progetti),
+        "total_updated": len(updates),
+        "updated": updated,
+    }
 
 
 # Get all
