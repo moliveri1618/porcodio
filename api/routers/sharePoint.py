@@ -24,17 +24,25 @@ SHAREPOINT_HOST = os.getenv("SHAREPOINT_HOST")
 SHAREPOINT_SITE_PATH = os.getenv("SHAREPOINT_SITE_PATH")
 GRAPH_URL = os.getenv("GRAPH_URL")
 
+# Fornitore id 2 is the fixed "Dati Cantiere" entry (see routers/progetti.py)
+DATI_CANTIERE_FORNITORE_ID = "2"
+DATI_CANTIERE_FOLDER_NAME = "Dati Cantiere"
+
 
 async def upload_file_to_sharepoint(
     file: UploadFile,
     folder_path: str,
     token: str,
     drive_id: str,
+    file_name: str | None = None,
 ):
 
+    # Rewind so the same UploadFile can be uploaded to more than one folder
+    await file.seek(0)
     content = await file.read()
 
-    full_path = f"{folder_path}/{file.filename}"
+    file_name = file_name or file.filename
+    full_path = f"{folder_path}/{file_name}"
 
     encoded_path = quote(
         full_path,
@@ -58,7 +66,7 @@ async def upload_file_to_sharepoint(
         raise HTTPException(
             status_code=response.status_code,
             detail={
-                "file": file.filename,
+                "file": file_name,
                 "path": full_path,
                 "microsoft_error": response.text,
             },
@@ -72,6 +80,35 @@ async def upload_file_to_sharepoint(
         "web_url": uploaded["webUrl"],
         "path": full_path,
     }
+
+
+async def upload_dati_cantiere_copy(
+    file: UploadFile,
+    year: str,
+    project_folder: str,
+    token: str,
+    drive_id: str,
+):
+    """
+    Upload a copy of a Dati Cantiere file to the year-level
+    06-Progetti/{year}/Dati Cantiere folder.
+    The file name is prefixed with the project folder name
+    ({progetto_id}_{cliente_nome}) so files from different projects
+    don't overwrite each other; re-uploading the same file replaces it.
+    """
+
+    prefix = f"{project_folder}_"
+    file_name = file.filename or ""
+    if not file_name.startswith(prefix):
+        file_name = f"{prefix}{file_name}"
+
+    return await upload_file_to_sharepoint(
+        file=file,
+        folder_path=f"06-Progetti/{year}/{DATI_CANTIERE_FOLDER_NAME}",
+        token=token,
+        drive_id=drive_id,
+        file_name=file_name,
+    )
 
 
 # ---------------------------------------------------------
@@ -442,6 +479,8 @@ async def upload_project_to_sharepoint(request: Request):
         if not fornitore_nome:
             continue
 
+        is_dati_cantiere = fornitore_id == DATI_CANTIERE_FORNITORE_ID
+
         # -----------------------------------------
         # ORDINE
         # -----------------------------------------
@@ -464,6 +503,18 @@ async def upload_project_to_sharepoint(request: Request):
 
             uploaded_files.append(uploaded)
 
+            # Dati Cantiere: also keep a copy in 06-Progetti/{year}/Dati Cantiere
+            if is_dati_cantiere:
+                uploaded_files.append(
+                    await upload_dati_cantiere_copy(
+                        file=file,
+                        year=year,
+                        project_folder=project_folder,
+                        token=token,
+                        drive_id=drive_id,
+                    )
+                )
+
         # -----------------------------------------
         # CONFERMA ORDINE
         # -----------------------------------------
@@ -485,6 +536,18 @@ async def upload_project_to_sharepoint(request: Request):
             )
 
             uploaded_files.append(uploaded)
+
+            # Dati Cantiere: also keep a copy in 06-Progetti/{year}/Dati Cantiere
+            if is_dati_cantiere:
+                uploaded_files.append(
+                    await upload_dati_cantiere_copy(
+                        file=file,
+                        year=year,
+                        project_folder=project_folder,
+                        token=token,
+                        drive_id=drive_id,
+                    )
+                )
 
     return {
         "message": "Files uploaded successfully",
