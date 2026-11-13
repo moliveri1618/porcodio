@@ -67,3 +67,20 @@ class ProgettoExport(BaseModel):
 
 class ExportExcelRequest(BaseModel):
     projects: List[ProgettoExport]
+
+
+# Body of POST /progetti/export-excel-progetti-selezionati
+# (items as returned by /progetti/v2 and /progetti/new_api/v1; other fields, e.g. progetto,
+# status_percent, fornitori, are accepted and ignored)
+class ProgettoSelezionatoExport(BaseModel):
+    id: Optional[int] = None
+    stato: Optional[str] = None
+    tecnico: Optional[str] = None
+    azienda: Optional[str] = None
+    commerciale: Optional[str] = None
+    display_date: Optional[str] = None
+    display_importo: Optional[str] = None
+    display_importo_parz: Optional[str] = None
+    data_primo_pagamento: Optional[str] = None
+    nome_cliente: Optional[str] = None
+    cliente: Optional[ClienteExport] = None

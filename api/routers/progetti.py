@@ -18,7 +18,7 @@ from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload, joinedload, load_only
 from sqlalchemy import delete, and_, case, func, update
 from math import ceil
-from typing import Optional
+from typing import Optional, List
 from datetime import date
 
 # from pprint import pprint
@@ -27,7 +27,7 @@ from datetime import date
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
 from routers.progetti_parsing import parse_contratto_text_v2
-from models.progetti import Progetti, ExportExcelRequest
+from models.progetti import Progetti, ExportExcelRequest, ProgettoSelezionatoExport
 from models.clienti import Cliente
 from models.fornitori import Fornitore
 from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
@@ -1297,6 +1297,164 @@ def export_progetti_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="progetti.xlsx"'},
+    )
+
+
+def _parse_importo_it(value: str | None) -> float | None:
+    """'2.455,00' -> 2455.0 ; empty/invalid -> None"""
+    if not value or not value.strip():
+        return None
+    try:
+        return float(value.strip().replace(".", "").replace(",", "."))
+    except ValueError:
+        return None
+
+
+def _parse_display_date(value: str | None):
+    """'12 Nov 2026' (display_date of /progetti/v2) -> date ; empty -> None ; unknown format -> original text"""
+    if not value or not value.strip():
+        return None
+    try:
+        return datetime.strptime(value.strip(), "%d %b %Y").date()
+    except ValueError:
+        return value
+
+
+def _parse_iso_date(value: str | None):
+    """'2026-11-12T00:00:00' -> date ; empty -> None ; unknown format -> original text"""
+    if not value or not value.strip():
+        return None
+    try:
+        return datetime.fromisoformat(value.strip()).date()
+    except ValueError:
+        return value
+
+
+# Excel of the projects selected in the frontend: the body is the list of items
+# shown in the table (/progetti/v2 or /progetti/new_api/v1). Data comes from the body.
+@router.post("/export-excel-progetti-selezionati")
+def export_excel_progetti_selezionati(projects: List[ProgettoSelezionatoExport]):
+
+    if not projects:
+        raise HTTPException(status_code=400, detail="Nessun progetto da esportare")
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Progetti"
+
+    headers = [
+        "Committente",
+        "Tecnico",
+        "Commerciale",
+        "Azienda",
+        "Stato",
+        "Data",
+        "Data primo pagamento",
+        "Importo",
+        "Importo Parziale",
+    ]
+    ws.append(headers)
+
+    totale_importo = 0
+    totale_importo_parz = 0
+
+    for progetto in projects:
+
+        importo = _parse_importo_it(progetto.display_importo)
+        importo_parz = _parse_importo_it(progetto.display_importo_parz)
+        totale_importo += importo or 0
+        totale_importo_parz += importo_parz or 0
+
+        cliente_nome = (
+            progetto.cliente.nome_cliente
+            if progetto.cliente and progetto.cliente.nome_cliente
+            else progetto.nome_cliente
+        )
+
+        ws.append(
+            [
+                cliente_nome,
+                progetto.tecnico or None,
+                progetto.commerciale,
+                progetto.azienda,
+                progetto.stato,
+                _parse_display_date(progetto.display_date),
+                _parse_iso_date(progetto.data_primo_pagamento),
+                importo,
+                importo_parz,
+            ]
+        )
+
+    # ------------------------------
+    # Excel table
+    # ------------------------------
+
+    data_last_row = 1 + len(projects)  # header + data rows
+    last_col_letter = get_column_letter(len(headers))
+
+    table = Table(
+        displayName="ProgettiTable",
+        ref=f"A1:{last_col_letter}{data_last_row}",
+    )
+    table.tableStyleInfo = TableStyleInfo(
+        name="TableStyleMedium2",
+        showFirstColumn=False,
+        showLastColumn=False,
+        showRowStripes=False,
+        showColumnStripes=False,
+    )
+    ws.add_table(table)
+
+    # formats: dates (Data, Data primo pagamento) and amounts (Importo, Importo Parziale)
+    for row in ws.iter_rows(min_row=2, max_row=data_last_row):
+        row[5].number_format = "DD/MM/YYYY"
+        row[6].number_format = "DD/MM/YYYY"
+        row[7].number_format = "#,##0.00"
+        row[8].number_format = "#,##0.00"
+
+    # empty row
+    ws.append([])
+
+    # total rows
+    ws.append([""] * 6 + ["Totale imponibile", totale_importo, ""])
+    ws.append([""] * 6 + ["Totale entrate", "", totale_importo_parz])
+
+    header_fill = PatternFill(
+        start_color="4F81BD", end_color="4F81BD", fill_type="solid"
+    )
+    header_font = Font(bold=True, color="FFFFFF")
+
+    total_fill = PatternFill(
+        start_color="D9D9D9", end_color="D9D9D9", fill_type="solid"
+    )
+    total_font = Font(bold=True)
+
+    # header row
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+
+    # last 2 rows = totals
+    for row in ws.iter_rows(min_row=ws.max_row - 1, max_row=ws.max_row):
+        for cell in row:
+            cell.fill = total_fill
+            cell.font = total_font
+        row[7].number_format = "#,##0.00"
+        row[8].number_format = "#,##0.00"
+
+    # column widths
+    widths = [30, 15, 20, 22, 11, 12, 20, 14, 16]
+    for i, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="progetti_selezionati.xlsx"'},
     )
 
 
