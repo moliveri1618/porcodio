@@ -9,10 +9,13 @@ from typing import List
 import json
 from urllib.parse import quote
 from datetime import datetime
+from io import BytesIO
 
 # Allow relative imports when running in GitHub Actions
 if os.getenv("GITHUB_ACTIONS"):
     sys.path.append(os.path.dirname(__file__))
+
+from routers.utils import fetch_pdf_from_crm
 
 router = APIRouter()
 
@@ -27,6 +30,9 @@ GRAPH_URL = os.getenv("GRAPH_URL")
 # Fornitore id 2 is the fixed "Dati Cantiere" entry (see routers/progetti.py)
 DATI_CANTIERE_FORNITORE_ID = "2"
 DATI_CANTIERE_FOLDER_NAME = "Dati Cantiere"
+
+# Gesty projects have upload_id = {BASE_URL}/getFiles/contratto/{code} (see attach_file_links)
+GESTY_CONTRATTO_URL_MARKER = "/getFiles/contratto/"
 
 
 async def upload_file_to_sharepoint(
@@ -109,6 +115,77 @@ async def upload_dati_cantiere_copy(
         drive_id=drive_id,
         file_name=file_name,
     )
+
+
+def get_gesty_contratto_code(upload_id: str | None) -> str | None:
+    """Contratto code if upload_id is a Gesty URL (.../getFiles/contratto/<code>), else None (S3 key / UUID)."""
+    if not upload_id or GESTY_CONTRATTO_URL_MARKER not in upload_id:
+        return None
+    code = upload_id.rstrip("/").split("/")[-1].strip()
+    return code or None
+
+
+def folder_has_file(folder_id: str, file_name: str, token: str, drive_id: str) -> bool:
+    """True if the SharePoint folder directly contains a file with this name (case-insensitive)."""
+    url = f"{GRAPH_URL}/drives/{drive_id}/items/{folder_id}/children?$select=name,file&$top=999"
+    response = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+
+    if not response.ok:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"Could not list SharePoint folder: {response.text}",
+        )
+
+    target = file_name.lower()
+    return any(
+        "file" in item and item.get("name", "").lower() == target
+        for item in response.json().get("value", [])
+    )
+
+
+async def ensure_gesty_contratto_on_sharepoint(
+    upload_id: str | None,
+    existing_project: dict | None,
+    folder_path: str,
+    token: str,
+    drive_id: str,
+) -> dict | None:
+    """
+    Gesty contracts are not on S3: download the PDF from Tigullio and upload it
+    to the project folder, unless the folder already contains it.
+    Returns None for non-Gesty projects. Errors are reported, not raised,
+    so the rest of the SharePoint upload is not blocked.
+    """
+    code = get_gesty_contratto_code(upload_id)
+    if not code:
+        return None
+
+    file_name = f"contratto-{code}.pdf"  # same name used by /getFiles/contratto/{code}
+
+    try:
+        if existing_project and folder_has_file(
+            existing_project["id"], file_name, token, drive_id
+        ):
+            return {
+                "status": "already_present",
+                "file_name": file_name,
+                "path": f"{folder_path}/{file_name}",
+            }
+
+        pdf_bytes = await fetch_pdf_from_crm("contratto", code)
+
+        uploaded = await upload_file_to_sharepoint(
+            file=UploadFile(file=BytesIO(pdf_bytes), filename=file_name),
+            folder_path=folder_path,
+            token=token,
+            drive_id=drive_id,
+        )
+        return {"status": "uploaded", **uploaded}
+
+    except HTTPException as e:
+        print("GESTY CONTRATTO SHAREPOINT ERROR:", file_name, e.detail)
+        return {"status": "error", "file_name": file_name, "detail": e.detail}
+
 
 
 # ---------------------------------------------------------
@@ -377,16 +454,6 @@ async def upload_project_to_sharepoint(request: Request):
         drive_id=drive_id,
     )
 
-    if existing_project and not allow_existing_project:
-        return {
-            "message": "Project already exists in SharePoint. Upload skipped.",
-            "skipped": True,
-            "progetto_id": progetto_id,
-            "folder_name": existing_project.get("name"),
-            "folder_id": existing_project.get("id"),
-            "web_url": existing_project.get("webUrl"),
-        }
-
     # find right month
     year, month_num, _ = data_creazione.split("-")
     month_map = {
@@ -406,6 +473,33 @@ async def upload_project_to_sharepoint(request: Request):
     month = month_map[month_num]
     project_folder = f"{progetto_id}_{cliente_nome}"
     base_project_path = f"06-Progetti/" f"{year}/" f"{month}/" f"{project_folder}"
+
+    # =====================================================
+    # GESTY CONTRATTO (not on S3): upload it if the folder doesn't have it yet
+    # =====================================================
+
+    gesty_contratto = await ensure_gesty_contratto_on_sharepoint(
+        upload_id=form.get("upload_id"),
+        existing_project=existing_project,
+        folder_path=(
+            f"06-Progetti/{year}/{month}/{existing_project.get('name')}"
+            if existing_project
+            else base_project_path
+        ),
+        token=token,
+        drive_id=drive_id,
+    )
+
+    if existing_project and not allow_existing_project:
+        return {
+            "message": "Project already exists in SharePoint. Upload skipped.",
+            "skipped": True,
+            "progetto_id": progetto_id,
+            "folder_name": existing_project.get("name"),
+            "folder_id": existing_project.get("id"),
+            "web_url": existing_project.get("webUrl"),
+            "gesty_contratto": gesty_contratto,
+        }
 
     uploaded_files = []
 
@@ -555,6 +649,7 @@ async def upload_project_to_sharepoint(request: Request):
         "cliente_nome": cliente_nome,
         "uploaded_count": len(uploaded_files),
         "files": uploaded_files,
+        "gesty_contratto": gesty_contratto,
     }
 
 
