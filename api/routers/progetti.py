@@ -1718,7 +1718,7 @@ def read_progettiV2(
     }
 
 
-# Clone of read_progettiV2 limited to projects imported by contratti/v2 (new_api = true),
+# Clone of read_progettiV2 (all projects, old and new_api),
 # with an optional filter on data_primo_pagamento.
 @router.get("/new_api/v1")
 def read_progetti_new_api_v1(
@@ -1780,7 +1780,6 @@ def read_progetti_new_api_v1(
     if data_a:
         filters.append(func.date(Progetti.data_cambiamento_stato) <= data_a)
 
-    filters.append(Progetti.new_api == True)
     if data_primo_pagamento is True:
         filters.append(Progetti.data_primo_pagamento.is_not(None))
     elif data_primo_pagamento is False:
