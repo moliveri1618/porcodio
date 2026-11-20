@@ -618,6 +618,10 @@ async def progetti_from_gesty_v3(db: Session = Depends(get_db)):
     }
 
 
+# Stato of new_api projects still without data_primo_pagamento (same value used by the frontend)
+STATO_RILIEVO_IN_CORSO = "RILIEVO IN CORSO"
+
+
 # Get contratti from gesty: stato DO,RM, contratti of the last 90 days.
 # Existing projects are skipped before any processing; new ones are created with new_api=True.
 @router.get("/get_progetti_gesty/contratti/v2")
@@ -699,6 +703,8 @@ async def progetti_from_gesty_contratti_v2(
         if without_payment_date:
             body["data_creazione"] = import_date
             body["data_cambiamento_stato"] = import_date
+        # no payment yet -> RILIEVO IN CORSO, otherwise ATTIVO
+        body["stato"] = STATO_RILIEVO_IN_CORSO if without_payment_date else "ATTIVO"
         progetto_in = ProgettiCreate(**body)
         saved = create_or_update_progetto(progetto_in, db=db)
         if saved is not None:
@@ -780,15 +786,18 @@ async def progetti_from_gesty_contratti_v2(
 
 
 # Update data_primo_pagamento of projects imported by contratti/v2 (new_api=True).
-# Fast path: 1 Gesty call + 1 DB read + 1 bulk update. Touches only data_primo_pagamento.
+# Fast path: 1 Gesty call + 1 DB read + 1 bulk update. Touches only data_primo_pagamento
+# and stato (RILIEVO IN CORSO -> ATTIVO once the payment date arrives).
 @router.get("/get_progetti_gesty/contratti/v2/aggiorna_pagamento")
 def aggiorna_data_primo_pagamento_new_api(db: Session = Depends(get_db)):
     """
     For every project with new_api=True, set data_primo_pagamento to the value
     returned by Gesty when it is present and different from the DB.
+    Projects still in RILIEVO IN CORSO move to ATTIVO when Gesty has the payment date;
+    any other stato (set manually in the gestionale) is left untouched.
     """
     progetti = db.exec(
-        select(Progetti.id, Progetti.progetto_id, Progetti.data_primo_pagamento)
+        select(Progetti.id, Progetti.progetto_id, Progetti.data_primo_pagamento, Progetti.stato)
         .where(Progetti.new_api == True)
     ).all()
     if not progetti:
@@ -810,7 +819,7 @@ def aggiorna_data_primo_pagamento_new_api(db: Session = Depends(get_db)):
 
     updates = []
     updated = []
-    for db_id, progetto_id, current in progetti:
+    for db_id, progetto_id, current, stato in progetti:
         raw = pagamenti.get(str(progetto_id or "").strip())
         if not raw:
             continue
@@ -818,12 +827,17 @@ def aggiorna_data_primo_pagamento_new_api(db: Session = Depends(get_db)):
             new_date = datetime.strptime(raw, "%Y-%m-%d")
         except ValueError:
             continue
-        if current != new_date:
-            updates.append({"id": db_id, "data_primo_pagamento": new_date})
+        cambia_stato = (stato or "").strip().upper() == STATO_RILIEVO_IN_CORSO
+        if current != new_date or cambia_stato:
+            row = {"id": db_id, "data_primo_pagamento": new_date}
+            if cambia_stato:
+                row["stato"] = "ATTIVO"
+            updates.append(row)
             updated.append({
                 "progetto_id": progetto_id,
                 "old": current.date().isoformat() if current else None,
                 "new": raw,
+                "stato": row.get("stato", stato),
             })
 
     if updates:
@@ -1136,7 +1150,7 @@ def export_progetti_excel(
         (stato_upper == "VALIDATO", 1),
         (stato_upper == "INVIATO", 2),
         (stato_upper == "ATTESA", 3),
-        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 4),
+        (stato_upper.in_(["ATTIVO", "SOSPESO", STATO_RILIEVO_IN_CORSO]), 4),
         else_=999,
     )
 
@@ -1486,7 +1500,7 @@ def read_progettiV2(
         (stato_upper == "VALIDATO", 1),
         (stato_upper == "INVIATO", 2),
         (stato_upper == "ATTESA", 3),
-        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 4),
+        (stato_upper.in_(["ATTIVO", "SOSPESO", STATO_RILIEVO_IN_CORSO]), 4),
         else_=999,
     )
 
@@ -1743,6 +1757,10 @@ def read_progetti_new_api_v1(
         None,
         description="true: only with data_primo_pagamento, false: only data_primo_pagamento NULL, omitted: all",
     ),
+    include_bloccato: bool = Query(
+        True,
+        description="false: hide projects with stato BLOCCATO (acquisizione 'Show Bloccato' toggle)",
+    ),
 ):
     offset = (page - 1) * page_size
 
@@ -1752,7 +1770,7 @@ def read_progetti_new_api_v1(
         (stato_upper == "VALIDATO", 1),
         (stato_upper == "INVIATO", 2),
         (stato_upper == "ATTESA", 3),
-        (stato_upper.in_(["ATTIVO", "SOSPESO"]), 4),
+        (stato_upper.in_(["ATTIVO", "SOSPESO", STATO_RILIEVO_IN_CORSO]), 4),
         else_=999,
     )
 
@@ -1789,6 +1807,8 @@ def read_progetti_new_api_v1(
         filters.append(stato_upper != "SOSPESO")
     if not include_completed:
         filters.append(~is_completed_expr)
+    if not include_bloccato:
+        filters.append(stato_upper != "BLOCCATO")
 
     total = db.exec(
         select(func.count(Progetti.id))
