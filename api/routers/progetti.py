@@ -1761,6 +1761,10 @@ def read_progetti_new_api_v1(
         True,
         description="false: hide projects with stato BLOCCATO (acquisizione 'Show Bloccato' toggle)",
     ),
+    include_esterni: bool = Query(
+        True,
+        description="false: hide projects assigned to external tecnici (Tec. Milano, Tigullio Design)",
+    ),
 ):
     offset = (page - 1) * page_size
 
@@ -1809,6 +1813,12 @@ def read_progetti_new_api_v1(
         filters.append(~is_completed_expr)
     if not include_bloccato:
         filters.append(stato_upper != "BLOCCATO")
+    if not include_esterni:
+        filters.append(
+            func.lower(func.trim(func.coalesce(Progetti.tecnico, ""))).notin_(
+                ["tec. milano", "tigullio design"]
+            )
+        )
 
     total = db.exec(
         select(func.count(Progetti.id))

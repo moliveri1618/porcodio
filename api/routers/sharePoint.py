@@ -728,3 +728,208 @@ def get_sharepoint_folder_url(
         )
 
     return {"web_url": folder["webUrl"]}
+
+
+# =====================================================
+# SYNC DATI CANTIERE OF A MONTH -> 06-Progetti/{year}/Dati Cantiere
+# =====================================================
+
+
+def list_folder_children(url: str, token: str) -> list[dict] | None:
+    """All children of a drive folder (follows paging). None if the folder doesn't exist."""
+    headers = {"Authorization": f"Bearer {token}"}
+    items = []
+
+    while url:
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 404:
+            return None
+
+        if not response.ok:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Could not list SharePoint folder: {response.text}",
+            )
+
+        data = response.json()
+        items.extend(data.get("value", []))
+        url = data.get("@odata.nextLink")
+
+    return items
+
+
+def list_files_recursive(folder_id: str, token: str, drive_id: str, rel_path: str = "") -> list[dict]:
+    """Files inside a folder and its subfolders, with their path relative to the folder."""
+    children = list_folder_children(
+        f"{GRAPH_URL}/drives/{drive_id}/items/{folder_id}/children?$top=999", token
+    ) or []
+
+    files = []
+    for item in children:
+        name = item.get("name", "")
+        item_rel_path = f"{rel_path}/{name}" if rel_path else name
+
+        if "folder" in item:
+            files.extend(list_files_recursive(item["id"], token, drive_id, item_rel_path))
+        elif "file" in item:
+            files.append({**item, "rel_path": item_rel_path})
+
+    return files
+
+
+@router.post("/sync-dati-cantiere")
+def sync_dati_cantiere(
+    year: int,
+    month: int,
+    dry_run: bool = True,
+):
+    """
+    Copy every file found in 06-Progetti/{year}/{MM - Mon}/{progetto}/Dati Cantiere
+    (subfolders included) to 06-Progetti/{year}/Dati Cantiere.
+
+    The destination name is prefixed with the project folder name
+    ({progetto_id}_{cliente_nome}_{file}), same as the automatic copy done by
+    /upload-project, so files with the same name (e.g. dati-cantiere.json) coming
+    from different projects don't overwrite each other.
+    Files from subfolders keep the subfolder in the name ({progetto}_{sub}_{file}).
+
+    Files already in the destination with the same name and size are skipped.
+    dry_run=true (default) only lists what would be copied, nothing is written.
+    """
+    if not 1 <= month <= 12:
+        raise HTTPException(status_code=400, detail="month must be 1-12")
+
+    token = get_access_token()
+    site_id = get_site_id(token)
+    drive_id = get_drive_id(token, site_id)
+
+    def path_url(path: str) -> str:
+        return f"{GRAPH_URL}/drives/{drive_id}/root:/{quote(path, safe='/')}:/children?$top=999"
+
+    year_path = f"06-Progetti/{year}"
+
+    # Month folder: match by number ("10 - Oct"), so names like "03- Mar" are found too
+    year_children = list_folder_children(path_url(year_path), token)
+    if year_children is None:
+        raise HTTPException(status_code=404, detail=f"Folder not found: {year_path}")
+
+    month_prefix = f"{month:02d}"
+    month_folder = next(
+        (
+            item for item in year_children
+            if "folder" in item and item.get("name", "").strip().startswith(month_prefix)
+        ),
+        None,
+    )
+    if not month_folder:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Month folder {month_prefix} not found in {year_path}",
+        )
+
+    month_path = f"{year_path}/{month_folder['name']}"
+    dest_path = f"{year_path}/{DATI_CANTIERE_FOLDER_NAME}"
+
+    # Files already in the destination: name (lowercase) -> size
+    dest_children = list_folder_children(path_url(dest_path), token) or []
+    dest_files = {
+        item.get("name", "").lower(): item.get("size")
+        for item in dest_children
+        if "file" in item
+    }
+
+    project_folders = [
+        item for item in (list_folder_children(path_url(month_path), token) or [])
+        if "folder" in item
+    ]
+
+    results = []
+    projects_without_dati_cantiere = []
+
+    def record(status: str, source: str, destination: str, detail=None):
+        entry = {"source": source, "destination": destination, "status": status}
+        if detail is not None:
+            entry["detail"] = detail
+        results.append(entry)
+        print(
+            f"[sync-dati-cantiere] {len(results)} {status.upper()}: {source} -> {destination}"
+            + (f" | {detail}" if detail is not None else ""),
+            flush=True,
+        )
+
+    for project in sorted(project_folders, key=lambda p: p.get("name", "")):
+        project_name = project.get("name", "")
+
+        # "Dati Cantiere" subfolder of the project (case-insensitive), if any
+        dati_cantiere_folder = next(
+            (
+                item for item in (list_folder_children(
+                    f"{GRAPH_URL}/drives/{drive_id}/items/{project['id']}/children?$top=999",
+                    token,
+                ) or [])
+                if "folder" in item
+                and item.get("name", "").strip().lower() == DATI_CANTIERE_FOLDER_NAME.lower()
+            ),
+            None,
+        )
+        if not dati_cantiere_folder:
+            projects_without_dati_cantiere.append(project_name)
+            continue
+
+        files = list_files_recursive(dati_cantiere_folder["id"], token, drive_id)
+
+        for f in files:
+            dest_name = f"{project_name}_{f['rel_path'].replace('/', '_')}"
+            source = f"{month_path}/{project_name}/{DATI_CANTIERE_FOLDER_NAME}/{f['rel_path']}"
+            destination = f"{dest_path}/{dest_name}"
+
+            if dest_files.get(dest_name.lower()) == f.get("size"):
+                record("already_present", source, destination)
+                continue
+
+            if dry_run:
+                record("would_copy", source, destination)
+                continue
+
+            try:
+                download = requests.get(
+                    f"{GRAPH_URL}/drives/{drive_id}/items/{f['id']}/content",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if not download.ok:
+                    raise HTTPException(status_code=download.status_code, detail=download.text)
+
+                upload = requests.put(
+                    f"{GRAPH_URL}/drives/{drive_id}/root:/{quote(destination, safe='/')}:/content",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/octet-stream",
+                    },
+                    data=download.content,
+                )
+                if not upload.ok:
+                    raise HTTPException(status_code=upload.status_code, detail=upload.text)
+
+                dest_files[dest_name.lower()] = f.get("size")
+                record("copied", source, destination)
+
+            except HTTPException as e:
+                record("error", source, destination, e.detail)
+
+    def count(status: str) -> int:
+        return sum(1 for r in results if r["status"] == status)
+
+    return {
+        "dry_run": dry_run,
+        "month_folder": month_path,
+        "destination_folder": dest_path,
+        "projects_checked": len(project_folders),
+        "projects_without_dati_cantiere": projects_without_dati_cantiere,
+        "files_found": len(results),
+        "would_copy": count("would_copy"),
+        "copied": count("copied"),
+        "already_present": count("already_present"),
+        "errors": count("error"),
+        "files": results,
+    }
