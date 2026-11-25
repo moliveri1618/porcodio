@@ -1770,11 +1770,18 @@ def read_progetti_new_api_v1(
 
     stato_upper = func.upper(func.coalesce(Progetti.stato, ""))
 
+    # codifica stati first, then acquisizione in this order; BLOCCATO always last
+    # (in acquisizione BLOCCATO is shown only with the "Show Bloccato" toggle)
     stato_priority = case(
         (stato_upper == "VALIDATO", 1),
         (stato_upper == "INVIATO", 2),
         (stato_upper == "ATTESA", 3),
-        (stato_upper.in_(["ATTIVO", "SOSPESO", STATO_RILIEVO_IN_CORSO]), 4),
+        (stato_upper == STATO_RILIEVO_IN_CORSO, 4),
+        (stato_upper == "ATTIVO", 5),
+        (stato_upper == "SOSPESO", 6),
+        (stato_upper == "IN ATTESA", 7),
+        (stato_upper == "ATTESA PAGAMENTO", 8),
+        (stato_upper == "BLOCCATO", 1000),
         else_=999,
     )
 
