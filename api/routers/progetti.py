@@ -2521,9 +2521,9 @@ def split_progetto(id: int, body: ProgettoSplitRequest, db: Session = Depends(ge
             data_creazione=old.data_creazione,
             data_cambiamento_stato=old.data_cambiamento_stato,
             data_primo_pagamento=old.data_primo_pagamento,
-            # importo stays on the original project: copying it would double the totals
-            importo=0,
-            importo_parz=0,
+            # same importo as the original (note: sums over projects count it twice)
+            importo=old.importo,
+            importo_parz=old.importo_parz,
             upload_id=old.upload_id,
             upload_id_progetto_files=old.upload_id_progetto_files,
             new_api=old.new_api,
