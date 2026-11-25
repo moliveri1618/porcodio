@@ -1859,9 +1859,14 @@ def read_progetti_new_api_v1(
             Progetti.data_creazione.asc().nullslast(),  # tie-breaker
         ]
     else:
+        # stato hierarchy first; inside the same stato oldest payment first.
+        # Projects without payment date (acquisizione) fall back to data_creazione;
+        # id keeps the order stable across pages.
         order_by_clause = [
             stato_priority.asc(),
+            Progetti.data_primo_pagamento.asc().nullslast(),
             Progetti.data_creazione.asc().nullslast(),
+            Progetti.id.asc(),
         ]
 
     stmt = (
