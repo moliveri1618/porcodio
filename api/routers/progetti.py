@@ -34,7 +34,7 @@ from models.scheda_tecnica_pezzo import SchedaTecnicaPezzo
 from models.dati_cantiere import DatiCantiere
 from datetime import datetime, timedelta
 from models.progetto_fornitore_link import ProgettoFornitoreLink
-from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate
+from schemas.progetti import ProgettiCreate, ProgettiRead, ProgettiUpdate, ProgettoSplitRequest
 from routers.utils import *
 from routers.utils_parsing import (
     parse_contratto_text,
@@ -2470,4 +2470,123 @@ def recalc_status_percent_one(project_id: int, db: Session = Depends(get_db)):
         "project_id": project_id,
         "status_percent": new_status_percent,
         "updated": updated,
+    }
+
+
+DATI_CANTIERE_FORNITORE_ID = 2
+
+
+@router.post("/{id}/split")
+def split_progetto(id: int, body: ProgettoSplitRequest, db: Session = Depends(get_db)):
+    """
+    Split a project: create a copy (same tecnico, Gesty progetto_id, upload ids, dates)
+    and move the selected fornitori to it. The moved links keep their files, prodotti
+    and note; they disappear from the original project.
+    Schede tecniche and dati_cantiere are NOT copied. The new project gets an empty
+    Dati Cantiere link (id=2), which every project has by convention.
+    """
+    old = db.exec(
+        select(Progetti)
+        .where(Progetti.id == id)
+        .options(selectinload(Progetti.fornitori_links))
+    ).first()
+    if not old:
+        raise HTTPException(status_code=404, detail="Progetto non trovato")
+
+    # selected ids must belong to the project; Dati Cantiere is never moved
+    ids = set(body.fornitore_ids) - {DATI_CANTIERE_FORNITORE_ID}
+    current = {
+        link.fornitore_id
+        for link in old.fornitori_links
+        if link.fornitore_id != DATI_CANTIERE_FORNITORE_ID
+    }
+    if not ids or not ids.issubset(current):
+        raise HTTPException(status_code=400, detail="Fornitori non validi per questo progetto")
+    if ids == current:
+        raise HTTPException(
+            status_code=400,
+            detail="Il progetto originale resterebbe senza fornitori",
+        )
+
+    try:
+        # 1. new project: copy of the original
+        new = Progetti(
+            progetto_id=old.progetto_id,
+            tecnico=old.tecnico,
+            azienda=old.azienda,
+            centro_di_costo=old.centro_di_costo,
+            commerciale=old.commerciale,
+            cliente_id=old.cliente_id,
+            stato=old.stato,
+            data_creazione=old.data_creazione,
+            data_cambiamento_stato=old.data_cambiamento_stato,
+            data_primo_pagamento=old.data_primo_pagamento,
+            # TODO: importo still to be decided (copying it doubles the monthly totals)
+            importo=old.importo,
+            importo_parz=old.importo_parz,
+            upload_id=old.upload_id,
+            upload_id_progetto_files=old.upload_id_progetto_files,
+            new_api=old.new_api,
+        )
+        db.add(new)
+        db.flush()  # get new.id without committing
+        old_id, new_id = old.id, new.id
+
+        # 2. move the selected fornitori (files, prodotti and note travel with the row)
+        db.execute(
+            update(ProgettoFornitoreLink)
+            .where(
+                ProgettoFornitoreLink.progetto_id == old_id,
+                ProgettoFornitoreLink.fornitore_id.in_(ids),
+            )
+            .values(progetto_id=new_id)
+        )
+
+        # 3. empty Dati Cantiere link
+        db.add(
+            ProgettoFornitoreLink(
+                progetto_id=new_id,
+                fornitore_id=DATI_CANTIERE_FORNITORE_ID,
+                contratti=[],
+                rilievi_misure=[],
+                prodotti_fornitore=[],
+            )
+        )
+        db.flush()
+
+        # 4. recompute status % and taglia for both (they depend on the fornitori)
+        db.expire_all()
+        progetti = db.exec(
+            select(Progetti)
+            .where(Progetti.id.in_([old_id, new_id]))
+            .options(
+                joinedload(Progetti.cliente),
+                selectinload(Progetti.fornitori_links),
+            )
+        ).unique().all()
+
+        result = {}
+        for p in progetti:
+            p.status_percent = compute_status_percent_db(p)
+            p.taglia_progetto = calculate_project_point_db(p)["point_taglia"]
+            db.add(p)
+            result[p.id] = {
+                "status_percent": p.status_percent,
+                "taglia_progetto": p.taglia_progetto,
+                "fornitori": sorted(l.fornitore_id for l in p.fornitori_links),
+            }
+
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Split fallito: {e}")
+
+    return {
+        "old_id": old_id,
+        "new_id": new_id,
+        "old": result.get(old_id),
+        "new": result.get(new_id),
     }

@@ -57,6 +57,11 @@ class ProgettiRead(ProgettiCreate):
     fornitori: Optional[List[FornitoreInProgetto]] = None  
 
 
+class ProgettoSplitRequest(BaseModel):
+    # fornitori moved from the original project to the new one
+    fornitore_ids: List[int]
+
+
 class ProgettiUpdate(BaseModel):
     tecnico: Optional[str] = None
     progetto_id : Optional[str] = None
