@@ -382,6 +382,7 @@ def create_progetto(progetto: ProgettiCreate, db: Session = Depends(get_db)):
         importo_parz=calc_importo_parz,
         upload_id=progetto.upload_id,
         upload_id_progetto_files=progetto.upload_id_progetto_files,
+        data_rilievo_misure=progetto.data_rilievo_misure,
         status_percent=compute_status_percent(progetto),
     )
 
@@ -2263,6 +2264,11 @@ def update_progetto(
 
     # Update base fields
     progetto_data = progetto_update.dict(exclude_unset=True, exclude={"fornitori"})
+
+    # data_rilievo_misure records the FIRST Rilievo Misure upload: never overwrite it
+    if progetto.data_rilievo_misure is not None:
+        progetto_data.pop("data_rilievo_misure", None)
+
     for key, value in progetto_data.items():
         setattr(progetto, key, value)
     db.add(progetto)
