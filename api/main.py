@@ -30,7 +30,8 @@ from routers import (
     scheda_tecnica_schema,
     dati_cantiere,
     react_field_type,
-    sharePoint
+    sharePoint,
+    gesty_export,
 )
 
 # from routers import clienti
@@ -156,6 +157,13 @@ app.include_router(
     img_S3.router,
     prefix="/img_S3",
     tags=["img_S3"]
+)
+
+# External API for Gesty (own Bearer token, hidden from /docs and /openapi.json)
+app.include_router(
+    gesty_export.router,
+    prefix="/ext/gesty/v1",
+    include_in_schema=False,
 )
 
 @app.get("/")
