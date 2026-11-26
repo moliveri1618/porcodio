@@ -27,6 +27,7 @@ class Progetti(SQLModel, table=True):
     note: Optional[str] = Field(default=None, nullable=True) 
     data_cambiamento_stato: Optional[datetime] = Field(default=None, nullable=True)    
     data_primo_pagamento: Optional[datetime] = Field(default=None, nullable=True)
+    data_rilievo_misure: Optional[datetime] = Field(default=None, nullable=True)  # when the project Rilievo Misure file was added
     taglia_progetto: Optional[str] = Field(default="", nullable=True)
     note_taglia: Optional[str] = Field(default="", nullable=True)
     status_percent: Optional[float] = Field(default=None, nullable=True, index=True)
